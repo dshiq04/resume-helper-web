@@ -4,15 +4,15 @@
     "port": 18080
   },
   "database": {
-    "type": "h2",
-    "file": "jobtrack",
+    "type": "sqlite",
+    "file": "jobtrack.db",
     "host": "127.0.0.1",
     "port": 3306,
     "name": "jobtrack",
     "username": "sa",
-    "password": "",
-    "maxPoolSize": 10,
-    "params": "useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
+    "password": "123456",
+    "params": "",
+    "maxPoolSize": 10
   },
   "redis": {
     "enabled": false,
@@ -23,14 +23,24 @@
     "keyPrefix": "jobtrack:",
     "timeout": "2s"
   },
+  "captcha": {
+    "enabled": false,
+    "type": "char",
+    "length": 4,
+    "width": 130,
+    "height": 44,
+    "ttlSeconds": 180
+  },
   "app": {
-    "name": "投递手账",
-    "version": "1.0.0",
+    "name": "履途 ResumeTrail",
+    "version": "1.2",
     "dataDir": "./data",
-    "logDir": "./logs",
+    "logDir": "./log",
     "seedDemo": false,
     "cors": {
-      "allowedOrigins": ["*"]
+      "allowedOrigins": [
+        "*"
+      ]
     },
     "jwt": {
       "secret": "jobtrack-local-dev-secret-change-me-0123456789abcdef",

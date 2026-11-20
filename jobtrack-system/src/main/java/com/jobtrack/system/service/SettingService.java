@@ -90,7 +90,7 @@ public class SettingService {
     }
 
     private String cacheKey(String key) {
-        return "tenant:" + TenantContext.require() + ":setting:" + key;
+        return "tenant:" + TenantContext.require() + ":e" + cacheService.epoch() + ":setting:" + key;
     }
 
     private int parseInt(String value, int fallback) {

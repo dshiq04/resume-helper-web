@@ -12,6 +12,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.function.Supplier;
 
 /**
@@ -29,6 +30,7 @@ public class CacheService {
     private final StringRedisTemplate redisTemplate;
 
     private final Map<String, MemoryEntry> memory = new ConcurrentHashMap<>();
+    private final AtomicLong epoch = new AtomicLong();
     private volatile boolean redisAvailable;
 
     @PostConstruct
@@ -103,6 +105,17 @@ public class CacheService {
 
     public String mode() {
         return useRedis() ? "redis" : "memory";
+    }
+
+    /**
+     * 全局缓存纪元。切换数据库后递增，使所有业务缓存键立即失效。
+     */
+    public long epoch() {
+        return epoch.get();
+    }
+
+    public void bumpEpoch() {
+        epoch.incrementAndGet();
     }
 
     private boolean useRedis() {

@@ -63,6 +63,7 @@ public class JsonConfigEnvironmentPostProcessor implements EnvironmentPostProces
         Map<String, Object> derived = deriveServerProperties(flat, configPath);
         flat.putAll(derived);
 
+        flat.put("jobtrack.config.path", configPath.toAbsolutePath().normalize().toString());
         environment.getPropertySources().addFirst(new MapPropertySource(SOURCE_NAME, flat));
         System.out.println("[jobtrack] 已加载服务端配置: " + configPath.toAbsolutePath().normalize());
     }
@@ -135,7 +136,10 @@ public class JsonConfigEnvironmentPostProcessor implements EnvironmentPostProces
         derived.put("spring.servlet.multipart.max-request-size", "55MB");
 
         Map<String, Object> database = nested(flat, "database");
-        String driverType = stringValue(database.get("type"), "h2").toLowerCase(Locale.ROOT);
+        String driverType = stringValue(database.get("type"), "sqlite").toLowerCase(Locale.ROOT);
+        if ("postgres".equals(driverType)) {
+            driverType = "postgresql";
+        }
         String url = stringValue(database.get("url"), "");
         String username = stringValue(database.get("username"), "");
         String password = stringValue(database.get("password"), "");
@@ -143,6 +147,17 @@ public class JsonConfigEnvironmentPostProcessor implements EnvironmentPostProces
 
         if (!url.isBlank()) {
             driverClass = stringValue(database.get("driver"), "");
+            if (driverClass.isBlank()) {
+                if (url.startsWith("jdbc:sqlite:")) {
+                    driverClass = "org.sqlite.JDBC";
+                } else if (url.startsWith("jdbc:mysql:")) {
+                    driverClass = "com.mysql.cj.jdbc.Driver";
+                } else if (url.startsWith("jdbc:postgresql:")) {
+                    driverClass = "org.postgresql.Driver";
+                } else if (url.startsWith("jdbc:h2:")) {
+                    driverClass = "org.h2.Driver";
+                }
+            }
         } else if ("mysql".equals(driverType)) {
             String host = stringValue(database.get("host"), "127.0.0.1");
             int port = intValue(database.get("port"), 3306);
@@ -152,6 +167,23 @@ public class JsonConfigEnvironmentPostProcessor implements EnvironmentPostProces
             url = "jdbc:mysql://" + host + ":" + port + "/" + name
                     + (params.isBlank() ? "" : "?" + params);
             driverClass = "com.mysql.cj.jdbc.Driver";
+        } else if ("postgresql".equals(driverType)) {
+            String host = stringValue(database.get("host"), "127.0.0.1");
+            int port = intValue(database.get("port"), 5432);
+            String name = stringValue(database.get("name"), "jobtrack");
+            String params = stringValue(database.get("params"), "sslmode=disable");
+            url = "jdbc:postgresql://" + host + ":" + port + "/" + name
+                    + (params.isBlank() ? "" : "?" + params);
+            driverClass = "org.postgresql.Driver";
+        } else if ("sqlite".equals(driverType)) {
+            String fileName = stringValue(database.get("file"), "jobtrack.db");
+            Path databaseFile = Paths.get(fileName).isAbsolute()
+                    ? Paths.get(fileName)
+                    : dataDir.resolve(fileName);
+            url = "jdbc:sqlite:" + databaseFile.toString().replace('\\', '/') + "?busy_timeout=5000";
+            driverClass = "org.sqlite.JDBC";
+            username = "";
+            password = "";
         } else {
             String fileName = stringValue(database.get("file"), "jobtrack");
             Path databaseFile = Paths.get(fileName).isAbsolute()
@@ -174,6 +206,19 @@ public class JsonConfigEnvironmentPostProcessor implements EnvironmentPostProces
         }
         derived.put("spring.datasource.hikari.maximum-pool-size",
                 intValue(database.get("maxPoolSize"), 10));
+
+        String schema;
+        if (url.startsWith("jdbc:mysql:")) {
+            schema = "schema-mysql.sql";
+        } else if (url.startsWith("jdbc:postgresql:")) {
+            schema = "schema-postgresql.sql";
+        } else if (url.startsWith("jdbc:sqlite:")) {
+            schema = "schema-sqlite.sql";
+        } else {
+            schema = "schema-h2.sql";
+        }
+        derived.put("spring.sql.init.mode", "always");
+        derived.put("spring.sql.init.schema-locations", "classpath:" + schema);
 
         if (!flat.containsKey("logging.file.name")) {
             derived.put("logging.file.name", logDir.resolve("jobtrack.log").toString());

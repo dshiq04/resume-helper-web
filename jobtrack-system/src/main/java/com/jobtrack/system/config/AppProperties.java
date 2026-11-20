@@ -17,8 +17,8 @@ import java.util.List;
 @ConfigurationProperties(prefix = "app")
 public class AppProperties {
 
-    private String name = "投递手账";
-    private String version = "1.0.0";
+    private String name = "履途 ResumeTrail";
+    private String version = "1.2";
     private String dataDir = "./data";
     private String logDir = "./logs";
     private boolean seedDemo = false;

@@ -37,8 +37,10 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final SessionService sessionService;
+    private final CaptchaService captchaService;
 
     public AuthResponse login(LoginRequest request) {
+        captchaService.verify(request.getCaptchaId(), request.getCaptchaCode());
         String username = normalizeUsername(request.getUsername());
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
                 .eq(SysUser::getUsername, username));
@@ -53,6 +55,7 @@ public class AuthService {
 
     @Transactional
     public AuthResponse register(RegisterRequest request) {
+        captchaService.verify(request.getCaptchaId(), request.getCaptchaCode());
         String username = normalizeUsername(request.getUsername());
         if (!USERNAME_PATTERN.matcher(username).matches()) {
             throw BusinessException.badRequest("invalid_username",

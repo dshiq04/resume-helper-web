@@ -1,6 +1,7 @@
 package com.jobtrack.system.controller;
 
 import com.jobtrack.system.dto.AuthResponse;
+import com.jobtrack.system.dto.CaptchaResponse;
 import com.jobtrack.system.dto.ChangePasswordRequest;
 import com.jobtrack.system.dto.LoginRequest;
 import com.jobtrack.system.dto.OnlineStatusResponse;
@@ -9,6 +10,7 @@ import com.jobtrack.system.dto.RegisterRequest;
 import com.jobtrack.system.dto.UserView;
 import com.jobtrack.system.security.SecurityUtils;
 import com.jobtrack.system.service.AuthService;
+import com.jobtrack.system.service.CaptchaService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
@@ -28,6 +30,7 @@ import java.util.Map;
 public class AuthController {
 
     private final AuthService authService;
+    private final CaptchaService captchaService;
 
     /**
      * 页面启动时调用：账号体系始终启用，authenticated 表示当前 token 是否有效。
@@ -35,6 +38,11 @@ public class AuthController {
     @GetMapping("/status")
     public Map<String, Object> status() {
         return Map.of("enabled", true, "authenticated", SecurityUtils.authenticated());
+    }
+
+    @GetMapping("/captcha")
+    public CaptchaResponse captcha() {
+        return captchaService.generate();
     }
 
     @PostMapping("/login")

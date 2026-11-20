@@ -2,6 +2,7 @@ package com.jobtrack.system.service;
 
 import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.system.config.AppProperties;
+import com.jobtrack.system.config.CaptchaSettings;
 import com.jobtrack.system.security.SessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -25,6 +26,7 @@ public class PublicConfigService {
     private final AppProperties appProperties;
     private final CacheService cacheService;
     private final SessionService sessionService;
+    private final CaptchaSettings captchaSettings;
 
     @SuppressWarnings("unchecked")
     public Map<String, Object> config() {
@@ -43,6 +45,7 @@ public class PublicConfigService {
         config.put("workModes", List.of("onsite", "hybrid", "remote"));
         config.put("maxResumeSizeMb", appProperties.getStorage().getMaxFileSizeMb());
         config.put("registrationEnabled", true);
+        config.put("captchaEnabled", captchaSettings.isEnabled());
         config.put("onlineMode", sessionService.mode());
         return config;
     }

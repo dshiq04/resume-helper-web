@@ -20,4 +20,10 @@ public class RegisterRequest {
 
     @Size(max = 64, message = "工作区名称不能超过 64 个字符")
     private String tenantName;
+
+    @Size(max = 64)
+    private String captchaId;
+
+    @Size(max = 16)
+    private String captchaCode;
 }
