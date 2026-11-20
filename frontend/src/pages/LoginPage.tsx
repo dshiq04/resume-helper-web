@@ -118,7 +118,7 @@ export function LoginPage() {
         </div>
         <div className="editorial-foot">
           <span>自托管 · SQLite / MySQL / PostgreSQL</span>
-          <span>v{config?.version ?? "1.2"}</span>
+          <span>v{config?.version ?? import.meta.env.VITE_APP_VERSION ?? "1.2"}</span>
         </div>
       </section>
 

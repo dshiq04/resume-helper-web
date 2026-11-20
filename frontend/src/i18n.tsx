@@ -13,6 +13,11 @@ import jaJP from "antd/locale/ja_JP";
 import koKR from "antd/locale/ko_KR";
 import ruRU from "antd/locale/ru_RU";
 import type { Locale } from "antd/es/locale";
+import dayjs from "dayjs";
+import "dayjs/locale/zh-cn";
+import "dayjs/locale/ja";
+import "dayjs/locale/ko";
+import "dayjs/locale/ru";
 import { ja, ko, ru } from "./i18n/extra";
 
 export type Lang = "zh-CN" | "en" | "ja" | "ko" | "ru";
@@ -623,6 +628,14 @@ const ANTD_LOCALES: Record<Lang, Locale> = {
   ru: ruRU,
 };
 
+const DAYJS_LOCALES: Record<Lang, string> = {
+  "zh-CN": "zh-cn",
+  en: "en",
+  ja: "ja",
+  ko: "ko",
+  ru: "ru",
+};
+
 export const LANGUAGES: { value: Lang; label: string }[] = [
   { value: "zh-CN", label: "简体中文" },
   { value: "en", label: "English" },
@@ -634,6 +647,11 @@ export const LANGUAGES: { value: Lang; label: string }[] = [
 function isLang(value: string | null): value is Lang {
   return value === "zh-CN" || value === "en" || value === "ja" || value === "ko" || value === "ru";
 }
+
+const DEFAULT_LANG: Lang = (() => {
+  const value = import.meta.env.VITE_APP_DEFAULT_LANGUAGE;
+  return isLang(value) ? value : "zh-CN";
+})();
 
 interface I18nValue {
   lang: Lang;
@@ -648,12 +666,14 @@ const LANG_KEY = "jobtrack.lang";
 export function I18nProvider({ children }: { children: ReactNode }) {
   const [lang, setLangState] = useState<Lang>(() => {
     const saved = localStorage.getItem(LANG_KEY);
-    return isLang(saved) ? saved : "zh-CN";
+    return isLang(saved) ? saved : DEFAULT_LANG;
   });
 
   useEffect(() => {
     localStorage.setItem(LANG_KEY, lang);
     document.documentElement.lang = lang;
+    // Ant Design 的日期组件依赖 dayjs locale，切换语言时同步更新。
+    dayjs.locale(DAYJS_LOCALES[lang]);
   }, [lang]);
 
   const setLang = useCallback((value: Lang) => setLangState(value), []);

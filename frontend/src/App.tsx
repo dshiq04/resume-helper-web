@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo } from "react";
-import { App as AntdApp, ConfigProvider, Spin } from "antd";
+import { App as AntdApp, ConfigProvider, Spin, Watermark } from "antd";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { useI18n } from "./i18n";
@@ -23,6 +23,7 @@ function AppShell() {
   const location = useLocation();
   const themeMode = useAppSelector((state) => state.ui.themeMode);
   const preferences = useAppSelector((state) => state.meta.preferences);
+  const showWatermark = import.meta.env.VITE_SHOW_DEVELOPMENT_WATERMARK === "true";
 
   useEffect(() => {
     document.documentElement.dataset.theme = themeMode;
@@ -80,35 +81,57 @@ function AppShell() {
 
   const themeConfig = useMemo(() => createTheme(themeMode), [themeMode]);
 
+  const body = loading ? (
+    <div className="boot-screen">
+      <img className="boot-logo" src="/logo.svg" alt="ResumeTrail" />
+      <Spin size="large" />
+      <p>{t("common.loading")}</p>
+    </div>
+  ) : !user ? (
+    <LoginPage />
+  ) : location.pathname === "/login" || location.pathname === "/register" ? (
+    <Navigate to="/" replace />
+  ) : (
+    <Routes>
+      <Route element={<AppLayout />}>
+        <Route index element={<DashboardPage category="all" />} />
+        <Route path="spring" element={<DashboardPage category="spring" />} />
+        <Route path="autumn" element={<DashboardPage category="autumn" />} />
+        <Route path="internship" element={<DashboardPage category="internship" />} />
+        <Route path="social" element={<DashboardPage category="social" />} />
+        <Route path="resumes" element={<ResumesPage />} />
+        <Route path="statistics" element={<StatisticsPage />} />
+        <Route path="trash" element={<TrashPage />} />
+        <Route path="settings" element={<SettingsPage />} />
+        <Route path="applications/:id" element={<ApplicationDetailPage />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  );
+
   return (
     <ConfigProvider theme={themeConfig} locale={antdLocale}>
       <AntdApp>
-        {loading ? (
-          <div className="boot-screen">
-            <img className="boot-logo" src="/logo.svg" alt="ResumeTrail" />
-            <Spin size="large" />
-            <p>{t("common.loading")}</p>
-          </div>
-        ) : !user ? (
-          <LoginPage />
-        ) : location.pathname === "/login" || location.pathname === "/register" ? (
-          <Navigate to="/" replace />
+        {showWatermark ? (
+          <Watermark
+            className="app-watermark"
+            content="开发中品质，请谅解"
+            gap={[140, 140]}
+            rotate={-22}
+            zIndex={6}
+            font={{
+              color:
+                themeMode === "dark"
+                  ? "rgba(255, 255, 255, 0.07)"
+                  : "rgba(22, 22, 29, 0.06)",
+              fontSize: 14,
+            }}
+            style={{ minHeight: "100vh" }}
+          >
+            {body}
+          </Watermark>
         ) : (
-          <Routes>
-            <Route element={<AppLayout />}>
-              <Route index element={<DashboardPage category="all" />} />
-              <Route path="spring" element={<DashboardPage category="spring" />} />
-              <Route path="autumn" element={<DashboardPage category="autumn" />} />
-              <Route path="internship" element={<DashboardPage category="internship" />} />
-              <Route path="social" element={<DashboardPage category="social" />} />
-              <Route path="resumes" element={<ResumesPage />} />
-              <Route path="statistics" element={<StatisticsPage />} />
-              <Route path="trash" element={<TrashPage />} />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="applications/:id" element={<ApplicationDetailPage />} />
-              <Route path="*" element={<Navigate to="/" replace />} />
-            </Route>
-          </Routes>
+          body
         )}
       </AntdApp>
     </ConfigProvider>

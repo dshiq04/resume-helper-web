@@ -10,7 +10,12 @@ jobtrack-web/src/main/resources/static/*
 !jobtrack-web/src/main/resources/static/.gitkeep
 
 # Runtime data
-data/
+data/*
+!data/README.md
+!data/mysql/
+!data/mysql/**
+!data/postgresql/
+!data/postgresql/**
 logs/
 log/
 *.log

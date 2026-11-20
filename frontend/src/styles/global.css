@@ -2663,3 +2663,7 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+.app-watermark {
+  min-height: 100vh;
+}

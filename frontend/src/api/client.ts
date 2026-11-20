@@ -2,8 +2,10 @@ import axios, { type AxiosRequestConfig } from "axios";
 
 const TOKEN_KEY = "jobtrack.token";
 
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "/api").replace(/\/+$/, "");
+
 const http = axios.create({
-  baseURL: "/api",
+  baseURL: API_BASE,
   timeout: 30_000,
   headers: { Accept: "application/json" },
 });

@@ -185,6 +185,34 @@ npm run dev
 
 ---
 
+## 前端 .env
+
+前端构建环境变量位于 `frontend/.env`：
+
+| 变量 | 说明 | 默认值 |
+| --- | --- | --- |
+| `VITE_APP_TITLE` | 浏览器标题 | `履途 ResumeTrail` |
+| `VITE_APP_VERSION` | 前端兜底版本号 | `1.2` |
+| `VITE_APP_DEFAULT_LANGUAGE` | 默认界面语言 | `zh-CN` |
+| `VITE_SHOW_DEVELOPMENT_WATERMARK` | 是否显示「开发中品质，请谅解」水印 | `true` |
+| `VITE_API_BASE_URL` | 后端接口地址 | `/api` |
+
+环境覆盖：
+
+- `.env.development`：开发环境，`VITE_API_BASE_URL=/api`，Vite 代理到 `http://127.0.0.1:18080`
+- `.env.test`：测试环境，默认连接 `http://127.0.0.1:18081/api`
+- `.env.production`：生产环境，使用同源 `/api`，由 Spring Boot 托管前端
+
+```bash
+npm run dev            # 开发模式
+npm run build:test     # 测试环境构建
+npm run build          # 生产构建
+```
+
+Ant Design 的 `ConfigProvider` 与 dayjs locale 会随设置中的语言同步切换，水印由 `VITE_SHOW_DEVELOPMENT_WATERMARK` 控制。
+
+---
+
 ## config.json
 
 服务端配置全部位于项目根目录 `config.json`。应用启动时由
@@ -244,6 +272,7 @@ npm run dev
 - 切换 MySQL 后，请先创建数据库（默认 `jobtrack`，字符集 `utf8mb4`）；PostgreSQL 请先创建数据库（默认 `jobtrack`）。服务会自动执行对应的建表脚本，并给空库创建默认工作区与 `admin / 123456`。
 - `app.dataDir` 存放 SQLite 文件、H2 数据库与加密简历文件；`app.logDir` 存放运行日志。
 - SQLite 本身没有原生数据库密码；设置页中的密码会随 `config.json` 保存，登录密码仍为 `admin / 123456`。
+- 根目录 `data/mysql/init.sql` 与 `data/postgresql/init.sql` 分别是 MySQL / PostgreSQL 的默认数据库文件，包含建库、建表与 `admin / 123456` 账号，可直接导入。
 - `app.admin` 只在首次启动时创建账号，不会覆盖已修改的密码。
 - 修改 `config.json` 后重启服务生效；设置页切换数据库会立即生效并自动写回配置。
 - 也可以用环境变量 `JOBTRACK_CONFIG` 指定其他配置文件路径。

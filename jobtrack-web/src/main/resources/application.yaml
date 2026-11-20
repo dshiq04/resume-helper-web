@@ -14,7 +14,7 @@ spring:
       # config.json 载入后会按数据库类型覆盖为 schema-mysql.sql。
       schema-locations: classpath:schema-sqlite.sql
   main:
-    banner-mode: off
+    banner-mode: console
 
 mybatis-plus:
   # 每个模块的 resources/mapper 下都有对应的 Mapper XML。
@@ -23,7 +23,7 @@ mybatis-plus:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
   global-config:
-    banner: false
+    banner: true
     db-config:
       id-type: auto
       logic-delete-value: 1
