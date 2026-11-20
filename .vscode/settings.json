@@ -1,0 +1,5 @@
+{
+  "java.autobuild.enabled": false,
+  "java.import.maven.enabled": false,
+  "java.configuration.updateBuildConfiguration": "disabled"
+}

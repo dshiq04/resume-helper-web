@@ -12,6 +12,7 @@ jobtrack-web/src/main/resources/static/*
 # Runtime data
 data/
 logs/
+log/
 *.log
 *.db
 *.mv.db
@@ -22,7 +23,6 @@ logs/
 *.iml
 *.ipr
 *.iws
-.vscode/
 .settings/
 .classpath
 .project
@@ -35,3 +35,6 @@ desktop.ini
 
 # Maven wrapper jar (downloaded on demand)
 .mvn/wrapper/maven-wrapper.jar
+
+# Runtime
+.jobtrack.pid
