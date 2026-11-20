@@ -11,11 +11,14 @@ spring:
     init:
       mode: always
       encoding: UTF-8
-      schema-locations: classpath:schema.sql
+      # config.json 载入后会按数据库类型覆盖为 schema-mysql.sql。
+      schema-locations: classpath:schema-sqlite.sql
   main:
     banner-mode: off
 
 mybatis-plus:
+  # 每个模块的 resources/mapper 下都有对应的 Mapper XML。
+  mapper-locations: classpath*:/mapper/**/*.xml
   configuration:
     map-underscore-to-camel-case: true
     log-impl: org.apache.ibatis.logging.nologging.NoLoggingImpl
