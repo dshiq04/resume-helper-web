@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>履途 ResumeTrail · 快速录入</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="popup-head">
+      <div class="brand">
+        <img class="brand-logo" src="logo.svg" alt="ResumeTrail" />
+        <div>
+          <strong>履途 ResumeTrail</strong>
+          <em>RESUMETRAIL</em>
+        </div>
+      </div>
+      <button id="open-options" class="icon-button" title="设置">⚙</button>
+    </header>
+
+    <main class="popup-body">
+      <section id="login-view" class="view" hidden>
+        <p class="lead">先登录你的投递台账，扩展会保存会话 token。</p>
+        <form id="login-form" class="form">
+          <label>
+            <span>用户名</span>
+            <input id="login-username" autocomplete="username" value="admin" />
+          </label>
+          <label>
+            <span>密码</span>
+            <input id="login-password" type="password" autocomplete="current-password" />
+          </label>
+          <label id="captcha-field" hidden>
+            <span>验证码</span>
+            <div class="captcha-row">
+              <input id="login-captcha" maxlength="8" placeholder="输入图中字符" />
+              <button id="captcha-image" class="captcha-image" type="button" title="点击刷新">
+                <span>点击获取</span>
+              </button>
+            </div>
+          </label>
+          <button id="login-submit" class="primary" type="submit">登录</button>
+        </form>
+        <p id="login-error" class="error" hidden></p>
+        <p class="foot-note">
+          还没有账号？请先在网页端注册：<a id="web-link" href="#" target="_blank">打开履途 ResumeTrail</a>
+        </p>
+      </section>
+
+      <section id="entry-view" class="view" hidden>
+        <div class="account-line">
+          <span id="account-name">已登录</span>
+          <button id="logout" class="link-button" type="button">退出</button>
+        </div>
+        <form id="entry-form" class="form">
+          <label>
+            <span>公司名称 <b>*</b></span>
+            <input id="company" list="company-options" placeholder="例如：字节跳动" autocomplete="off" />
+            <datalist id="company-options"></datalist>
+          </label>
+          <label>
+            <span>投递链接 <b>*</b></span>
+            <input id="link" placeholder="已自动填入当前页面链接" />
+          </label>
+          <div class="grid-2">
+            <label>
+              <span>投递类型</span>
+              <select id="category">
+                <option value="spring">春招</option>
+                <option value="autumn">秋招</option>
+                <option value="internship">实习</option>
+                <option value="social">社招</option>
+              </select>
+            </label>
+            <label>
+              <span>年度</span>
+              <input id="year" type="number" min="2000" max="2100" />
+            </label>
+          </div>
+          <label>
+            <span>岗位 <em>选填</em></span>
+            <input id="position" placeholder="例如：后端开发工程师" />
+          </label>
+          <div class="grid-2">
+            <label>
+              <span>状态</span>
+              <select id="status">
+                <option value="screening">初筛</option>
+                <option value="pending">待定</option>
+                <option value="written">笔试</option>
+                <option value="interview">面试</option>
+                <option value="offer">Offer</option>
+                <option value="rejected">淘汰</option>
+              </select>
+            </label>
+            <label>
+              <span>渠道</span>
+              <input id="channel" placeholder="官网 / 内推" />
+            </label>
+          </div>
+          <button id="submit" class="primary" type="submit">加入投递台账</button>
+        </form>
+        <div id="toast" class="toast" hidden></div>
+        <p class="foot-note">提交后窗口保持打开，方便连续录入。按 Alt+Shift+J 可随时唤起。</p>
+      </section>
+    </main>
+
+    <footer class="popup-foot">
+      <span id="server-label">—</span>
+      <a id="open-web" href="#" target="_blank">打开网页端</a>
+    </footer>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

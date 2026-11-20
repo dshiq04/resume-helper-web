@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "履途 ResumeTrail · 快速录入",
+  "version": "1.2.0",
+  "description": "从招聘页面一键把公司、岗位与投递链接加入履途 ResumeTrail。",
+  "action": {
+    "default_title": "加入投递台账",
+    "default_popup": "popup.html"
+  },
+  "options_page": "options.html",
+  "permissions": ["storage", "contextMenus", "activeTab", "tabs"],
+  "host_permissions": ["http://*/*", "https://*/*"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "commands": {
+    "_execute_action": {
+      "suggested_key": {
+        "default": "Alt+Shift+J"
+      }
+    }
+  }
+}

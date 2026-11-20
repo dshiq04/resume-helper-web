@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>履途 ResumeTrail · 扩展设置</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body class="options-page">
+    <header class="popup-head">
+      <div class="brand">
+        <img class="brand-logo" src="logo.svg" alt="ResumeTrail" />
+        <div>
+          <strong>履途 ResumeTrail</strong>
+          <em>RESUMETRAIL</em>
+        </div>
+      </div>
+    </header>
+
+    <main class="popup-body">
+      <section class="options-card">
+        <h2>服务地址</h2>
+        <form id="server-form" class="form">
+          <label>
+            <span>服务端地址</span>
+            <input id="server-url" placeholder="http://127.0.0.1:18080" />
+          </label>
+          <button class="primary" type="submit">保存并测试连接</button>
+        </form>
+        <p id="server-status" class="status-line"><span class="dot"></span>未检测</p>
+      </section>
+
+      <section class="options-card">
+        <h2>账号</h2>
+        <div id="account-panel">
+          <div id="account-info" class="status-line" hidden></div>
+          <form id="login-form" class="form">
+            <label>
+              <span>用户名</span>
+              <input id="login-username" autocomplete="username" value="admin" />
+            </label>
+            <label>
+              <span>密码</span>
+              <input id="login-password" type="password" autocomplete="current-password" />
+            </label>
+            <label id="captcha-field" hidden>
+              <span>验证码</span>
+              <div class="captcha-row">
+                <input id="login-captcha" maxlength="8" placeholder="输入图中字符" />
+                <button id="captcha-image" class="captcha-image" type="button" title="点击刷新">
+                  <span>点击获取</span>
+                </button>
+              </div>
+            </label>
+            <button id="login-submit" class="primary" type="submit">登录</button>
+          </form>
+          <p id="login-error" class="error" hidden></p>
+          <button id="logout" class="link-button" type="button" hidden>退出登录</button>
+        </div>
+        <p class="foot-note">
+          验证码由服务端 config.json 的 captcha.enabled 控制，开启验证码时必须同时启用 Redis。
+        </p>
+      </section>
+
+      <section class="options-card">
+        <h2>使用方式</h2>
+        <p class="foot-note">
+          点击浏览器工具栏中的扩展图标，或按 Alt+Shift+J 打开快速录入。也可以在招聘页右键选择
+          “加入投递台账”。公司名称和投递链接是仅有的必填项。
+        </p>
+        <p class="foot-note">
+          网页端：<a id="open-web" href="#" target="_blank">打开履途 ResumeTrail</a>
+        </p>
+      </section>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>
