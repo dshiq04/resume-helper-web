@@ -1,0 +1,37 @@
+# Build output
+target/
+**/target/
+
+# Frontend
+node_modules/
+frontend/node_modules/
+frontend/dist/
+jobtrack-web/src/main/resources/static/*
+!jobtrack-web/src/main/resources/static/.gitkeep
+
+# Runtime data
+data/
+logs/
+*.log
+*.db
+*.mv.db
+*.trace.db
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+.settings/
+.classpath
+.project
+.factorypath
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Maven wrapper jar (downloaded on demand)
+.mvn/wrapper/maven-wrapper.jar
