@@ -181,6 +181,20 @@ public class JsonConfigEnvironmentPostProcessor implements EnvironmentPostProces
         if (!flat.containsKey("logging.level.root")) {
             derived.put("logging.level.root", stringValue(flat.get("logging.level"), "INFO"));
         }
+
+        // Redis 为可选项：关闭时不建立连接，在线状态自动退回进程内存储。
+        Map<String, Object> redis = nested(flat, "redis");
+        boolean redisEnabled = Boolean.parseBoolean(stringValue(redis.get("enabled"), "false"));
+        derived.put("spring.data.redis.host", stringValue(redis.get("host"), "127.0.0.1"));
+        derived.put("spring.data.redis.port", intValue(redis.get("port"), 6379));
+        derived.put("spring.data.redis.password", stringValue(redis.get("password"), ""));
+        derived.put("spring.data.redis.database", intValue(redis.get("database"), 0));
+        derived.put("spring.data.redis.timeout", stringValue(redis.get("timeout"), "2s"));
+        derived.put("spring.data.redis.connect-timeout", stringValue(redis.get("timeout"), "2s"));
+        if (!redisEnabled) {
+            // 避免 Redis 仓库扫描等后台初始化产生无意义的连接尝试。
+            derived.put("spring.data.redis.repositories.enabled", "false");
+        }
         return derived;
     }
 

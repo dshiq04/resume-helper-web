@@ -5,6 +5,7 @@ import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.system.dto.AuthResponse;
 import com.jobtrack.system.dto.ChangePasswordRequest;
 import com.jobtrack.system.dto.LoginRequest;
+import com.jobtrack.system.dto.OnlineStatusResponse;
 import com.jobtrack.system.dto.ProfileRequest;
 import com.jobtrack.system.dto.RegisterRequest;
 import com.jobtrack.system.dto.UserView;
@@ -14,11 +15,14 @@ import com.jobtrack.system.mapper.SysTenantMapper;
 import com.jobtrack.system.mapper.SysUserMapper;
 import com.jobtrack.system.security.AuthPrincipal;
 import com.jobtrack.system.security.JwtService;
+import com.jobtrack.system.security.SessionInfo;
+import com.jobtrack.system.security.SessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
 import java.util.UUID;
 import java.util.regex.Pattern;
 
@@ -32,6 +36,7 @@ public class AuthService {
     private final SysTenantMapper tenantMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
+    private final SessionService sessionService;
 
     public AuthResponse login(LoginRequest request) {
         String username = normalizeUsername(request.getUsername());
@@ -118,6 +123,17 @@ public class AuthService {
         }
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userMapper.updateById(user);
+        // 修改密码后让所有旧会话立即失效。
+        sessionService.deleteByUser(principal.id(), principal.tenantId());
+    }
+
+    public void logout(AuthPrincipal principal) {
+        sessionService.delete(principal.sessionId());
+    }
+
+    public OnlineStatusResponse online(AuthPrincipal principal) {
+        return new OnlineStatusResponse(sessionService.mode(),
+                sessionService.countOnline(principal.tenantId()), true);
     }
 
     private AuthResponse session(SysUser user) {
@@ -126,7 +142,10 @@ public class AuthService {
     }
 
     private AuthResponse session(SysUser user, SysTenant tenant) {
-        JwtService.IssuedToken issued = jwtService.issue(user);
+        Duration ttl = Duration.ofHours(jwtService.ttlHours());
+        String sessionId = sessionService.create(new SessionInfo(user.getId(), user.getTenantId(),
+                user.getUsername(), user.getDisplayName(), user.getRole()), ttl);
+        JwtService.IssuedToken issued = jwtService.issue(user, sessionId);
         UserView view = new UserView(user.getId(), user.getTenantId(), user.getUsername(),
                 user.getDisplayName(), user.getRole(), tenant == null ? "" : tenant.getName());
         return new AuthResponse(issued.token(), issued.expiresAt(), view);

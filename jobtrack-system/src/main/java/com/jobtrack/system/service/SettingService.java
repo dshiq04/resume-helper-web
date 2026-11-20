@@ -1,6 +1,7 @@
 package com.jobtrack.system.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.jobtrack.common.context.TenantContext;
 import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.system.dto.PreferencesRequest;
 import com.jobtrack.system.dto.PreferencesResponse;
@@ -10,6 +11,8 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Duration;
+
 @Service
 @RequiredArgsConstructor
 public class SettingService {
@@ -17,12 +20,24 @@ public class SettingService {
     public static final String IDLE_LOCK_ENABLED = "preferences.idleLockEnabled";
     public static final String IDLE_LOCK_MINUTES = "preferences.idleLockMinutes";
 
+    private static final Duration CACHE_TTL = Duration.ofMinutes(30);
+
     private final TenantSettingMapper settingMapper;
+    private final CacheService cacheService;
 
     public String get(String key, String fallback) {
+        String cacheKey = cacheKey(key);
+        String cached = cacheService.getString(cacheKey);
+        if (cached != null) {
+            return cached;
+        }
         TenantSetting setting = settingMapper.selectOne(Wrappers.<TenantSetting>lambdaQuery()
                 .eq(TenantSetting::getSettingKey, key));
-        return setting == null ? fallback : setting.getSettingValue();
+        if (setting == null || setting.getSettingValue() == null) {
+            return fallback;
+        }
+        cacheService.putString(cacheKey, setting.getSettingValue(), CACHE_TTL);
+        return setting.getSettingValue();
     }
 
     public boolean getBoolean(String key, boolean fallback) {
@@ -46,6 +61,8 @@ public class SettingService {
             setting.setSettingValue(value);
             settingMapper.updateById(setting);
         }
+        // 写穿缓存，其他实例下次读取即可拿到最新值。
+        cacheService.putString(cacheKey(key), value, CACHE_TTL);
     }
 
     public PreferencesResponse preferences() {
@@ -70,6 +87,10 @@ public class SettingService {
             put(IDLE_LOCK_ENABLED, request.getIdleLockEnabled() ? "true" : "false");
         }
         return preferences();
+    }
+
+    private String cacheKey(String key) {
+        return "tenant:" + TenantContext.require() + ":setting:" + key;
     }
 
     private int parseInt(String value, int fallback) {

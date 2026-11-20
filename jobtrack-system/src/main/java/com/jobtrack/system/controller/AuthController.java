@@ -3,6 +3,7 @@ package com.jobtrack.system.controller;
 import com.jobtrack.system.dto.AuthResponse;
 import com.jobtrack.system.dto.ChangePasswordRequest;
 import com.jobtrack.system.dto.LoginRequest;
+import com.jobtrack.system.dto.OnlineStatusResponse;
 import com.jobtrack.system.dto.ProfileRequest;
 import com.jobtrack.system.dto.RegisterRequest;
 import com.jobtrack.system.dto.UserView;
@@ -63,9 +64,14 @@ public class AuthController {
         return Map.of("changed", true);
     }
 
+    @GetMapping("/online")
+    public OnlineStatusResponse online() {
+        return authService.online(SecurityUtils.current());
+    }
+
     @PostMapping("/logout")
     public Map<String, Object> logout() {
-        // JWT 无状态，客户端删除 token 即可；接口保留用于统一前端调用。
+        authService.logout(SecurityUtils.current());
         return Map.of("loggedOut", true);
     }
 }

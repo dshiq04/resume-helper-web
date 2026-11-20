@@ -14,6 +14,15 @@
     "maxPoolSize": 10,
     "params": "useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
   },
+  "redis": {
+    "enabled": false,
+    "host": "127.0.0.1",
+    "port": 6379,
+    "password": "",
+    "database": 0,
+    "keyPrefix": "jobtrack:",
+    "timeout": "2s"
+  },
   "app": {
     "name": "投递手账",
     "version": "1.0.0",

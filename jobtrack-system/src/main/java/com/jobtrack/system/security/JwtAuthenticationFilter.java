@@ -14,16 +14,18 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 
 /**
- * 解析 Authorization: Bearer &lt;token&gt;，并把租户写入 ThreadLocal。
+ * 解析 Authorization: Bearer &lt;token&gt;，校验在线会话，并把租户写入 ThreadLocal。
  */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtService jwtService;
+    private final SessionService sessionService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -33,13 +35,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 try {
                     AuthPrincipal principal = jwtService.parse(token);
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    principal,
-                                    token,
-                                    List.of(new SimpleGrantedAuthority("ROLE_" + principal.role())));
-                    SecurityContextHolder.getContext().setAuthentication(authentication);
-                    TenantContext.set(principal.tenantId());
+                    Duration ttl = Duration.ofHours(jwtService.ttlHours());
+                    SessionInfo session = sessionService.resolve(principal.sessionId(), ttl);
+                    if (session != null) {
+                        AuthPrincipal authenticated = new AuthPrincipal(
+                                session.getUserId(), session.getTenantId(), session.getUsername(),
+                                session.getDisplayName(), session.getRole(), principal.sessionId());
+                        UsernamePasswordAuthenticationToken authentication =
+                                new UsernamePasswordAuthenticationToken(
+                                        authenticated,
+                                        token,
+                                        List.of(new SimpleGrantedAuthority("ROLE_" + authenticated.role())));
+                        SecurityContextHolder.getContext().setAuthentication(authentication);
+                        TenantContext.set(authenticated.tenantId());
+                    }
                 } catch (JwtException | IllegalArgumentException exception) {
                     SecurityContextHolder.clearContext();
                     TenantContext.clear();

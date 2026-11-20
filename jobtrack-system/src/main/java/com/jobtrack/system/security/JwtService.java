@@ -11,7 +11,6 @@ import javax.crypto.SecretKey;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.time.ZoneOffset;
 import java.util.Date;
 
 @Component
@@ -25,7 +24,7 @@ public class JwtService {
         this.ttlHours = properties.getJwt().getTtlHours();
     }
 
-    public IssuedToken issue(SysUser user) {
+    public IssuedToken issue(SysUser user, String sessionId) {
         LocalDateTime expiresAt = LocalDateTime.now().plusHours(ttlHours);
         Date issued = new Date();
         String token = Jwts.builder()
@@ -34,6 +33,7 @@ public class JwtService {
                 .claim("username", user.getUsername())
                 .claim("displayName", user.getDisplayName())
                 .claim("role", user.getRole())
+                .claim("sid", sessionId)
                 .issuedAt(issued)
                 .expiration(Date.from(expiresAt.atZone(ZoneId.systemDefault()).toInstant()))
                 .signWith(key)
@@ -50,12 +50,15 @@ public class JwtService {
         Long userId = Long.valueOf(claims.getSubject());
         Long tenantId = ((Number) claims.get("tenantId")).longValue();
         String role = String.valueOf(claims.getOrDefault("role", "USER"));
-        String displayName = claims.get("displayName") == null ? "" : String.valueOf(claims.get("displayName"));
-        return new AuthPrincipal(userId, tenantId, String.valueOf(claims.get("username")), displayName, role);
+        String displayName = claims.get("displayName") == null
+                ? "" : String.valueOf(claims.get("displayName"));
+        String sessionId = claims.get("sid") == null ? "" : String.valueOf(claims.get("sid"));
+        return new AuthPrincipal(userId, tenantId, String.valueOf(claims.get("username")),
+                displayName, role, sessionId);
     }
 
-    public LocalDateTime expiresAt(Claims claims) {
-        return LocalDateTime.ofInstant(claims.getExpiration().toInstant(), ZoneOffset.systemDefault());
+    public int ttlHours() {
+        return ttlHours;
     }
 
     public record IssuedToken(String token, LocalDateTime expiresAt) {
