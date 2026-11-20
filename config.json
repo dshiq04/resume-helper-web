@@ -1,0 +1,44 @@
+{
+  "server": {
+    "address": "127.0.0.1",
+    "port": 18080
+  },
+  "database": {
+    "type": "h2",
+    "file": "jobtrack",
+    "host": "127.0.0.1",
+    "port": 3306,
+    "name": "jobtrack",
+    "username": "sa",
+    "password": "",
+    "maxPoolSize": 10,
+    "params": "useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
+  },
+  "app": {
+    "name": "投递手账",
+    "version": "1.0.0",
+    "dataDir": "./data",
+    "logDir": "./logs",
+    "seedDemo": false,
+    "cors": {
+      "allowedOrigins": ["*"]
+    },
+    "jwt": {
+      "secret": "jobtrack-local-dev-secret-change-me-0123456789abcdef",
+      "ttlHours": 72
+    },
+    "storage": {
+      "secret": "jobtrack-file-encryption-secret-change-me-0123456789",
+      "maxFileSizeMb": 50
+    },
+    "admin": {
+      "username": "admin",
+      "password": "123456",
+      "displayName": "管理员",
+      "tenantName": "默认工作区"
+    }
+  },
+  "logging": {
+    "level": "INFO"
+  }
+}
