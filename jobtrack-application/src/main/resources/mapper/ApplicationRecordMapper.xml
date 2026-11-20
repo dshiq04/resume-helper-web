@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.jobtrack.application.mapper.ApplicationRecordMapper">
+
+    <resultMap id="ApplicationRecordMap" type="com.jobtrack.application.entity.ApplicationRecord">
+        <id column="id" property="id"/>
+        <result column="tenant_id" property="tenantId"/>
+        <result column="category" property="category"/>
+        <result column="company_name" property="companyName"/>
+        <result column="link" property="link"/>
+        <result column="apply_year" property="applyYear"/>
+        <result column="job_title" property="position"/>
+        <result column="status" property="status"/>
+        <result column="channel" property="channel"/>
+        <result column="city" property="city"/>
+        <result column="salary" property="salary"/>
+        <result column="contact_name" property="contact"/>
+        <result column="contact_info" property="contactInfo"/>
+        <result column="work_mode" property="workMode"/>
+        <result column="priority" property="priority"/>
+        <result column="interview_round" property="interviewRound"/>
+        <result column="next_action_at" property="nextActionAt"/>
+        <result column="notes" property="notes"/>
+        <result column="pinned" property="pinned"/>
+        <result column="applied_at" property="appliedAt"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+</mapper>

@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -32,9 +33,15 @@ public class ApplicationRecord {
 
     private String link;
 
+    @TableField("job_title")
     private String position;
 
     private String status;
+
+    /** 投递所属年度，用于跨年度查看春招/秋招记录。 */
+    @TableField("apply_year")
+    @JsonProperty("year")
+    private Integer applyYear;
 
     private String channel;
 
@@ -42,6 +49,7 @@ public class ApplicationRecord {
 
     private String salary;
 
+    @TableField("contact_name")
     private String contact;
 
     private String contactInfo;

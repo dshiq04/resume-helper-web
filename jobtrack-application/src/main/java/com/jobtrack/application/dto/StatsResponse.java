@@ -12,6 +12,7 @@ public class StatsResponse {
     private Map<String, Long> byCategory;
     private Map<String, Long> byStatus;
     private Map<String, Map<String, Long>> byCategoryStatus;
+    private Map<String, Long> byYear;
     private StuckScreening stuckScreening;
 
     @Data

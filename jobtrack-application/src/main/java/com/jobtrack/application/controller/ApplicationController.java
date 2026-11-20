@@ -42,12 +42,18 @@ public class ApplicationController {
             @RequestParam(required = false) String status,
             @RequestParam(required = false) String channel,
             @RequestParam(required = false) String priority,
+            @RequestParam(required = false) Integer year,
             @RequestParam(required = false) String from,
             @RequestParam(required = false) String to,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
         return applicationService.list(search, category, status, channel, priority,
-                from, to, page, pageSize);
+                year, from, to, page, pageSize);
+    }
+
+    @GetMapping("/applications/years")
+    public com.jobtrack.application.dto.YearList years() {
+        return applicationService.years();
     }
 
     @PostMapping("/applications")

@@ -28,6 +28,7 @@ public class TrashService {
     private final ApplicationChangeMapper changeMapper;
     private final DeletedApplicationMapper deletedMapper;
     private final ApplicationHistoryService historyService;
+    private final ApplicationCacheService applicationCache;
 
     /**
      * 把记录连同时间线整体写入回收站，再删除原记录。
@@ -52,6 +53,7 @@ public class TrashService {
         changeMapper.delete(Wrappers.<ApplicationChange>lambdaQuery()
                 .eq(ApplicationChange::getApplicationId, record.getId()));
         applicationMapper.deleteById(record.getId());
+        applicationCache.invalidate();
         return trash;
     }
 
@@ -103,6 +105,10 @@ public class TrashService {
         application.setTenantId(null);
         application.setStatusDays(null);
         application.setScreeningDays(null);
+        if (application.getApplyYear() == null) {
+            application.setApplyYear(application.getAppliedAt() == null
+                    ? LocalDateTime.now().getYear() : application.getAppliedAt().getYear());
+        }
         applicationMapper.insert(application);
 
         if (payload.getHistory() != null) {
@@ -117,15 +123,20 @@ public class TrashService {
 
         deletedMapper.deleteById(trashId);
         historyService.attachStatusDays(List.of(application));
+        applicationCache.invalidate();
         return application;
     }
 
     public int delete(Long trashId) {
-        return deletedMapper.deleteById(trashId);
+        int deleted = deletedMapper.deleteById(trashId);
+        applicationCache.invalidate();
+        return deleted;
     }
 
     public int empty() {
-        return deletedMapper.delete(Wrappers.emptyWrapper());
+        int deleted = deletedMapper.delete(Wrappers.emptyWrapper());
+        applicationCache.invalidate();
+        return deleted;
     }
 
     private TrashPayload parsePayload(DeletedApplication trash) {

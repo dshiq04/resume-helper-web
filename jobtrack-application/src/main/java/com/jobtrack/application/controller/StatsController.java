@@ -19,19 +19,22 @@ public class StatsController {
 
     @GetMapping
     public StatsResponse stats(@RequestParam(required = false) String from,
-                               @RequestParam(required = false) String to) {
-        return statsService.stats(from, to);
+                               @RequestParam(required = false) String to,
+                               @RequestParam(required = false) Integer year) {
+        return statsService.stats(from, to, year);
     }
 
     @GetMapping("/daily")
     public DailyStatsResponse daily(@RequestParam(required = false) String from,
-                                    @RequestParam(required = false) String to) {
-        return statsService.daily(from, to);
+                                    @RequestParam(required = false) String to,
+                                    @RequestParam(required = false) Integer year) {
+        return statsService.daily(from, to, year);
     }
 
     @GetMapping("/funnel")
     public FunnelResponse funnel(@RequestParam(required = false) String from,
-                                 @RequestParam(required = false) String to) {
-        return statsService.funnel(from, to);
+                                 @RequestParam(required = false) String to,
+                                 @RequestParam(required = false) Integer year) {
+        return statsService.funnel(from, to, year);
     }
 }

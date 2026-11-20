@@ -19,6 +19,8 @@ public class ApplicationUpdateRequest {
     @Size(max = 2048, message = "投递链接不能超过 2048 个字符")
     private String link;
 
+    private Integer year;
+
     @Size(max = 255, message = "岗位名称不能超过 255 个字符")
     private String position;
 

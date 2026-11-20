@@ -4,9 +4,11 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jobtrack.application.dto.ApplicationChangeView;
+import com.jobtrack.application.dto.ApplicationPageCache;
 import com.jobtrack.application.dto.ApplicationRequest;
 import com.jobtrack.application.dto.ApplicationUpdateRequest;
 import com.jobtrack.application.dto.HistoryResponse;
+import com.jobtrack.application.dto.YearList;
 import com.jobtrack.application.entity.ApplicationChange;
 import com.jobtrack.application.entity.ApplicationRecord;
 import com.jobtrack.application.mapper.ApplicationChangeMapper;
@@ -33,13 +35,52 @@ public class ApplicationService {
     private final ApplicationChangeMapper changeMapper;
     private final ApplicationHistoryService historyService;
     private final TrashService trashService;
+    private final ApplicationCacheService applicationCache;
 
+    /**
+     * 投递列表优先读取 Redis 缓存（未启用或未命中时查询数据库）。
+     */
     public PageResult<ApplicationRecord> list(String search, String category, String status,
-                                              String channel, String priority, String from,
-                                              String to, int page, int pageSize) {
+                                              String channel, String priority, Integer year,
+                                              String from, String to, int page, int pageSize) {
         int currentPage = Math.max(page, 1);
         int currentSize = Math.min(Math.max(pageSize, 1), 100);
+        Integer normalizedYear = normalizeYear(year);
+        String cacheKey = String.join("|", "list",
+                String.valueOf(normalizedYear), normalizeKey(search), normalizeKey(category),
+                normalizeKey(status), normalizeKey(channel), normalizeKey(priority),
+                normalizeKey(from), normalizeKey(to), String.valueOf(currentPage),
+                String.valueOf(currentSize));
 
+        ApplicationPageCache cached = applicationCache.cached(cacheKey, ApplicationPageCache.class,
+                () -> queryPage(search, category, status, channel, priority, normalizedYear,
+                        from, to, currentPage, currentSize));
+        return PageResult.of(cached.getItems(), cached.getTotal(), cached.getPage(), cached.getPageSize());
+    }
+
+    /**
+     * 年度选项同样走缓存，页面打开时只查一次数据库。
+     */
+    public YearList years() {
+        return applicationCache.cached("years", YearList.class, () -> {
+            QueryWrapper<ApplicationRecord> query = new QueryWrapper<>();
+            query.select("DISTINCT apply_year").isNotNull("apply_year").orderByDesc("apply_year");
+            List<Object> values = applicationMapper.selectObjs(query);
+            List<Integer> years = new ArrayList<>();
+            for (Object value : values) {
+                if (value instanceof Number number) {
+                    years.add(number.intValue());
+                } else if (value != null) {
+                    years.add(Integer.parseInt(String.valueOf(value)));
+                }
+            }
+            return new YearList(years);
+        });
+    }
+
+    private ApplicationPageCache queryPage(String search, String category, String status,
+                                           String channel, String priority, Integer year,
+                                           String from, String to, int page, int pageSize) {
         QueryWrapper<ApplicationRecord> query = new QueryWrapper<>();
         String normalizedCategory = normalizeFilter(category);
         String normalizedStatus = normalizeFilter(status);
@@ -57,12 +98,15 @@ public class ApplicationService {
         if (priority != null && !priority.isBlank()) {
             query.eq("priority", priority.trim());
         }
+        if (year != null) {
+            query.eq("apply_year", year);
+        }
         if (search != null && !search.isBlank()) {
             String like = "%" + search.trim().toLowerCase() + "%";
             query.and(wrapper -> wrapper
                     .apply("LOWER(company_name) LIKE {0}", like)
                     .or().apply("LOWER(link) LIKE {0}", like)
-                    .or().apply("LOWER(position) LIKE {0}", like)
+                    .or().apply("LOWER(job_title) LIKE {0}", like)
                     .or().apply("LOWER(notes) LIKE {0}", like));
         }
         LocalDateTime fromTime = parseOptional(from);
@@ -78,10 +122,9 @@ public class ApplicationService {
         }
         query.orderByDesc("pinned").orderByDesc("applied_at").orderByDesc("id");
 
-        Page<ApplicationRecord> result = applicationMapper.selectPage(
-                new Page<>(currentPage, currentSize), query);
+        Page<ApplicationRecord> result = applicationMapper.selectPage(new Page<>(page, pageSize), query);
         historyService.attachStatusDays(result.getRecords());
-        return PageResult.of(result.getRecords(), result.getTotal(), currentPage, currentSize);
+        return new ApplicationPageCache(result.getRecords(), result.getTotal(), page, pageSize);
     }
 
     @Transactional
@@ -104,12 +147,15 @@ public class ApplicationService {
         record.setNotes(trimToNull(request.getNotes()));
         record.setPinned(Boolean.TRUE.equals(request.getPinned()));
         record.setAppliedAt(LocalDateTime.now());
+        Integer requestedYear = normalizeYear(request.getYear());
+        record.setApplyYear(requestedYear == null ? record.getAppliedAt().getYear() : requestedYear);
         applicationMapper.insert(record);
 
         // 时间线始终从“待定”开始，再记录真实状态。
         historyService.recordStatusChange(record.getId(), DomainConstants.STATUS_PENDING, record.getAppliedAt());
         historyService.recordStatusChange(record.getId(), record.getStatus(), record.getAppliedAt());
         historyService.attachStatusDays(List.of(record));
+        applicationCache.invalidate();
         return record;
     }
 
@@ -178,6 +224,12 @@ public class ApplicationService {
         if (request.getPinned() != null) {
             record.setPinned(request.getPinned());
         }
+        if (request.getYear() != null) {
+            Integer requestedYear = normalizeYear(request.getYear());
+            if (requestedYear != null) {
+                record.setApplyYear(requestedYear);
+            }
+        }
 
         applicationMapper.updateById(record);
         if (request.getStatus() != null && !record.getStatus().equals(previousStatus)) {
@@ -186,6 +238,7 @@ public class ApplicationService {
         }
         ApplicationRecord reloaded = applicationMapper.selectById(id);
         historyService.attachStatusDays(List.of(reloaded));
+        applicationCache.invalidate();
         return reloaded;
     }
 
@@ -196,6 +249,7 @@ public class ApplicationService {
             throw BusinessException.notFound("not_found", "投递记录不存在");
         }
         trashService.moveToTrash(record);
+        applicationCache.invalidate();
     }
 
     @Transactional
@@ -213,6 +267,7 @@ public class ApplicationService {
             trashService.moveToTrash(record);
             deleted++;
         }
+        applicationCache.invalidate();
         return deleted;
     }
 
@@ -235,6 +290,7 @@ public class ApplicationService {
             historyService.updateStatusChange(record.getId(), previous, normalized, LocalDateTime.now());
             updated++;
         }
+        applicationCache.invalidate();
         return updated;
     }
 
@@ -245,9 +301,11 @@ public class ApplicationService {
             throw BusinessException.badRequest("ids_required", "请至少选择一条记录");
         }
         String normalized = categoryOrDefault(category, "");
-        return applicationMapper.update(null, Wrappers.<ApplicationRecord>lambdaUpdate()
+        int updated = applicationMapper.update(null, Wrappers.<ApplicationRecord>lambdaUpdate()
                 .in(ApplicationRecord::getId, unique)
                 .set(ApplicationRecord::getCategory, normalized));
+        applicationCache.invalidate();
+        return updated;
     }
 
     public List<String> companySuggestions(String search) {
@@ -292,12 +350,27 @@ public class ApplicationService {
             }
         }
         historyService.recordStatusChange(id, normalized, when);
+        applicationCache.invalidate();
         List<ApplicationChange> changes = historyService.reconcile(record, historyService.loadChanges(id));
         List<ApplicationChangeView> views = new ArrayList<>();
         for (ApplicationChange change : changes) {
             views.add(ApplicationChangeView.of(change));
         }
         return views;
+    }
+
+    private Integer normalizeYear(Integer year) {
+        if (year == null || year <= 0) {
+            return null;
+        }
+        if (year < 2000 || year > 2100) {
+            throw BusinessException.badRequest("invalid_year", "年度需在 2000-2100 之间");
+        }
+        return year;
+    }
+
+    private String normalizeKey(String value) {
+        return value == null || value.isBlank() ? "" : value.trim().toLowerCase();
     }
 
     private LocalDateTime parseOptional(String value) {

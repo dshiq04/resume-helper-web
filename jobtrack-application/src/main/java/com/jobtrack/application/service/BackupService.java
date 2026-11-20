@@ -58,6 +58,7 @@ public class BackupService {
     private final ResumeService resumeService;
     private final FileCrypto fileCrypto;
     private final AppProperties appProperties;
+    private final ApplicationCacheService applicationCache;
 
     public byte[] exportData() {
         long tenantId = TenantContext.require();
@@ -169,6 +170,10 @@ public class BackupService {
             application.setTenantId(null);
             application.setStatusDays(null);
             application.setScreeningDays(null);
+            if (application.getApplyYear() == null) {
+                application.setApplyYear(application.getAppliedAt() == null
+                        ? LocalDateTime.now().getYear() : application.getAppliedAt().getYear());
+            }
             applicationMapper.insert(application);
             if (oldId != null) {
                 applicationIds.put(oldId, application.getId());
@@ -266,6 +271,7 @@ public class BackupService {
         counts.put("settings", (long) importedSettings);
         counts.put("trash", (long) importedTrash);
         result.setCounts(counts);
+        applicationCache.invalidate();
         return result;
     }
 

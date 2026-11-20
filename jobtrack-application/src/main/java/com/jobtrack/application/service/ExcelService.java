@@ -107,6 +107,7 @@ public class ExcelService {
 
     private final ApplicationRecordMapper applicationMapper;
     private final ApplicationHistoryService historyService;
+    private final ApplicationCacheService applicationCache;
 
     public byte[] template() {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream output = new ByteArrayOutputStream()) {
@@ -122,9 +123,9 @@ public class ExcelService {
             headerStyle.setFillPattern(FillPatternType.SOLID_FOREGROUND);
 
             String[] headers = {
-                    "投递类型 / Category", "公司名称 / Company", "投递链接 / Link", "岗位 / Position",
-                    "状态 / Status", "渠道 / Channel", "城市 / City", "薪资 / Salary",
-                    "优先级 / Priority", "备注 / Notes"
+                    "投递类型 / Category", "公司名称 / Company", "投递链接 / Link", "年份 / Year",
+                    "岗位 / Position", "状态 / Status", "渠道 / Channel", "城市 / City",
+                    "薪资 / Salary", "优先级 / Priority", "备注 / Notes"
             };
             Row headerRow = data.createRow(0);
             for (int index = 0; index < headers.length; index++) {
@@ -135,13 +136,14 @@ public class ExcelService {
             data.setColumnWidth(0, 18 * 256);
             data.setColumnWidth(1, 30 * 256);
             data.setColumnWidth(2, 44 * 256);
-            data.setColumnWidth(3, 26 * 256);
-            data.setColumnWidth(4, 16 * 256);
-            data.setColumnWidth(5, 18 * 256);
-            data.setColumnWidth(6, 16 * 256);
-            data.setColumnWidth(7, 18 * 256);
-            data.setColumnWidth(8, 14 * 256);
-            data.setColumnWidth(9, 40 * 256);
+            data.setColumnWidth(3, 12 * 256);
+            data.setColumnWidth(4, 26 * 256);
+            data.setColumnWidth(5, 16 * 256);
+            data.setColumnWidth(6, 18 * 256);
+            data.setColumnWidth(7, 16 * 256);
+            data.setColumnWidth(8, 18 * 256);
+            data.setColumnWidth(9, 14 * 256);
+            data.setColumnWidth(10, 40 * 256);
             data.createFreezePane(0, 1);
 
             DataValidationHelper helper = data.getDataValidationHelper();
@@ -156,7 +158,7 @@ public class ExcelService {
                     helper.createExplicitListConstraint(new String[]{
                             "初筛", "笔试", "面试", "待定", "Offer", "淘汰",
                             "screening", "written", "interview", "pending", "offer", "rejected"}),
-                    new CellRangeAddressList(1, MAX_ROWS, 4, 4));
+                    new CellRangeAddressList(1, MAX_ROWS, 5, 5));
             statusValidation.setSuppressDropDownArrow(true);
             data.addValidationData(statusValidation);
 
@@ -164,15 +166,16 @@ public class ExcelService {
                     {"投递手账 · Excel 导入说明"},
                     {""},
                     {"1. 只有公司名称与投递链接是必填项，其余列可以留空。"},
-                    {"2. 投递类型支持：春招 / 秋招 / 实习 / 社招，或 spring / autumn / internship / social。"},
-                    {"3. 状态支持：初筛 / 笔试 / 面试 / 待定 / Offer / 淘汰。"},
-                    {"4. 投递链接按原样保存，不会自动补全 http:// 或 https://。"},
-                    {"5. 空白的投递类型默认春招，空白状态默认初筛。"},
+                    {"2. 年份留空时使用导入时的当前年份，可用于整理往年的投递记录。"},
+                    {"3. 投递类型支持：春招 / 秋招 / 实习 / 社招，或 spring / autumn / internship / social。"},
+                    {"4. 状态支持：初筛 / 笔试 / 面试 / 待定 / Offer / 淘汰。"},
+                    {"5. 投递链接按原样保存，不会自动补全 http:// 或 https://。"},
+                    {"6. 空白的投递类型默认春招，空白状态默认初筛。"},
                     {""},
                     {"示例："},
-                    {"春招", "示例科技", "https://example.com/careers/123", "后端开发", "初筛",
+                    {"春招", "示例科技", "https://example.com/careers/123", "2026", "后端开发", "初筛",
                             "官网", "杭州", "20-30K", "高", "内推码 ABC123"},
-                    {"秋招", "Example Inc.", "https://example.com/jobs/456", "Frontend Engineer", "面试",
+                    {"秋招", "Example Inc.", "https://example.com/jobs/456", "2025", "Frontend Engineer", "面试",
                             "内推", "上海", "25-35K", "中", ""}
             };
             for (int rowIndex = 0; rowIndex < helpRows.length; rowIndex++) {
@@ -264,6 +267,23 @@ public class ExcelService {
                     continue;
                 }
 
+                String yearRaw = cell(row, columns.get("year"), formatter).trim();
+                int recordYear = appliedAt.getYear();
+                if (!yearRaw.isBlank()) {
+                    try {
+                        recordYear = Integer.parseInt(yearRaw.replaceAll("\\.0+$", ""));
+                    } catch (NumberFormatException exception) {
+                        skipped++;
+                        addError(errors, displayRow, "年份格式不正确: " + yearRaw);
+                        continue;
+                    }
+                    if (recordYear < 2000 || recordYear > 2100) {
+                        skipped++;
+                        addError(errors, displayRow, "年份需在 2000-2100 之间");
+                        continue;
+                    }
+                }
+
                 String categoryRaw = cell(row, columns.get("category"), formatter);
                 String category = DomainConstants.CATEGORY_SPRING;
                 if (!categoryRaw.isBlank()) {
@@ -292,6 +312,7 @@ public class ExcelService {
                 record.setCategory(category);
                 record.setCompanyName(company);
                 record.setLink(link);
+                record.setApplyYear(recordYear);
                 record.setPosition(trimToNull(cell(row, columns.get("position"), formatter)));
                 record.setStatus(status);
                 record.setChannel(trimToNull(cell(row, columns.get("channel"), formatter)));
@@ -308,6 +329,7 @@ public class ExcelService {
                 imported++;
             }
 
+            applicationCache.invalidate();
             return ImportResult.of(imported, skipped, errors);
         } catch (IOException | RuntimeException exception) {
             if (exception instanceof BusinessException businessException) {
@@ -348,6 +370,9 @@ public class ExcelService {
             } else if (!columns.containsKey("link") && matches(header,
                     "link", "url", "applicationlink", "投递链接", "投遞連結", "链接", "連結", "网址", "網址", "応募リンク", "지원링크")) {
                 columns.put("link", index);
+            } else if (!columns.containsKey("year") && matches(header,
+                    "year", "applyyear", "年度", "年份", "応募年度", "지원연도")) {
+                columns.put("year", index);
             } else if (!columns.containsKey("category") && matches(header,
                     "category", "投递类型", "投遞類型", "大分类", "分类", "类别", "招聘类型", "招聘類型", "採用区分", "채용유형")) {
                 columns.put("category", index);

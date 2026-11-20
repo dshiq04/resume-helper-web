@@ -1,11 +1,11 @@
 package com.jobtrack.application.service;
 
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.application.dto.DailyStatsResponse;
 import com.jobtrack.application.dto.FunnelResponse;
 import com.jobtrack.application.dto.StatsResponse;
 import com.jobtrack.application.entity.ApplicationChange;
 import com.jobtrack.application.entity.ApplicationRecord;
-import com.jobtrack.application.entity.Resume;
 import com.jobtrack.application.mapper.ApplicationRecordMapper;
 import com.jobtrack.application.mapper.ResumeMapper;
 import com.jobtrack.common.constant.DomainConstants;
@@ -15,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -31,9 +32,30 @@ public class StatsService {
     private final ApplicationRecordMapper applicationMapper;
     private final ResumeMapper resumeMapper;
     private final ApplicationHistoryService historyService;
+    private final ApplicationCacheService applicationCache;
 
-    public StatsResponse stats(String from, String to) {
-        Range range = range(from, to);
+    public StatsResponse stats(String from, String to, Integer year) {
+        Integer normalizedYear = normalizeYear(year);
+        String key = "stats|" + normalizedYear + "|" + value(from) + "|" + value(to);
+        return applicationCache.cached(key, StatsResponse.class,
+                () -> computeStats(range(from, to, normalizedYear)));
+    }
+
+    public DailyStatsResponse daily(String from, String to, Integer year) {
+        Integer normalizedYear = normalizeYear(year);
+        String key = "daily|" + normalizedYear + "|" + value(from) + "|" + value(to);
+        return applicationCache.cached(key, DailyStatsResponse.class,
+                () -> computeDaily(range(from, to, normalizedYear)));
+    }
+
+    public FunnelResponse funnel(String from, String to, Integer year) {
+        Integer normalizedYear = normalizeYear(year);
+        String key = "funnel|" + normalizedYear + "|" + value(from) + "|" + value(to);
+        return applicationCache.cached(key, FunnelResponse.class,
+                () -> computeFunnel(range(from, to, normalizedYear)));
+    }
+
+    private StatsResponse computeStats(Range range) {
         List<ApplicationRecord> applications = applications(range);
         List<Long> ids = applications.stream().map(ApplicationRecord::getId).toList();
         Map<Long, List<ApplicationChange>> changes = historyService.loadChanges(ids);
@@ -53,6 +75,7 @@ public class StatsService {
             byStatus.put(status, 0L);
         }
 
+        Map<String, Long> byYear = new TreeMap<>(Comparator.reverseOrder());
         long total = 0;
         LocalDateTime now = LocalDateTime.now();
         long screeningCount = 0;
@@ -66,6 +89,9 @@ public class StatsService {
             Map<String, Long> statusMap = byCategoryStatus.get(application.getCategory());
             if (statusMap != null) {
                 statusMap.computeIfPresent(application.getStatus(), (key, value) -> value + 1);
+            }
+            if (application.getApplyYear() != null) {
+                byYear.merge(String.valueOf(application.getApplyYear()), 1L, Long::sum);
             }
 
             if (DomainConstants.STATUS_SCREENING.equals(application.getStatus())) {
@@ -91,6 +117,7 @@ public class StatsService {
         response.setByCategory(byCategory);
         response.setByStatus(byStatus);
         response.setByCategoryStatus(byCategoryStatus);
+        response.setByYear(byYear);
         StatsResponse.StuckScreening stuck = new StatsResponse.StuckScreening();
         stuck.setCount(screeningCount);
         stuck.setAverageDays(screeningCount == 0 ? 0 : (int) (screeningDaysSum / screeningCount));
@@ -99,8 +126,7 @@ public class StatsService {
         return response;
     }
 
-    public DailyStatsResponse daily(String from, String to) {
-        Range range = range(from, to);
+    private DailyStatsResponse computeDaily(Range range) {
         List<ApplicationRecord> applications = applications(range);
         Map<String, DailyStatsResponse.DailyStat> counts = new TreeMap<>();
         for (ApplicationRecord application : applications) {
@@ -119,8 +145,7 @@ public class StatsService {
         return new DailyStatsResponse(new ArrayList<>(counts.values()));
     }
 
-    public FunnelResponse funnel(String from, String to) {
-        Range range = range(from, to);
+    private FunnelResponse computeFunnel(Range range) {
         List<ApplicationRecord> applications = applications(range);
         List<Long> ids = applications.stream().map(ApplicationRecord::getId).toList();
         Map<Long, List<ApplicationChange>> changes = historyService.loadChanges(ids);
@@ -138,7 +163,6 @@ public class StatsService {
             for (ApplicationChange change : timeline) {
                 firstAt.putIfAbsent(change.getStatus(), change.getChangedAt());
             }
-            // 即使历史缺失，也按当前状态推断已经过的阶段。
             for (String status : DomainConstants.stageChainForStatus(application.getStatus())) {
                 firstAt.putIfAbsent(status, null);
             }
@@ -224,7 +248,7 @@ public class StatsService {
     }
 
     private List<ApplicationRecord> applications(Range range) {
-        var query = com.baomidou.mybatisplus.core.toolkit.Wrappers.<ApplicationRecord>lambdaQuery();
+        var query = Wrappers.<ApplicationRecord>lambdaQuery();
         if (range.from != null) {
             query.ge(ApplicationRecord::getAppliedAt, range.from);
         }
@@ -235,13 +259,31 @@ public class StatsService {
         return applicationMapper.selectList(query);
     }
 
-    private Range range(String from, String to) {
+    private Range range(String from, String to, Integer year) {
         LocalDateTime fromTime = parse(from);
         LocalDateTime toTime = parse(to);
+        if (fromTime == null && toTime == null && year != null) {
+            fromTime = LocalDate.of(year, 1, 1).atStartOfDay();
+            toTime = LocalDate.of(year, 12, 31).atTime(23, 59, 59, 999_000_000);
+        }
         if (fromTime != null && toTime != null && toTime.isBefore(fromTime)) {
             throw BusinessException.badRequest("invalid_range", "结束时间必须晚于开始时间");
         }
         return new Range(fromTime, toTime);
+    }
+
+    private Integer normalizeYear(Integer year) {
+        if (year == null || year <= 0) {
+            return null;
+        }
+        if (year < 2000 || year > 2100) {
+            throw BusinessException.badRequest("invalid_year", "年度需在 2000-2100 之间");
+        }
+        return year;
+    }
+
+    private String value(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private LocalDateTime parse(String value) {

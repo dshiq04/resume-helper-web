@@ -3,6 +3,7 @@ package com.jobtrack.application.bootstrap;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.application.entity.ApplicationRecord;
 import com.jobtrack.application.mapper.ApplicationRecordMapper;
+import com.jobtrack.application.service.ApplicationCacheService;
 import com.jobtrack.application.service.ApplicationHistoryService;
 import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.common.context.TenantContext;
@@ -32,6 +33,7 @@ public class DemoDataInitializer implements ApplicationRunner {
     private final SysTenantMapper tenantMapper;
     private final ApplicationRecordMapper applicationMapper;
     private final ApplicationHistoryService historyService;
+    private final ApplicationCacheService applicationCache;
 
     @Override
     @Transactional
@@ -63,7 +65,11 @@ public class DemoDataInitializer implements ApplicationRunner {
                     new Demo("拼多多", "https://careers.pinduoduo.com/job/7007", "算法工程师",
                             "社招", DomainConstants.STATUS_SCREENING, "猎聘", "上海", "35-55K", "high", 0, 14, 14),
                     new Demo("蚂蚁集团", "https://talent.antgroup.com/position/8008", "基础平台开发",
-                            "秋招", DomainConstants.STATUS_INTERVIEW, "官网", "杭州", "28-45K", "high", 1, 36, 10));
+                            "秋招", DomainConstants.STATUS_INTERVIEW, "官网", "杭州", "28-45K", "high", 1, 36, 10),
+                    new Demo("华为", "https://career.huawei.com/position/9009", "软件开发工程师",
+                            "秋招", DomainConstants.STATUS_OFFER, "官网", "深圳", "22-35K", "high", 3, 430, 30),
+                    new Demo("阿里巴巴", "https://talent.alibaba.com/position/9010", "Java 开发",
+                            "春招", DomainConstants.STATUS_SCREENING, "内推", "杭州", "23-38K", "medium", 0, 395, 20));
             for (Demo demo : demos) {
                 LocalDateTime appliedAt = LocalDateTime.now().minusDays(demo.appliedDaysAgo);
                 ApplicationRecord record = new ApplicationRecord();
@@ -79,6 +85,7 @@ public class DemoDataInitializer implements ApplicationRunner {
                 record.setInterviewRound(demo.interviewRound);
                 record.setPinned(false);
                 record.setAppliedAt(appliedAt);
+                record.setApplyYear(appliedAt.getYear());
                 record.setNotes("演示数据，可在回收站中删除。");
                 applicationMapper.insert(record);
                 historyService.recordStatusChange(record.getId(), DomainConstants.STATUS_PENDING, appliedAt);
@@ -89,6 +96,7 @@ public class DemoDataInitializer implements ApplicationRunner {
                             appliedAt.plusDays(Math.max(4, demo.appliedDaysAgo - demo.daysSinceStatus)));
                 }
             }
+            applicationCache.invalidate();
             log.info("已写入 {} 条演示投递记录", demos.size());
         } finally {
             TenantContext.clear();
