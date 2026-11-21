@@ -9,39 +9,20 @@ import {
   Segmented,
   Select,
   Switch,
-  Upload,
 } from "antd";
-import {
-  DownloadOutlined,
-  LogoutOutlined,
-  UploadOutlined,
-  UserOutlined,
-  CheckCircleFilled,
-  CloseOutlined,
-  CloudDownloadOutlined,
-  CloudUploadOutlined,
-  FileZipOutlined,
-  InboxOutlined,
-} from "@ant-design/icons";
+import { LogoutOutlined, UserOutlined } from "@ant-design/icons";
 import { authApi } from "../api/auth";
 import { databaseApi } from "../api/database";
-import { backupApi } from "../api/backup";
 import { configApi } from "../api/config";
 import { systemApi } from "../api/system";
-import type {
-  BackupImportResult,
-  DatabaseInfo,
-  PublicConfig,
-  SystemInfo,
-} from "../api/types";
+import type { DatabaseInfo, PublicConfig, SystemInfo } from "../api/types";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../context/AuthContext";
 import { LANGUAGES, useI18n } from "../i18n";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
-import { refreshStats, savePreferences } from "../store/slices/metaSlice";
+import { savePreferences } from "../store/slices/metaSlice";
 import { setTheme } from "../store/slices/uiSlice";
 import { errorMessage } from "../utils/errors";
-import { notifyDataChanged } from "../utils/format";
 
 interface ProfileValues {
   displayName: string;
@@ -53,16 +34,9 @@ interface PasswordValues {
   confirmPassword: string;
 }
 
-function formatFileSize(bytes: number) {
-  if (bytes >= 1024 * 1024) {
-    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
-  }
-  return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-}
-
 export function SettingsPage() {
   const { t, lang, setLang } = useI18n();
-  const { message, modal } = AntdApp.useApp();
+  const { message } = AntdApp.useApp();
   const { user, logout, refreshUser } = useAuth();
   const dispatch = useAppDispatch();
   const themeMode = useAppSelector((state) => state.ui.themeMode);
@@ -75,12 +49,6 @@ export function SettingsPage() {
   const [savingIdle, setSavingIdle] = useState(false);
   const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
   const [config, setConfig] = useState<PublicConfig | null>(null);
-  const [importing, setImporting] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [lastExport, setLastExport] = useState("");
-  const [backupFile, setBackupFile] = useState<File | null>(null);
-  const [includeTrash, setIncludeTrash] = useState(false);
-  const [importResult, setImportResult] = useState<BackupImportResult | null>(null);
   const [dbInfo, setDbInfo] = useState<DatabaseInfo | null>(null);
   const [dbTesting, setDbTesting] = useState(false);
   const [dbMessage, setDbMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -157,62 +125,6 @@ export function SettingsPage() {
     } finally {
       setSavingIdle(false);
     }
-  };
-
-  const exportBackup = async () => {
-    setExporting(true);
-    try {
-      await backupApi.exportData();
-      setLastExport(new Date().toLocaleString());
-      message.success(t("settings.backupExportDone"));
-    } catch (error) {
-      message.error(errorMessage(error));
-    } finally {
-      setExporting(false);
-    }
-  };
-
-  const pickBackupFile = (file: File) => {
-    if (!file.name.toLowerCase().endsWith(".zip")) {
-      message.error(t("settings.backupOnlyZip"));
-      return Upload.LIST_IGNORE;
-    }
-    setBackupFile(file);
-    setImportResult(null);
-    return false;
-  };
-
-  const startImport = () => {
-    if (!backupFile) {
-      return;
-    }
-    const file = backupFile;
-    modal.confirm({
-      title: t("settings.backupImportTitle"),
-      content: `${file.name} · ${formatFileSize(file.size)}`,
-      okText: t("settings.backupStartImport"),
-      cancelText: t("common.cancel"),
-      onOk: async () => {
-        setImporting(true);
-        try {
-          const result = await backupApi.importData(file, includeTrash);
-          setImportResult(result);
-          setBackupFile(null);
-          message.success(
-            t("settings.importDone", {
-              applications: result.applications,
-              resumes: result.resumes,
-            }),
-          );
-          notifyDataChanged();
-          void dispatch(refreshStats());
-        } catch (error) {
-          message.error(errorMessage(error));
-        } finally {
-          setImporting(false);
-        }
-      },
-    });
   };
 
   return (
@@ -310,136 +222,6 @@ export function SettingsPage() {
               onChange={(value) => setLang(value as typeof lang)}
               options={LANGUAGES}
             />
-          </div>
-        </section>
-
-        <section className="setting-card data-card">
-          <div className="setting-card-head">
-            <h2>{t("settings.data")}</h2>
-          </div>
-          <p className="setting-hint">{t("settings.exportHint")}</p>
-
-          <div className="backup-grid">
-            <article className="backup-panel">
-              <header className="backup-panel-head">
-                <span className="backup-icon">
-                  <CloudDownloadOutlined />
-                </span>
-                <div>
-                  <h3>{t("settings.backupExportTitle")}</h3>
-                  <p>{t("settings.backupExportBody")}</p>
-                </div>
-              </header>
-              <ul className="backup-facts">
-                {t("settings.backupIncludes")
-                  .split("·")
-                  .map((item) => (
-                    <li key={item}>{item.trim()}</li>
-                  ))}
-              </ul>
-              <div className="backup-foot">
-                <Button
-                  type="primary"
-                  icon={<DownloadOutlined />}
-                  loading={exporting}
-                  onClick={() => void exportBackup()}
-                >
-                  {t("settings.export")}
-                </Button>
-                {lastExport && (
-                  <span className="backup-meta">
-                    {t("settings.backupLastExport", { time: lastExport })}
-                  </span>
-                )}
-              </div>
-            </article>
-
-            <article className="backup-panel">
-              <header className="backup-panel-head">
-                <span className="backup-icon is-import">
-                  <CloudUploadOutlined />
-                </span>
-                <div>
-                  <h3>{t("settings.backupImportTitle")}</h3>
-                  <p>{t("settings.backupImportBody")}</p>
-                </div>
-              </header>
-
-              {backupFile ? (
-                <div className="backup-file">
-                  <FileZipOutlined className="backup-file-icon" />
-                  <div className="backup-file-text">
-                    <strong>{backupFile.name}</strong>
-                    <span>{formatFileSize(backupFile.size)}</span>
-                  </div>
-                  <Button
-                    type="text"
-                    size="small"
-                    icon={<CloseOutlined />}
-                    onClick={() => setBackupFile(null)}
-                  />
-                </div>
-              ) : (
-                <Upload.Dragger
-                  className="backup-drop"
-                  accept=".zip"
-                  maxCount={1}
-                  showUploadList={false}
-                  beforeUpload={pickBackupFile}
-                >
-                  <p className="ant-upload-drag-icon">
-                    <InboxOutlined />
-                  </p>
-                  <p className="ant-upload-text">{t("settings.backupDrop")}</p>
-                  <p className="ant-upload-hint">{t("settings.backupOnlyZip")}</p>
-                </Upload.Dragger>
-              )}
-
-              <div className="backup-options">
-                <Switch size="small" checked={includeTrash} onChange={setIncludeTrash} />
-                <span>{t("settings.backupIncludeTrash")}</span>
-              </div>
-
-              <div className="backup-foot">
-                <Button
-                  type="primary"
-                  icon={<UploadOutlined />}
-                  disabled={!backupFile}
-                  loading={importing}
-                  onClick={startImport}
-                >
-                  {t("settings.backupStartImport")}
-                </Button>
-              </div>
-
-              {importResult && (
-                <div className="backup-result">
-                  <CheckCircleFilled />
-                  <div>
-                    <strong>
-                      {t("settings.importDone", {
-                        applications: importResult.applications,
-                        resumes: importResult.resumes,
-                      })}
-                    </strong>
-                    <span>
-                      {t("settings.backupResultDetail", {
-                        changes: importResult.changes,
-                        settings: importResult.settings,
-                        warnings: importResult.warnings.length,
-                      })}
-                    </span>
-                    {importResult.warnings.length > 0 && (
-                      <ul>
-                        {importResult.warnings.slice(0, 4).map((warning) => (
-                          <li key={warning}>{warning}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-              )}
-            </article>
           </div>
         </section>
 

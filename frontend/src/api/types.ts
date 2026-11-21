@@ -341,24 +341,8 @@ export interface SystemInfo {
   onlineMode: "redis" | "memory";
 }
 
-export interface ImportResult {
-  imported: number;
-  skipped: number;
-  total: number;
-  errors: string[];
-}
-
 export interface DeleteResult {
   deleted: number;
-}
-
-export interface BackupImportResult {
-  applications: number;
-  changes: number;
-  resumes: number;
-  settings: number;
-  warnings: string[];
-  counts: Record<string, number>;
 }
 
 export interface QuickEntryDefaults {

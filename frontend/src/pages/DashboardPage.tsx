@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { App as AntdApp, Button, Empty, Input, Popconfirm, Select } from "antd";
 import { useNavigate } from "react-router-dom";
 import {
-  CloudUploadOutlined,
   FilterOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -13,7 +12,6 @@ import type { Application, Category, Status } from "../api/types";
 import { ApplicationCards } from "../components/ApplicationCards";
 import { ApplicationFormDrawer } from "../components/ApplicationFormDrawer";
 import { ApplicationTable } from "../components/ApplicationTable";
-import { ImportModal } from "../components/ImportModal";
 import { PageHeader } from "../components/PageHeader";
 import { QuickEntryModal } from "../components/QuickEntryModal";
 import { StatsCards } from "../components/StatsCards";
@@ -67,7 +65,6 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState<Application | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
-  const [importOpen, setImportOpen] = useState(false);
 
   const statusOptions = useMemo(
     () =>
@@ -236,9 +233,6 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
             <Button icon={<ThunderboltOutlined />} onClick={() => setQuickOpen(true)}>
               {t("dash.quick")}
             </Button>
-            <Button icon={<CloudUploadOutlined />} onClick={() => setImportOpen(true)}>
-              {t("dash.import")}
-            </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
               {t("dash.add")}
             </Button>
@@ -391,11 +385,6 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
         defaultCategory={category === "all" ? seasonCategory() : category}
         onClose={() => setQuickOpen(false)}
         onSaved={refresh}
-      />
-      <ImportModal
-        open={importOpen}
-        onClose={() => setImportOpen(false)}
-        onImported={refresh}
       />
     </>
   );

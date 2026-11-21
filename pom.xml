@@ -26,7 +26,6 @@
         <spring-boot.version>4.2.0</spring-boot.version>
         <mybatis-plus.version>3.5.18</mybatis-plus.version>
         <jjwt.version>0.13.0</jjwt.version>
-        <poi.version>5.5.1</poi.version>
         <easy-captcha.version>1.6.2</easy-captcha.version>
         <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.5.4</maven-surefire-plugin.version>
@@ -110,13 +109,6 @@
                 <groupId>io.jsonwebtoken</groupId>
                 <artifactId>jjwt-jackson</artifactId>
                 <version>${jjwt.version}</version>
-            </dependency>
-
-            <!-- Excel -->
-            <dependency>
-                <groupId>org.apache.poi</groupId>
-                <artifactId>poi-ooxml</artifactId>
-                <version>${poi.version}</version>
             </dependency>
 
             <!-- 图形验证码 -->

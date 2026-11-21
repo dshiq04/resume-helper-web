@@ -12,7 +12,7 @@
 
 ### 投递管理
 
-- **多年度投递**：每条记录带年度字段，列表、统计与 Excel 导入都支持按年度筛选，春招/秋招/实习/社招可以跨年归档。
+- **多年度投递**：每条记录带年度字段，列表与统计都支持按年度筛选，春招/秋招/实习/社招可以跨年归档。
 - **只必填两项**：公司名称与投递链接必填，其余字段全部选填。
 - **更完整的字段**：岗位、年度、状态、渠道、城市、薪资、联系人、联系方式、工作方式、优先级、面试轮次、下次跟进、备注。
 - **置顶与内联编辑**：置顶记录优先展示；公司名称、投递链接、状态可以直接在表格中修改。
@@ -20,7 +20,6 @@
 - **状态时间线**：初筛 → 笔试 → 面试 → Offer/淘汰，记录每个阶段的日期、间隔与停留天数；历史缺失时可以补全。
 - **回收站**：删除先进入回收站，支持恢复、永久删除与清空。
 - **企业名自动补全**：根据历史投递去重提示公司名称。
-- **Excel 导入**：支持 `.xlsx` / `.xlsm`，内置中英双语模板和下拉选项，导入结果包含成功、跳过与错误明细。
 - **浏览器扩展**：替代原桌面端的独立快速录入窗口，可在任意招聘页一键收录当前链接。
 
 ### 简历库
@@ -74,7 +73,7 @@ resume-helper-web/
 ├── jobtrack-common/            # 通用返回结构、异常、租户上下文、JSON/时间工具
 ├── jobtrack-system/            # 用户、认证、JWT、租户拦截器、Redis、验证码、偏好设置
 │   └── src/main/resources/mapper/    # SysUser / SysTenant / TenantSetting 的 XML
-├── jobtrack-application/       # 投递、时间线、回收站、简历、统计、Excel、备份
+├── jobtrack-application/       # 投递、时间线、回收站、简历、统计
 │   └── src/main/resources/mapper/    # 投递 / 时间线 / 回收站 / 简历的 XML
 ├── jobtrack-web/               # Spring Boot 启动模块，只提供 REST 接口
 │   └── src/main/resources/
@@ -105,8 +104,6 @@ resume-helper-web/
 | `api/trash.ts` | `TrashController` |
 | `api/resumes.ts` | `ResumeController` |
 | `api/stats.ts` | `StatsController` |
-| `api/excel.ts` | `ExcelController` |
-| `api/backup.ts` | `BackupController` |
 | `api/system.ts` | `SystemController` |
 | `api/preferences.ts` | `PreferencesController` |
 | `api/config.ts` | `PublicConfigController` |
@@ -393,8 +390,6 @@ Content-Type: application/json
 | `DELETE` | `/api/application/{id}` | 删除（进入回收站） |
 | `GET/POST` | `/api/application/{id}/history` | 状态时间线 / 补全阶段 |
 | `GET` | `/api/applications/companies` | 公司名补全 |
-| `POST` | `/api/applications/import` | Excel 导入 |
-| `GET` | `/api/applications/template` | 下载导入模板 |
 | `GET` | `/api/trash` | 回收站列表 |
 | `POST` | `/api/trash/{id}/restore` | 恢复 |
 | `DELETE` | `/api/trash/{id}` | 永久删除 |
@@ -408,8 +403,6 @@ Content-Type: application/json
 | `GET` | `/api/system/info` | 版本、数据库、运行环境、数据目录 |
 | `GET` | `/api/system/database` | 当前数据库配置、运行环境与配置文件（只读） |
 | `GET` | `/api/system/database/test` | 测试当前数据库连接 |
-| `GET` | `/api/system/backup/export` | 导出 ZIP 备份 |
-| `POST` | `/api/system/backup/import` | 导入备份 |
 | `GET` | `/api/system/quick-entry/defaults` | 扩展默认类型与服务器时间 |
 | `GET/PUT` | `/api/account/profile` | 读取 / 保存个人资料 |
 | `PUT` | `/api/account/username` | 修改用户名 |
@@ -436,7 +429,6 @@ Authorization: Bearer <token>
 | 数据库 | MySQL 8 / PostgreSQL 16+（按环境配置） |
 | 认证 | JWT（jjwt）+ 服务端会话校验 |
 | 验证码 | EasyCaptcha |
-| Excel | Apache POI |
 | 前端 | React 18、TypeScript、Vite、Ant Design 5 |
 | 状态管理 | Redux Toolkit + React Redux |
 | 图表 | ECharts |
@@ -449,4 +441,4 @@ Authorization: Bearer <token>
 - 生产环境请通过环境变量提供 `JWT_SECRET` 与 `STORAGE_SECRET`；dev / test 的默认密钥仅供本地使用。
 - dev 默认监听 `127.0.0.1`，test / prod 默认监听 `0.0.0.0`，请按需配置防火墙与反向代理。
 - 浏览器扩展与网页端必须连接同一个服务端地址。
-- 简历文件在 `data/` 下、业务数据在数据库中，备份时建议使用设置页的「导出备份」，或同时备份 `data/` 与数据库。
+- 简历文件在 `data/` 下、业务数据在数据库中，备份时请同时备份 `data/` 与数据库。
