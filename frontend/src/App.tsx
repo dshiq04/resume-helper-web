@@ -5,6 +5,9 @@ import { useAuth } from "./context/AuthContext";
 import { useI18n } from "./i18n";
 import { AppLayout } from "./layouts/AppLayout";
 import { ApplicationDetailPage } from "./pages/ApplicationDetailPage";
+import { AccountPage } from "./pages/AccountPage";
+import { AccountProfilePage } from "./pages/AccountProfilePage";
+import { AccountTokensPage } from "./pages/AccountTokensPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ResumesPage } from "./pages/ResumesPage";
@@ -103,6 +106,11 @@ function AppShell() {
         <Route path="statistics" element={<StatisticsPage />} />
         <Route path="trash" element={<TrashPage />} />
         <Route path="settings" element={<SettingsPage />} />
+        <Route path="account" element={<AccountPage />}>
+          <Route index element={<Navigate to="profile" replace />} />
+          <Route path="profile" element={<AccountProfilePage />} />
+          <Route path="tokens" element={<AccountTokensPage />} />
+        </Route>
         <Route path="applications/:id" element={<ApplicationDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

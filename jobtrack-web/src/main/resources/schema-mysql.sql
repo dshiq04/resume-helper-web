@@ -115,3 +115,75 @@ CREATE TABLE IF NOT EXISTS resumes (
     KEY idx_resumes_tenant (tenant_id, pinned),
     KEY idx_resumes_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS user_profile (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    tenant_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    real_name VARCHAR(64) NULL,
+    gender VARCHAR(16) NULL,
+    birthday DATE NULL,
+    phone VARCHAR(32) NULL,
+    email VARCHAR(128) NULL,
+    location VARCHAR(64) NULL,
+    hometown VARCHAR(64) NULL,
+    website VARCHAR(255) NULL,
+    github VARCHAR(128) NULL,
+    linkedin VARCHAR(128) NULL,
+    wechat VARCHAR(64) NULL,
+    target_position VARCHAR(128) NULL,
+    expected_salary VARCHAR(64) NULL,
+    work_mode VARCHAR(16) NULL,
+    job_status VARCHAR(16) NULL,
+    available_date DATE NULL,
+    school VARCHAR(128) NULL,
+    major VARCHAR(128) NULL,
+    degree VARCHAR(32) NULL,
+    graduation_year INT NULL,
+    experience_years INT NULL,
+    current_company VARCHAR(128) NULL,
+    current_title VARCHAR(128) NULL,
+    skills VARCHAR(1000) NULL,
+    languages VARCHAR(255) NULL,
+    bio VARCHAR(2000) NULL,
+    avatar_url VARCHAR(255) NULL,
+    created_at DATETIME NULL,
+    updated_at DATETIME NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_user_profile_user (user_id),
+    KEY idx_user_profile_tenant (tenant_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS access_token (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    tenant_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    name VARCHAR(64) NOT NULL,
+    code VARCHAR(80) NOT NULL,
+    scope VARCHAR(16) NOT NULL,
+    resources VARCHAR(200) NOT NULL DEFAULT 'applications,resumes,statistics,profile',
+    expires_on DATE NULL,
+    last_used_at DATETIME NULL,
+    created_at DATETIME NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_access_token_code (code),
+    KEY idx_access_token_user (tenant_id, user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS access_token_log (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    tenant_id BIGINT UNSIGNED NULL,
+    user_id BIGINT UNSIGNED NULL,
+    token_id BIGINT UNSIGNED NULL,
+    token_name VARCHAR(64) NULL,
+    code_prefix VARCHAR(16) NULL,
+    scope VARCHAR(16) NULL,
+    resources VARCHAR(200) NULL,
+    result VARCHAR(16) NOT NULL,
+    ip VARCHAR(64) NULL,
+    user_agent VARCHAR(255) NULL,
+    created_at DATETIME NULL,
+    PRIMARY KEY (id),
+    KEY idx_access_token_log_user (user_id, created_at),
+    KEY idx_access_token_log_token (token_id, created_at)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

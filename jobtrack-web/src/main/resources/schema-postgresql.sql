@@ -107,3 +107,72 @@ CREATE TABLE IF NOT EXISTS resumes (
 );
 CREATE INDEX IF NOT EXISTS idx_resumes_tenant ON resumes (tenant_id, pinned);
 CREATE INDEX IF NOT EXISTS idx_resumes_name ON resumes (name);
+
+CREATE TABLE IF NOT EXISTS user_profile (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    real_name VARCHAR(64),
+    gender VARCHAR(16),
+    birthday DATE,
+    phone VARCHAR(32),
+    email VARCHAR(128),
+    location VARCHAR(64),
+    hometown VARCHAR(64),
+    website VARCHAR(255),
+    github VARCHAR(128),
+    linkedin VARCHAR(128),
+    wechat VARCHAR(64),
+    target_position VARCHAR(128),
+    expected_salary VARCHAR(64),
+    work_mode VARCHAR(16),
+    job_status VARCHAR(16),
+    available_date DATE,
+    school VARCHAR(128),
+    major VARCHAR(128),
+    degree VARCHAR(32),
+    graduation_year INT,
+    experience_years INT,
+    current_company VARCHAR(128),
+    current_title VARCHAR(128),
+    skills VARCHAR(1000),
+    languages VARCHAR(255),
+    bio VARCHAR(2000),
+    avatar_url VARCHAR(255),
+    created_at TIMESTAMP,
+    updated_at TIMESTAMP,
+    CONSTRAINT uk_user_profile_user UNIQUE (user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_profile_tenant ON user_profile (tenant_id);
+
+CREATE TABLE IF NOT EXISTS access_token (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    name VARCHAR(64) NOT NULL,
+    code VARCHAR(80) NOT NULL,
+    scope VARCHAR(16) NOT NULL,
+    resources VARCHAR(200) NOT NULL DEFAULT 'applications,resumes,statistics,profile',
+    expires_on DATE,
+    last_used_at TIMESTAMP,
+    created_at TIMESTAMP,
+    CONSTRAINT uk_access_token_code UNIQUE (code)
+);
+CREATE INDEX IF NOT EXISTS idx_access_token_user ON access_token (tenant_id, user_id);
+
+CREATE TABLE IF NOT EXISTS access_token_log (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT,
+    user_id BIGINT,
+    token_id BIGINT,
+    token_name VARCHAR(64),
+    code_prefix VARCHAR(16),
+    scope VARCHAR(16),
+    resources VARCHAR(200),
+    result VARCHAR(16) NOT NULL,
+    ip VARCHAR(64),
+    user_agent VARCHAR(255),
+    created_at TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_access_token_log_user ON access_token_log (user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_access_token_log_token ON access_token_log (token_id, created_at);

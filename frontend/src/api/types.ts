@@ -26,6 +26,59 @@ export interface User {
   tenantName: string;
 }
 
+export interface UserProfile {
+  userId: number;
+  realName?: string | null;
+  gender?: string | null;
+  birthday?: string | null;
+  phone?: string | null;
+  email?: string | null;
+  location?: string | null;
+  hometown?: string | null;
+  website?: string | null;
+  github?: string | null;
+  linkedin?: string | null;
+  wechat?: string | null;
+  targetPosition?: string | null;
+  expectedSalary?: string | null;
+  workMode?: string | null;
+  jobStatus?: string | null;
+  availableDate?: string | null;
+  school?: string | null;
+  major?: string | null;
+  degree?: string | null;
+  graduationYear?: number | null;
+  experienceYears?: number | null;
+  currentCompany?: string | null;
+  currentTitle?: string | null;
+  skills?: string | null;
+  languages?: string | null;
+  bio?: string | null;
+  avatarUrl?: string | null;
+  updatedAt?: string | null;
+}
+
+export type TokenScope = "read" | "write" | "readwrite";
+export type TokenResource = "applications" | "resumes" | "statistics" | "profile";
+
+export interface AccessToken {
+  id: number;
+  name: string;
+  code: string;
+  scope: TokenScope;
+  resources: TokenResource[];
+  expiresOn?: string | null;
+  lastUsedAt?: string | null;
+  createdAt?: string | null;
+}
+
+export interface AccessTokenInput {
+  name?: string;
+  scope: TokenScope;
+  resources?: TokenResource[];
+  expiresOn?: string | null;
+}
+
 export interface AuthResponse {
   token: string;
   expiresAt: string;

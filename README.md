@@ -331,6 +331,9 @@ server {
 | `application_changes` | 状态时间线，唯一键 `(tenant_id, application_id, status)` |
 | `deleted_applications` | 回收站快照 |
 | `resumes` | 简历元数据，文件加密落盘 |
+| `user_profile` | 账号扩展个人资料 |
+| `access_token` | 授权码（权限类型、数据范围、有效期） |
+| `access_token_log` | 授权码每次校验的使用日志 |
 
 `sys_user` 与 `sys_tenant` 被租户拦截器排除，因为登录阶段还需要根据用户名定位账号；其余业务表全部自动隔离。
 
@@ -344,6 +347,26 @@ server {
 - 登录页可直接注册新账号，注册后自动登录。
 - 每个账号的数据、简历文件、统计与回收站完全独立。
 - 修改密码后，旧会话会立即失效，需要重新登录。
+
+---
+
+## 账户设置与授权码
+
+点击左下角头像或昵称进入「账户设置」（`/account/profile`、`/account/tokens` 二级路由）：
+
+- **个人资料**：头像（预留）、用户名、密码，以及基本信息 / 求职意向 / 教育背景 / 链接与简介等扩展资料，独立存放在 `user_profile` 表。
+- **授权码**：为浏览器扩展生成访问码，可选择权限类型（`read` / `write` / `readwrite`）和数据范围（投递、简历、统计、个人资料），支持有效期或长期有效，也可随时删除；每次校验都会写入 `access_token_log`。
+
+扩展或第三方工具可调用无需登录的校验接口：
+
+```http
+POST /api/tokens/validate
+Content-Type: application/json
+
+{ "code": "rt_xxx" }
+```
+
+返回 `valid`、`reason`（invalid / expired / disabled）、`scope`、`resources`、`expiresOn` 以及账号的 `username`、`displayName`。每次调用（含失败）都会记录使用日志。
 
 ---
 
@@ -388,6 +411,12 @@ server {
 | `GET` | `/api/system/backup/export` | 导出 ZIP 备份 |
 | `POST` | `/api/system/backup/import` | 导入备份 |
 | `GET` | `/api/system/quick-entry/defaults` | 扩展默认类型与服务器时间 |
+| `GET/PUT` | `/api/account/profile` | 读取 / 保存个人资料 |
+| `PUT` | `/api/account/username` | 修改用户名 |
+| `GET/POST` | `/api/account/tokens` | 授权码列表 / 生成授权码 |
+| `DELETE` | `/api/account/tokens/{id}` | 删除授权码 |
+| `GET` | `/api/account/tokens/logs` | 授权码使用日志（最近 100 条） |
+| `POST` | `/api/tokens/validate` | 校验授权码（无需登录） |
 
 除健康检查、公共配置与登录/注册/验证码外，`/api/**` 都需要：
 

@@ -71,6 +71,7 @@ public class SecurityConfig {
                                 "/api/auth/register",
                                 "/api/auth/status",
                                 "/api/auth/captcha",
+                                "/api/tokens/validate",
                                 "/api/health",
                                 "/api/config")
                         .permitAll()

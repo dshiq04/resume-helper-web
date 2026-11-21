@@ -62,6 +62,9 @@ const PATH_KEYS: Record<string, string> = {
   "/statistics": "nav.statistics",
   "/trash": "nav.trash",
   "/settings": "nav.settings",
+  "/account": "account.title",
+  "/account/profile": "account.profileTab",
+  "/account/tokens": "account.tokensTab",
 };
 
 /** 面包屑层级：group 为一级菜单，key 为当前页对应的二级菜单 / 顶级菜单。 */
@@ -75,6 +78,9 @@ const PATH_CRUMB: Record<string, { group?: string; key: string }> = {
   "/statistics": { key: "nav.statistics" },
   "/trash": { key: "nav.trash" },
   "/settings": { key: "nav.settings" },
+  "/account": { group: "nav.account", key: "account.title" },
+  "/account/profile": { group: "nav.account", key: "account.profileTab" },
+  "/account/tokens": { group: "nav.account", key: "account.tokensTab" },
 };
 
 function tabForPath(path: string): PageTab | null {
@@ -269,7 +275,7 @@ export function AppLayout() {
       </nav>
 
       <div className="side-foot">
-        <div className="side-user">
+        <NavLink to="/account/profile" className="side-user" title={t("account.title")}>
           <div className="avatar">{user?.displayName?.slice(0, 1) || "U"}</div>
           {!rail && (
             <div className="side-user-text">
@@ -280,7 +286,7 @@ export function AppLayout() {
               </span>
             </div>
           )}
-        </div>
+        </NavLink>
         {!rail && (
           <div className="side-foot-actions">
             <NavLink to="/settings" className="ghost-icon" title={t("nav.settings")}>

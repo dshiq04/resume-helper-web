@@ -24,6 +24,9 @@ public class JobTenantLineHandler implements TenantLineHandler {
     @Override
     public boolean ignoreTable(String tableName) {
         return "sys_user".equalsIgnoreCase(tableName)
-                || "sys_tenant".equalsIgnoreCase(tableName);
+                || "sys_tenant".equalsIgnoreCase(tableName)
+                // 授权码校验发生在登录之前，无法依赖 TenantContext。
+                || "access_token".equalsIgnoreCase(tableName)
+                || "access_token_log".equalsIgnoreCase(tableName);
     }
 }
