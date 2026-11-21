@@ -33,6 +33,7 @@ import java.util.List;
 import java.util.Set;
 
 @Service
+@Transactional
 @RequiredArgsConstructor
 public class ApplicationServiceImpl implements ApplicationService {
 
@@ -177,9 +178,10 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Transactional
     public ApplicationRecord update(Long id, ApplicationUpdateRequest request) {
+        // 修改前先确认记录存在，不存在按 500 返回明确提示。
         ApplicationRecord record = applicationMapper.selectById(id);
         if (record == null) {
-            throw BusinessException.notFound("not_found", "投递记录不存在");
+            throw BusinessException.internal("record_not_found", "记录不存在");
         }
         String previousStatus = record.getStatus();
 
@@ -244,6 +246,9 @@ public class ApplicationServiceImpl implements ApplicationService {
                     LocalDateTime.now());
         }
         ApplicationRecord reloaded = applicationMapper.selectById(id);
+        if (reloaded == null) {
+            throw BusinessException.internal("record_not_found", "记录不存在");
+        }
         historyService.attachStatusDays(List.of(reloaded));
         applicationCache.invalidate();
         return reloaded;
