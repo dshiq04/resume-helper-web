@@ -98,6 +98,15 @@ public class ObjectStorageService {
                 return response.readAllBytes();
             } catch (ErrorResponseException exception) {
                 if (exception.response() != null && exception.response().code() == 404) {
+                    // 兼容早期写入本地磁盘、后来才启用 S3 的文件。
+                    Path local = localPath(key);
+                    if (Files.isRegularFile(local)) {
+                        try {
+                            return Files.readAllBytes(local);
+                        } catch (IOException ignored) {
+                            // 继续按缺失处理。
+                        }
+                    }
                     throw BusinessException.notFound("file_missing", "文件已丢失");
                 }
                 throw BusinessException.internal("storage_unavailable", "无法读取文件");
@@ -113,6 +122,24 @@ public class ObjectStorageService {
             return Files.readAllBytes(path);
         } catch (IOException exception) {
             throw BusinessException.internal("file_unreadable", "无法读取文件");
+        }
+    }
+
+    public boolean exists(String key) {
+        if (key == null || key.isBlank()) {
+            return false;
+        }
+        if (client == null) {
+            return Files.isRegularFile(localPath(key));
+        }
+        try {
+            client.statObject(io.minio.StatObjectArgs.builder()
+                    .bucket(bucket()).object(key).build());
+            return true;
+        } catch (ErrorResponseException exception) {
+            return Files.isRegularFile(localPath(key));
+        } catch (Exception exception) {
+            return false;
         }
     }
 

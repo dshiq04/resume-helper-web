@@ -43,6 +43,7 @@ public class AccountService {
     private final SessionService sessionService;
     private final JwtService jwtService;
     private final ObjectStorageService objectStorage;
+    private final AvatarService avatarService;
 
     private static final Set<String> AVATAR_TYPES = Set.of("png", "jpg", "jpeg", "webp", "gif");
     private static final long AVATAR_MAX_BYTES = 5L * 1024 * 1024;
@@ -171,7 +172,7 @@ public class AccountService {
     private UserProfileView view(UserProfile profile) {
         UserProfileView view = new UserProfileView();
         BeanUtils.copyProperties(profile, view);
-        view.setAvatarUrl(objectStorage.publicUrl(profile.getAvatarUrl()));
+        view.setAvatarUrl(avatarService.url(profile.getUserId(), profile.getAvatarUrl()));
         return view;
     }
 

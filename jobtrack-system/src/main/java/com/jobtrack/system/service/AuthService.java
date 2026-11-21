@@ -13,7 +13,7 @@ import com.jobtrack.system.entity.SysTenant;
 import com.jobtrack.system.entity.SysUser;
 import com.jobtrack.system.entity.UserProfile;
 import com.jobtrack.system.mapper.UserProfileMapper;
-import com.jobtrack.system.storage.ObjectStorageService;
+
 import com.jobtrack.system.mapper.SysTenantMapper;
 import com.jobtrack.system.mapper.SysUserMapper;
 import com.jobtrack.system.security.AuthPrincipal;
@@ -42,7 +42,7 @@ public class AuthService {
     private final SessionService sessionService;
     private final CaptchaService captchaService;
     private final UserProfileMapper profileMapper;
-    private final ObjectStorageService objectStorage;
+    private final AvatarService avatarService;
 
     public AuthResponse login(LoginRequest request) {
         captchaService.verify(request.getCaptchaId(), request.getCaptchaCode());
@@ -162,9 +162,10 @@ public class AuthService {
     }
 
     private UserView view(SysUser user, SysTenant tenant) {
-        UserProfile profile = profileMapper.selectOne(Wrappers.<UserProfile>lambdaQuery()
-                .eq(UserProfile::getUserId, user.getId()));
-        String avatarUrl = profile == null ? null : objectStorage.publicUrl(profile.getAvatarUrl());
+        // 登录时还没有 TenantContext，按 user_id 直接查询。
+        UserProfile profile = profileMapper.selectByUserIdIgnoreTenant(user.getId());
+        String avatarUrl = profile == null ? null
+                : avatarService.url(user.getId(), profile.getAvatarUrl());
         return new UserView(user.getId(), user.getTenantId(), user.getUsername(),
                 user.getDisplayName(), user.getRole(), tenant == null ? "" : tenant.getName(),
                 avatarUrl);
