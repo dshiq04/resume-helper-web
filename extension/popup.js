@@ -167,19 +167,37 @@ function guessCompany(title) {
   return cleaned.length > 40 ? cleaned.slice(0, 40) : cleaned;
 }
 
+function isAppUrl(url) {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    if ((parsed.hostname === "127.0.0.1" || parsed.hostname === "localhost")
+        && parsed.port === "5173") {
+      return true;
+    }
+    return parsed.origin === new URL(state.serverUrl).origin;
+  } catch {
+    return false;
+  }
+}
+
 function fillFromQuery() {
   const params = new URLSearchParams(window.location.search);
   const link = params.get("link");
   const title = params.get("title");
-  if (link) $("link").value = link;
-  if (title) $("company").value = guessCompany(title);
+  if (link && !isAppUrl(link)) {
+    $("link").value = link;
+  }
+  if (title && !isAppUrl(link)) {
+    $("company").value = guessCompany(title);
+  }
 }
 
 async function prefillActiveTab() {
   if ($("link").value) return;
   try {
     const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab && tab.url && /^https?:/i.test(tab.url)) {
+    if (tab && tab.url && /^https?:/i.test(tab.url) && !isAppUrl(tab.url)) {
       $("link").value = tab.url;
       if (!$("company").value) $("company").value = guessCompany(tab.title || "");
     }
