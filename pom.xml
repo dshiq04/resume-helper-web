@@ -28,7 +28,6 @@
         <jjwt.version>0.13.0</jjwt.version>
         <poi.version>5.5.1</poi.version>
         <easy-captcha.version>1.6.2</easy-captcha.version>
-        <sqlite-jdbc.version>3.54.1.0</sqlite-jdbc.version>
         <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.5.4</maven-surefire-plugin.version>
     </properties>
@@ -125,13 +124,6 @@
                 <groupId>com.github.whvcse</groupId>
                 <artifactId>easy-captcha</artifactId>
                 <version>${easy-captcha.version}</version>
-            </dependency>
-
-            <!-- SQLite JDBC -->
-            <dependency>
-                <groupId>org.xerial</groupId>
-                <artifactId>sqlite-jdbc</artifactId>
-                <version>${sqlite-jdbc.version}</version>
             </dependency>
 
             <!-- 内部模块 -->

@@ -18,7 +18,7 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * 在线会话存储。
  *
- * <p>Redis 是可选项：config.json 中 redis.enabled=false 时使用进程内 Map；
+ * <p>Redis 是可选项：配置项 redis.enabled=false 时使用进程内 Map；
  * 打开后会话与在线人数写入 Redis。如果 Redis 临时不可用，会自动退回内存存储，
  * 保证登录功能不被基础设施拖垮。</p>
  */

@@ -26,7 +26,7 @@ public class MybatisPlusConfig {
 
         interceptor.addInnerInterceptor(new TenantLineInnerInterceptor(new JobTenantLineHandler()));
 
-        // PostgreSQL 分页语法 LIMIT ? OFFSET ? 同时兼容 MySQL / SQLite / H2。
+        // PostgreSQL 分页语法 LIMIT ? OFFSET ? 同时兼容 MySQL / PostgreSQL。
         PaginationInnerInterceptor pagination = new PaginationInnerInterceptor(DbType.POSTGRE_SQL);
         pagination.setMaxLimit(200L);
         pagination.setOverflow(false);

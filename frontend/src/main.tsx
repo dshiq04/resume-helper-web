@@ -6,7 +6,7 @@ import App from "./App";
 import { AuthProvider } from "./context/AuthContext";
 import { I18nProvider } from "./i18n";
 import { store } from "./store";
-import "./styles/global.css";
+import "./styles/index.scss";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>

@@ -1,18 +1,24 @@
-# 说明：
-# 服务端运行配置全部来自项目根目录的 config.json（由 JsonConfigEnvironmentPostProcessor 载入）。
-# 本文件只保留框架级默认值，不在这里重复端口、数据库、日志等配置。
+# 通用配置：所有环境共享。
+# 环境相关配置（端口、数据库、Redis、验证码、JWT、存储等）放在
+# application-dev.yml / application-test.yml / application-prod.yml。
+# 默认激活 dev，可通过 SPRING_PROFILES_ACTIVE 或 --spring.profiles.active 覆盖。
 spring:
   application:
     name: jobtrack
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:dev}
   jackson:
     default-property-inclusion: non_null
     time-zone: Asia/Shanghai
   sql:
     init:
+      # 建表脚本均为 CREATE TABLE IF NOT EXISTS，可重复执行。
       mode: always
       encoding: UTF-8
-      # config.json 载入后会按数据库类型覆盖为 schema-mysql.sql。
-      schema-locations: classpath:schema-sqlite.sql
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 55MB
   main:
     banner-mode: console
 

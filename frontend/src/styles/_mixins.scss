@@ -1,0 +1,31 @@
+// 可复用样式片段。
+
+/// 单行文本省略
+@mixin ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/// 卡片式容器：浅色底 + 细描边 + 圆角
+@mixin surface($radius: 12px) {
+  background: var(--bg-elev);
+  border: 1px solid var(--line);
+  border-radius: $radius;
+}
+
+/// 隐藏滚动条但保留滚动能力
+@mixin hide-scrollbar {
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/// 向下响应式断点
+@mixin respond-down($width) {
+  @media (max-width: $width) {
+    @content;
+  }
+}

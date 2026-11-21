@@ -234,11 +234,10 @@ export interface OnlineStatus {
   online: boolean;
 }
 
-export type DatabaseDriver = "sqlite" | "mysql" | "postgresql";
+export type DatabaseDriver = "mysql" | "postgresql";
 
 export interface DatabaseSettings {
   type: DatabaseDriver | string;
-  file: string;
   host: string;
   port: number;
   name: string;
@@ -253,19 +252,15 @@ export interface DatabaseSettings {
 export interface DatabaseInfo {
   settings: DatabaseSettings;
   supportedTypes: DatabaseDriver[];
-  configPath: string;
+  profile: string;
+  configFile: string;
   dataDir: string;
+  editable: boolean;
 }
 
 export interface DatabaseTestResult {
   ok: boolean;
   message: string;
-}
-
-export interface DatabaseSwitchResult {
-  ok: boolean;
-  warning: string;
-  settings: DatabaseSettings;
 }
 
 export interface SystemInfo {
@@ -274,7 +269,7 @@ export interface SystemInfo {
   driver: string;
   database: string;
   location: string;
-  configPath: string;
+  profile: string;
   dataDir: string;
   onlineMode: "redis" | "memory";
 }

@@ -21,7 +21,7 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 /**
- * 可选的演示数据。config.json 中 app.seedDemo=true 时，
+ * 可选的演示数据。配置项 app.seed-demo=true 时，
  * 只在默认工作区为空的情况下写入几条示例，方便首次打开时查看界面。
  */
 @Slf4j

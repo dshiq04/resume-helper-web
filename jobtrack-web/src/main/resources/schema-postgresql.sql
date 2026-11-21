@@ -1,4 +1,5 @@
 -- 履途 ResumeTrail · PostgreSQL 初始化脚本
+-- application-{profile}.yml 的 spring.sql.init.schema-locations 指向本脚本，服务启动时自动执行。
 
 CREATE TABLE IF NOT EXISTS sys_tenant (
     id BIGSERIAL PRIMARY KEY,

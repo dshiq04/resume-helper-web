@@ -1,6 +1,6 @@
 # 履途 ResumeTrail
 
-一个自托管、多用户的求职投递管理服务。后端使用 **Spring Boot 4.2 + MyBatis-Plus**，前端使用 **React + Ant Design + Redux Toolkit**，通过 MyBatis-Plus 多租户拦截器按账号隔离数据。前端构建产物会直接写入后端静态资源目录，最终只需要启动一个 jar。
+一个自托管、多用户的求职投递管理服务。后端使用 **Spring Boot 4.2 + MyBatis-Plus**，前端使用 **React + Ant Design + Redux Toolkit**，通过 MyBatis-Plus 多租户拦截器按账号隔离数据。前后端完全分离：后端只提供 REST 接口，前端构建产物输出到 `frontend/dist`，由 Nginx 等静态服务器托管。
 
 - 默认账号：`admin`
 - 默认密码：`123456`
@@ -31,9 +31,10 @@
 
 ### 数据库
 
-- 默认使用 SQLite 文件数据库，零安装即可启动。
-- 设置页支持在线测试并切换 SQLite / MySQL / PostgreSQL；切换会写回根目录 `config.json`，并自动初始化表结构与默认账号。
-- 切换数据库后当前登录会退出，请使用目标数据库中的账号登录。
+- 支持 MySQL 8 与 PostgreSQL 16+，不再内置 SQLite。
+- 连接信息位于 `application-{profile}.yml` 的 `spring.datasource`，dev / test / prod 各自独立。
+- 服务启动时自动执行对应建表脚本，并在空库中创建默认工作区与 `admin / 123456`。
+- 设置页的「数据库连接」只做信息展示与连通性测试；修改数据库请编辑对应环境文件后重启。
 
 ### 五种界面语言
 
@@ -69,29 +70,26 @@
 
 ```text
 resume-helper-web/
-├── config.json                 # 服务端全部运行配置（端口、数据库、Redis、验证码、JWT、存储）
 ├── pom.xml                     # 父 POM，只做依赖导入与版本收敛，并配置阿里云镜像
-├── start.cmd                   # Windows 一键启动
-├── start-macos.command         # macOS 一键启动
-├── start-linux.sh              # Linux 一键启动
 ├── jobtrack-common/            # 通用返回结构、异常、租户上下文、JSON/时间工具
 ├── jobtrack-system/            # 用户、认证、JWT、租户拦截器、Redis、验证码、偏好设置
 │   └── src/main/resources/mapper/    # SysUser / SysTenant / TenantSetting 的 XML
 ├── jobtrack-application/       # 投递、时间线、回收站、简历、统计、Excel、备份
 │   └── src/main/resources/mapper/    # 投递 / 时间线 / 回收站 / 简历的 XML
-├── jobtrack-web/               # Spring Boot 启动模块，托管前端静态资源
+├── jobtrack-web/               # Spring Boot 启动模块，只提供 REST 接口
 │   └── src/main/resources/
-│       ├── application.yaml    # 只保留框架级默认值
-│       ├── schema-sqlite.sql   # 默认 SQLite 建表脚本
+│       ├── application.yaml    # 通用配置，默认激活 dev
+│       ├── application-dev.yml # 开发环境：本机 MySQL + Redis
+│       ├── application-test.yml # 测试环境
+│       ├── application-prod.yml # 生产环境：PostgreSQL
 │       ├── schema-mysql.sql    # MySQL 建表脚本
-│       ├── schema-postgresql.sql # PostgreSQL 建表脚本
-│       ├── schema-h2.sql       # 兼容选项 H2 建表脚本
-│       └── static/             # 前端构建产物（自动生成）
-├── frontend/                   # React + Ant Design + Redux Toolkit
+│       └── schema-postgresql.sql # PostgreSQL 建表脚本
+├── frontend/                   # React + Ant Design + Redux Toolkit（产物在 dist/）
 │   └── src/
 │       ├── api/                # 按后端 Controller 拆分的 axios 接口模块
 │       ├── store/              # Redux Toolkit：auth / ui / meta / tabs / applications
 │       ├── layouts/            # 侧边栏、顶部栏、可关闭页面标签栏
+│       ├── styles/             # 按模块拆分的 SCSS，入口 index.scss
 │       └── pages/              # 登录、投递、简历库、统计、回收站、设置、详情
 └── extension/                  # Chrome / Edge 浏览器扩展（MV3）
 ```
@@ -114,6 +112,27 @@ resume-helper-web/
 | `api/config.ts` | `PublicConfigController` |
 | `api/quickEntry.ts` | `QuickEntryController` |
 
+### 前端样式（Sass）
+
+`frontend/src/styles/` 使用 Sass 并按模块拆分，由 `index.scss` 统一引入：
+
+| 文件 | 模块 |
+| --- | --- |
+| `_base.scss` | 主题变量、全局重置、通用工具类 |
+| `_layout.scss` | 侧边栏、顶部栏、品牌区 |
+| `_tabs.scss` | 页面标签栏与页面切换动画 |
+| `_dashboard.scss` | 投递列表与总览 |
+| `_login.scss` | 登录 / 注册页 |
+| `_forms.scss` | 表单、抽屉与弹窗 |
+| `_detail.scss` | 投递详情 |
+| `_resumes.scss` | 简历库 |
+| `_statistics.scss` | 统计分析 |
+| `_settings.scss` | 设置页 |
+| `_misc.scss` | 启动屏与 Ant Design 细节覆盖 |
+| `_responsive.scss` | 响应式断点（复用 `respond-down` mixin） |
+
+尺寸、断点、字体与动效常量位于 `_variables.scss`，省略号、卡片、响应式等复用片段位于 `_mixins.scss`。
+
 ### 前端路由与状态
 
 - 使用 React Router，页面路由包括 `/`、`/spring`、`/autumn`、`/internship`、`/social`、`/resumes`、`/statistics`、`/trash`、`/settings`、`/applications/:id`。
@@ -122,55 +141,31 @@ resume-helper-web/
 
 ---
 
-## 一键启动
-
-启动脚本会依次：检查环境 → 安装前端依赖 → 构建前端 → Maven 打包 → 启动服务 → 等待健康检查 → 打开浏览器。
-
-### Windows
-
-双击 `start.cmd`，或在命令行执行：
-
-```bat
-start.cmd
-```
-
-### macOS
-
-```bash
-chmod +x start-macos.command
-./start-macos.command
-```
-
-### Linux
-
-```bash
-chmod +x start-linux.sh
-./start-linux.sh
-```
-
-启动后访问脚本输出的地址，默认 `http://127.0.0.1:18080`。
-
-停止后台服务：
-
-```bash
-kill $(cat .jobtrack.pid)
-```
-
-Windows 下可在任务管理器中结束对应的 `java` 进程。
+## 启动方式
 
 ### 手动启动
 
 ```bash
-# 1. 前端
+# 1. 前端（产物输出到 frontend/dist）
 cd frontend
 npm install
-npm run build        # 产物直接写入 jobtrack-web/src/main/resources/static
+npm run build
 
-# 2. 后端
+# 2. 后端（默认激活 dev，数据库账号见 application-dev.yml）
 cd ..
 mvn -DskipTests package
 java -jar jobtrack-web/target/jobtrack.jar
 ```
+
+切换环境：
+
+```bash
+java -jar jobtrack-web/target/jobtrack.jar --spring.profiles.active=prod
+# 或
+export SPRING_PROFILES_ACTIVE=test
+```
+
+### 手动启动
 
 开发模式：
 
@@ -201,7 +196,7 @@ npm run dev
 
 - `.env.development`：开发环境，`VITE_API_BASE_URL=/api`，Vite 代理到 `http://127.0.0.1:18080`
 - `.env.test`：测试环境，默认连接 `http://127.0.0.1:18081/api`
-- `.env.production`：生产环境，使用同源 `/api`，由 Spring Boot 托管前端
+- `.env.production`：生产环境，默认同源 `/api`（由 Nginx 反向代理到后端）；前后端不同域时改为后端完整地址
 
 ```bash
 npm run dev            # 开发模式
@@ -213,80 +208,97 @@ Ant Design 的 `ConfigProvider` 与 dayjs locale 会随设置中的语言同步�
 
 ---
 
-## config.json
+## 环境配置（application-{profile}.yml）
 
-服务端配置全部位于项目根目录 `config.json`。应用启动时由
-`JsonConfigEnvironmentPostProcessor` 读取并转为 Spring 属性，`application.yaml`
-只保留框架级默认值。启动脚本从项目根目录运行，因此可以直接找到该文件。
+服务端配置不再使用 `config.json`，全部转移到了 YAML：
 
-```json
-{
-  "server": { "address": "127.0.0.1", "port": 18080 },
-  "database": {
-    "type": "sqlite",
-    "file": "jobtrack.db",
-    "host": "127.0.0.1",
-    "port": 3306,
-    "name": "jobtrack",
-    "username": "sa",
-    "password": "123456",
-    "maxPoolSize": 10
-  },
-  "redis": {
-    "enabled": false,
-    "host": "127.0.0.1",
-    "port": 6379,
-    "password": "",
-    "database": 0,
-    "keyPrefix": "jobtrack:",
-    "timeout": "2s"
-  },
-  "captcha": {
-    "enabled": false,
-    "type": "char",
-    "length": 4,
-    "width": 130,
-    "height": 44,
-    "ttlSeconds": 180
-  },
-  "app": {
-    "dataDir": "./data",
-    "logDir": "./log",
-    "jwt": { "secret": "至少 32 位随机字符串", "ttlHours": 72 },
-    "storage": { "secret": "至少 32 位随机字符串", "maxFileSizeMb": 50 },
-    "admin": {
-      "username": "admin",
-      "password": "123456",
-      "displayName": "管理员",
-      "tenantName": "默认工作区"
-    }
-  },
-  "logging": { "level": "INFO" }
-}
+| 文件 | 用途 |
+| --- | --- |
+| `application.yaml` | 通用配置：MyBatis-Plus、上传大小、Redis 仓库关闭等 |
+| `application-dev.yml` | 开发环境，默认激活：本机 MySQL + 本机 Redis |
+| `application-test.yml` | 测试环境：独立测试库 + 独立 Redis 库 |
+| `application-prod.yml` | 生产环境：默认 PostgreSQL，密钥必须由环境变量提供 |
+
+主要配置项（以 dev 为例）：
+
+```yaml
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:jobtrack}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: ${DB_USERNAME:root}
+    password: ${DB_PASSWORD:}
+  sql:
+    init:
+      schema-locations: classpath:schema-mysql.sql
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+
+redis:
+  enabled: true
+captcha:
+  enabled: true
+
+app:
+  data-dir: ./data
+  log-dir: ./log
+  jwt:
+    secret: ${JWT_SECRET:...}
+    ttl-hours: 72
+  storage:
+    secret: ${STORAGE_SECRET:...}
+    max-file-size-mb: 50
+  admin:
+    username: admin
+    password: 123456
 ```
 
 说明：
 
-- `database.type` 支持 `sqlite`（默认，无需安装）、`mysql`、`postgresql`，并保留 `h2` 作为兼容选项。
-- 设置页提供「数据库连接」卡片，可测试连接并在线切换 SQLite / MySQL / PostgreSQL；切换成功后会写回 `config.json` 并退出当前登录。
-- 切换 MySQL 后，请先创建数据库（默认 `jobtrack`，字符集 `utf8mb4`）；PostgreSQL 请先创建数据库（默认 `jobtrack`）。服务会自动执行对应的建表脚本，并给空库创建默认工作区与 `admin / 123456`。
-- `app.dataDir` 存放 SQLite 文件、H2 数据库与加密简历文件；`app.logDir` 存放运行日志。
-- SQLite 本身没有原生数据库密码；设置页中的密码会随 `config.json` 保存，登录密码仍为 `admin / 123456`。
-- 根目录 `data/mysql/init.sql` 与 `data/postgresql/init.sql` 分别是 MySQL / PostgreSQL 的默认数据库文件，包含建库、建表与 `admin / 123456` 账号，可直接导入。
+- 数据库只支持 `mysql` 与 `postgresql`，切换方式：替换 `spring.datasource` 配置块，并把 `spring.sql.init.schema-locations` 改成对应的 `schema-*.sql`；每个配置文件里都附带了另一种数据库的注释示例。
+- 数据库账号密码可以直接改 yml，也可以用 `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USERNAME` / `DB_PASSWORD` 等环境变量覆盖。
+- 请先创建数据库（MySQL 默认 `jobtrack`，字符集 `utf8mb4`；PostgreSQL 默认 `jobtrack`）。服务启动时自动建表，并在空库中创建 `admin / 123456`。
+- `app.data-dir` 存放加密简历文件等运行数据，`app.log-dir` 存放日志。
 - `app.admin` 只在首次启动时创建账号，不会覆盖已修改的密码。
-- 修改 `config.json` 后重启服务生效；设置页切换数据库会立即生效并自动写回配置。
-- 也可以用环境变量 `JOBTRACK_CONFIG` 指定其他配置文件路径。
+- 设置页的「数据库连接」为只读展示 + 连通性测试；修改配置后重启服务生效。
+- 生产环境必须提供 `JWT_SECRET` 与 `STORAGE_SECRET` 环境变量，否则启动失败。
 
 ### Redis 与验证码
 
-- 先用默认配置启动（Redis 关闭），一切功能可用，只是在线状态与缓存使用进程内实现。
-- 需要验证码时：
-  1. 启动 Redis；
-  2. 将 `redis.enabled` 改为 `true`，填写连接信息；
-  3. 将 `captcha.enabled` 改为 `true`；
-  4. 重启服务。
-- 若只把 `captcha.enabled` 改为 `true` 而 Redis 仍为关闭状态，应用会直接拒绝启动并给出明确提示。这是有意设计，避免验证码无法校验的“假安全”。
+- dev / test / prod 三个环境默认都开启 Redis 与图形验证码（`redis.enabled: true`、`captcha.enabled: true`）。
+- 启动前请确保 Redis 可用；验证码写入 Redis 失败时会返回 503，在线状态会自动退回进程内存储。
+- 如确实不需要，可在对应 yml 中把二者改为 `false`（验证码依赖 Redis，不能只开验证码不开 Redis，否则服务拒绝启动）。
 - 验证码类型支持 `char`（字母数字）和 `math`（算术）。
+
+---
+
+## 前端部署
+
+前端构建产物位于 `frontend/dist`，可以放到任意静态服务器。Nginx 同域部署示例：
+
+```nginx
+server {
+    listen 80;
+    server_name resume.example.com;
+
+    root /var/www/resume-helper/dist;
+    index index.html;
+
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /api/ {
+        proxy_pass http://127.0.0.1:18080/api/;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+```
+
+若前后端不同域，构建前把 `.env.production` 中的 `VITE_API_BASE_URL` 改为后端完整地址，并在 `application-prod.yml` 的 `CORS_ALLOWED_ORIGINS` 中登记前端域名。
 
 ---
 
@@ -370,10 +382,9 @@ Ant Design 的 `ConfigProvider` 与 dayjs locale 会随设置中的语言同步�
 | `GET` | `/api/stats/daily` | 每日投递趋势 |
 | `GET` | `/api/stats/funnel` | 转化漏斗 |
 | `GET/PUT` | `/api/system/preferences` | 闲置锁定偏好 |
-| `GET` | `/api/system/info` | 版本、数据库、配置文件、数据目录 |
-| `GET` | `/api/system/database` | 当前数据库配置与支持的数据库类型 |
-| `POST` | `/api/system/database/test` | 测试数据库连接 |
-| `PUT` | `/api/system/database` | 保存并热切换数据库 |
+| `GET` | `/api/system/info` | 版本、数据库、运行环境、数据目录 |
+| `GET` | `/api/system/database` | 当前数据库配置、运行环境与配置文件（只读） |
+| `GET` | `/api/system/database/test` | 测试当前数据库连接 |
 | `GET` | `/api/system/backup/export` | 导出 ZIP 备份 |
 | `POST` | `/api/system/backup/import` | 导入备份 |
 | `GET` | `/api/system/quick-entry/defaults` | 扩展默认类型与服务器时间 |
@@ -392,7 +403,7 @@ Authorization: Bearer <token>
 | --- | --- |
 | 后端 | Spring Boot 4.2、Spring Security、Spring Data Redis |
 | 数据访问 | MyBatis-Plus 3.5.18（多租户、分页） |
-| 数据库 | SQLite（默认）/ MySQL 8 / PostgreSQL 16+（运行时切换） |
+| 数据库 | MySQL 8 / PostgreSQL 16+（按环境配置） |
 | 认证 | JWT（jjwt）+ 服务端会话校验 |
 | 验证码 | EasyCaptcha |
 | Excel | Apache POI |
@@ -405,7 +416,7 @@ Authorization: Bearer <token>
 
 ## 注意事项
 
-- 生产环境请修改 `config.json` 中的 `app.jwt.secret` 与 `app.storage.secret`。
-- 默认监听 `127.0.0.1`，仅本机访问；如需局域网访问，将 `server.address` 改为 `0.0.0.0` 并自行配置防火墙/反向代理。
+- 生产环境请通过环境变量提供 `JWT_SECRET` 与 `STORAGE_SECRET`；dev / test 的默认密钥仅供本地使用。
+- dev 默认监听 `127.0.0.1`，test / prod 默认监听 `0.0.0.0`，请按需配置防火墙与反向代理。
 - 浏览器扩展与网页端必须连接同一个服务端地址。
-- 数据库与简历文件都在 `data/` 下，备份时建议使用设置页的「导出备份」，或整体打包 `data/` 与 `config.json`。
+- 简历文件在 `data/` 下、业务数据在数据库中，备份时建议使用设置页的「导出备份」，或同时备份 `data/` 与数据库。

@@ -13,7 +13,7 @@ import java.security.SecureRandom;
 import java.util.Arrays;
 
 /**
- * 简历文件落盘加密（AES-256-GCM），密钥由 config.json 中的 storage.secret 派生。
+ * 简历文件落盘加密（AES-256-GCM），密钥由配置项 app.storage.secret 派生。
  * 文件内容格式：12 字节 IV + 密文。
  */
 @Component

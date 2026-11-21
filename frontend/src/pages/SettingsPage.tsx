@@ -22,7 +22,7 @@ import { databaseApi } from "../api/database";
 import { backupApi } from "../api/backup";
 import { configApi } from "../api/config";
 import { systemApi } from "../api/system";
-import type { DatabaseInfo, DatabaseSettings, PublicConfig, SystemInfo } from "../api/types";
+import type { DatabaseInfo, PublicConfig, SystemInfo } from "../api/types";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../context/AuthContext";
 import { LANGUAGES, useI18n } from "../i18n";
@@ -52,7 +52,6 @@ export function SettingsPage() {
   const preferences = useAppSelector((state) => state.meta.preferences);
   const [profileForm] = Form.useForm<ProfileValues>();
   const [passwordForm] = Form.useForm<PasswordValues>();
-  const [dbForm] = Form.useForm<DatabaseSettings>();
   const [idleEnabled, setIdleEnabled] = useState(preferences?.idleLockEnabled ?? false);
   const [idleMinutes, setIdleMinutes] = useState(preferences?.idleLockMinutes ?? 15);
   const [savingIdle, setSavingIdle] = useState(false);
@@ -60,9 +59,7 @@ export function SettingsPage() {
   const [config, setConfig] = useState<PublicConfig | null>(null);
   const [importing, setImporting] = useState(false);
   const [dbInfo, setDbInfo] = useState<DatabaseInfo | null>(null);
-  const [dbType, setDbType] = useState("sqlite");
   const [dbTesting, setDbTesting] = useState(false);
-  const [dbSwitching, setDbSwitching] = useState(false);
   const [dbMessage, setDbMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
   useEffect(() => {
@@ -81,57 +78,23 @@ export function SettingsPage() {
     void configApi.get().then(setConfig).catch(() => setConfig(null));
     void databaseApi
       .info()
-      .then((info) => {
-        setDbInfo(info);
-        setDbType(info.settings.type);
-        dbForm.setFieldsValue(info.settings);
-      })
+      .then(setDbInfo)
       .catch(() => setDbInfo(null));
-  }, [dbForm]);
+  }, []);
 
   const testDatabase = async () => {
+    setDbTesting(true);
+    setDbMessage(null);
     try {
-      const values = await dbForm.validateFields();
-      setDbTesting(true);
-      setDbMessage(null);
-      const result = await databaseApi.test(values);
+      const result = await databaseApi.test();
       setDbMessage({
         ok: result.ok,
         text: result.ok ? t("settings.connectionOk") : `${t("settings.connectionFailed")}: ${result.message}`,
       });
     } catch (error) {
-      if (error instanceof Error && error.message) {
-        // 表单校验失败时不弹出连接提示。
-      }
+      setDbMessage({ ok: false, text: errorMessage(error) });
     } finally {
       setDbTesting(false);
-    }
-  };
-
-  const switchDatabase = async () => {
-    try {
-      const values = await dbForm.validateFields();
-      modal.confirm({
-        title: t("settings.switchConfirmTitle"),
-        content: t("settings.switchConfirmBody"),
-        okText: t("common.confirm"),
-        cancelText: t("common.cancel"),
-        okButtonProps: { danger: true },
-        onOk: async () => {
-          setDbSwitching(true);
-          try {
-            await databaseApi.switchDatabase(values);
-            message.success(t("settings.switchDone"));
-            await logout();
-          } catch (error) {
-            message.error(errorMessage(error));
-          } finally {
-            setDbSwitching(false);
-          }
-        },
-      });
-    } catch {
-      // 表单校验失败。
     }
   };
 
@@ -327,92 +290,45 @@ export function SettingsPage() {
           </div>
           <p className="setting-hint">{t("settings.databaseHint")}</p>
           {dbInfo && (
-            <p className="setting-hint">
-              {t("settings.dbCurrent")}：{dbInfo.settings.type}
-              {" · "}
-              {dbInfo.settings.type === "sqlite"
-                ? dbInfo.settings.file
-                : `${dbInfo.settings.host}:${dbInfo.settings.port}/${dbInfo.settings.name}`}
-            </p>
+            <dl className="fact-list compact">
+              <div className="fact-row">
+                <dt>{t("settings.dbType")}</dt>
+                <dd>{dbInfo.settings.type}</dd>
+              </div>
+              <div className="fact-row">
+                <dt>{t("settings.dbCurrent")}</dt>
+                <dd className="break">{dbInfo.settings.url || "—"}</dd>
+              </div>
+              <div className="fact-row">
+                <dt>{t("settings.dbUser")}</dt>
+                <dd>{dbInfo.settings.username || "—"}</dd>
+              </div>
+              <div className="fact-row">
+                <dt>{t("settings.dbMaxPool")}</dt>
+                <dd>{dbInfo.settings.maxPoolSize}</dd>
+              </div>
+              <div className="fact-row">
+                <dt>{t("settings.activeProfile")}</dt>
+                <dd className="break">
+                  {dbInfo.profile} · {dbInfo.configFile}
+                </dd>
+              </div>
+            </dl>
           )}
-          <Form
-            form={dbForm}
-            layout="vertical"
-            className="db-form"
-            onValuesChange={(changed) => {
-              if (changed.type) {
-                setDbType(changed.type);
-                dbForm.setFieldValue("port", changed.type === "postgresql" ? 5432 : 3306);
-              }
-            }}
-          >
-            <div className="form-grid two">
-              <Form.Item name="type" label={t("settings.dbType")} rules={[{ required: true }]}>
-                <Select
-                  options={[
-                    { value: "sqlite", label: "SQLite" },
-                    { value: "mysql", label: "MySQL" },
-                    { value: "postgresql", label: "PostgreSQL" },
-                  ]}
-                />
-              </Form.Item>
-              <Form.Item name="maxPoolSize" label={t("settings.dbMaxPool")}>
-                <InputNumber min={1} max={30} style={{ width: "100%" }} />
-              </Form.Item>
-            </div>
-
-            {dbType === "sqlite" ? (
-              <>
-                <Form.Item name="file" label={t("settings.dbFile")} rules={[{ required: true }]}>
-                  <Input placeholder="jobtrack.db" />
-                </Form.Item>
-                <Form.Item name="password" label={t("settings.dbPassword")} extra={t("settings.dbPasswordHint")}>
-                  <Input.Password placeholder="123456" autoComplete="new-password" />
-                </Form.Item>
-              </>
-            ) : (
-              <>
-                <div className="form-grid two">
-                  <Form.Item name="host" label={t("settings.dbHost")} rules={[{ required: true }]}>
-                    <Input placeholder="127.0.0.1" />
-                  </Form.Item>
-                  <Form.Item name="port" label={t("settings.dbPort")} rules={[{ required: true }]}>
-                    <InputNumber min={1} max={65535} style={{ width: "100%" }} />
-                  </Form.Item>
-                  <Form.Item name="name" label={t("settings.dbName")} rules={[{ required: true }]}>
-                    <Input placeholder="jobtrack" />
-                  </Form.Item>
-                  <Form.Item name="username" label={t("settings.dbUser")}>
-                    <Input autoComplete="off" />
-                  </Form.Item>
-                  <Form.Item name="password" label={t("settings.dbPassword")}>
-                    <Input.Password autoComplete="new-password" />
-                  </Form.Item>
-                  <Form.Item name="params" label={t("settings.dbParams")}>
-                    <Input placeholder={dbType === "postgresql" ? "sslmode=disable" : ""} />
-                  </Form.Item>
-                </div>
-              </>
-            )}
-
-            <div className="setting-actions">
-              <Button loading={dbTesting} onClick={() => void testDatabase()}>
-                {t("settings.testConnection")}
-              </Button>
-              <Button type="primary" danger loading={dbSwitching} onClick={() => void switchDatabase()}>
-                {t("settings.switchDatabase")}
-              </Button>
-            </div>
-            {dbMessage && (
-              <Alert
-                style={{ marginTop: 12 }}
-                type={dbMessage.ok ? "success" : "error"}
-                showIcon
-                message={dbMessage.text}
-              />
-            )}
-            <p className="setting-hint" style={{ marginTop: 12 }}>{t("settings.dbConfigHint")}</p>
-          </Form>
+          <div className="setting-actions">
+            <Button loading={dbTesting} onClick={() => void testDatabase()}>
+              {t("settings.testConnection")}
+            </Button>
+          </div>
+          {dbMessage && (
+            <Alert
+              style={{ marginTop: 12 }}
+              type={dbMessage.ok ? "success" : "error"}
+              showIcon
+              message={dbMessage.text}
+            />
+          )}
+          <p className="setting-hint" style={{ marginTop: 12 }}>{t("settings.dbConfigHint")}</p>
         </section>
 
         <section className="setting-card system-card">
@@ -443,8 +359,8 @@ export function SettingsPage() {
               <dd className="break">{systemInfo?.database || "—"}</dd>
             </div>
             <div className="fact-row">
-              <dt>{t("settings.configPath")}</dt>
-              <dd className="break">{systemInfo?.configPath || "—"}</dd>
+              <dt>{t("settings.activeProfile")}</dt>
+              <dd className="break">{systemInfo?.profile || "—"}</dd>
             </div>
             <div className="fact-row">
               <dt>{t("settings.dataDir")}</dt>

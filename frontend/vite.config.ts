@@ -2,9 +2,9 @@ import { defineConfig, loadEnv } from "vite";
 import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 
-// 前端构建产物直接写入后端静态资源目录，最终只产出一个可执行 jar。
+// 前后端分离：前端产物默认输出到 frontend/dist，由 Nginx 等静态服务器托管；
+// 开发环境通过 Vite 代理把 /api 转发到后端。
 const frontendRoot = fileURLToPath(new URL(".", import.meta.url));
-const backendStatic = fileURLToPath(new URL("../jobtrack-web/src/main/resources/static", import.meta.url));
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, frontendRoot, "");
@@ -21,8 +21,13 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
+    preview: {
+      host: "127.0.0.1",
+      port: 4173,
+      strictPort: true,
+    },
     build: {
-      outDir: backendStatic,
+      outDir: "dist",
       emptyOutDir: true,
       chunkSizeWarningLimit: 2000,
     },

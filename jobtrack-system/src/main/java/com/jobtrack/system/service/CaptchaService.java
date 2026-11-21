@@ -21,7 +21,7 @@ import java.util.UUID;
 /**
  * 图形验证码。验证码存储在 Redis 中并在校验后立即删除，保证一次性使用。
  *
- * <p>该功能依赖 Redis：如果 config.json 中 captcha.enabled=true 而 redis.enabled=false，
+ * <p>该功能依赖 Redis：如果配置项 captcha.enabled=true 而 redis.enabled=false，
  * 应用会拒绝启动，避免出现“看似有验证码、实际无法校验”的假安全状态。</p>
  */
 @Slf4j

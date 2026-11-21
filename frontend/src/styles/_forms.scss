@@ -1,0 +1,63 @@
+// 表单、抽屉与弹窗
+/* ---------- Forms / drawers ---------- */
+.form-section-label {
+  margin: 20px 0 12px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+.form-section-label:first-child {
+  margin-top: 0;
+}
+.form-grid {
+  display: grid;
+  gap: 0 14px;
+}
+.form-grid.two {
+  grid-template-columns: 1fr 1fr;
+}
+.drawer-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.drawer-hint {
+  flex: 1;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+.modal-lead {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 11.5px;
+  line-height: 1.7;
+}
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.import-dragger .ant-upload-drag {
+  background: var(--bg-sunken);
+  border-color: var(--line-strong);
+}
+.import-result {
+  margin-top: 16px;
+}
+.import-errors {
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-sunken);
+  font-size: 11px;
+}
+.import-errors ul {
+  margin: 6px 0 0;
+  padding-left: 16px;
+  color: var(--muted);
+}

@@ -1,5 +1,5 @@
 -- 投递手账 · MySQL 8.0 初始化脚本
--- config.json 中 database.type 设为 mysql 时，服务启动会自动执行本脚本。
+-- application-{profile}.yml 的 spring.sql.init.schema-locations 指向本脚本，服务启动时自动执行。
 -- 请提前创建数据库（默认 jobtrack），字符集使用 utf8mb4。
 
 CREATE TABLE IF NOT EXISTS sys_tenant (

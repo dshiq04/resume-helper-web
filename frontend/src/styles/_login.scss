@@ -1,0 +1,213 @@
+// 登录 / 注册页
+/* ---------- Login ---------- */
+.login-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1.08fr) minmax(440px, 0.92fr);
+  min-height: 100vh;
+  background: var(--bg);
+}
+.login-editorial {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 48px 58px 34px;
+  background: #123c34;
+  color: #f0eadb;
+  overflow: hidden;
+}
+.login-editorial::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: linear-gradient(rgba(240, 234, 219, 0.045) 1px, transparent 1px);
+  background-size: 100% 78px;
+  pointer-events: none;
+}
+.login-editorial::after {
+  content: "";
+  position: absolute;
+  right: 54px;
+  bottom: 110px;
+  width: 190px;
+  height: 190px;
+  border: 1px solid rgba(232, 223, 201, 0.14);
+  border-radius: 50%;
+  pointer-events: none;
+}
+.login-brand {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+}
+.login-brand strong {
+  display: block;
+  font-family: var(--serif);
+  font-size: 20px;
+  letter-spacing: 0.04em;
+}
+.login-brand span {
+  display: block;
+  margin-top: 2px;
+  color: rgba(240, 234, 219, 0.5);
+  font-size: 8.5px;
+  letter-spacing: 0.26em;
+}
+.editorial-body {
+  position: relative;
+  max-width: 560px;
+  padding: 40px 0;
+}
+.editorial-body .eyebrow {
+  color: #c8a24a;
+}
+.editorial-body h1 {
+  margin: 14px 0 20px;
+  font-family: var(--serif);
+  font-size: clamp(32px, 3.2vw, 50px);
+  font-weight: 500;
+  line-height: 1.16;
+  letter-spacing: -0.015em;
+}
+.editorial-body p {
+  max-width: 440px;
+  margin: 0 0 28px;
+  color: rgba(240, 234, 219, 0.68);
+  font-size: 12.5px;
+  line-height: 1.8;
+}
+.editorial-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.editorial-list li {
+  position: relative;
+  padding-left: 17px;
+  color: rgba(240, 234, 219, 0.76);
+  font-size: 11.5px;
+}
+.editorial-list li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 5px;
+  height: 5px;
+  border: 1px solid #c8a24a;
+  border-radius: 50%;
+}
+.editorial-foot {
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding-top: 20px;
+  border-top: 1px solid rgba(240, 234, 219, 0.14);
+  color: rgba(240, 234, 219, 0.42);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+.login-panel {
+  display: flex;
+  flex-direction: column;
+  padding: 26px 46px 40px;
+  background: var(--bg);
+}
+.login-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 10px;
+}
+.login-form-wrap {
+  width: 100%;
+  max-width: 372px;
+  margin: auto;
+  padding: 30px 0;
+}
+.login-heading {
+  margin-bottom: 22px;
+}
+.login-heading h2 {
+  margin: 6px 0 8px;
+  font-family: var(--serif);
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+.login-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.auth-switch {
+  display: inline-flex;
+  gap: 2px;
+  margin-bottom: 20px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--bg-sunken);
+}
+.auth-switch button {
+  padding: 6px 16px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+.auth-switch button.is-active {
+  background: var(--bg-elev);
+  color: var(--ink);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+.login-submit {
+  margin-top: 4px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.login-hint {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 10.5px;
+  text-align: center;
+  line-height: 1.6;
+}
+.captcha-row {
+  display: flex;
+  gap: 8px;
+}
+.captcha-row .ant-input {
+  flex: 1;
+}
+.captcha-image {
+  display: grid;
+  place-items: center;
+  width: 130px;
+  height: 40px;
+  flex: 0 0 130px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-sunken);
+  color: var(--muted);
+  overflow: hidden;
+  cursor: pointer;
+}
+.captcha-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

@@ -1,7 +1,5 @@
 # data 目录
 
-- `jobtrack.db`：默认 SQLite 数据库，由服务首次启动时自动创建。
-- `jobtrack-test.db` 等：切换数据库时生成的文件，可自行删除。
 - `resumes/`：按账号隔离的加密简历文件。
 - `mysql/init.sql`：MySQL 默认初始化文件（建库、建表、默认管理员）。
 - `postgresql/init.sql`：PostgreSQL 默认初始化文件（建库、建表、默认管理员）。
@@ -20,6 +18,7 @@ psql -U postgres -f data/postgresql/init.sql
 
 两个脚本都会创建默认工作区与 `admin / 123456` 账号。
 
-## 在应用内切换
+## 连接配置
 
-启动应用后进入「设置 → 数据库连接」，选择 MySQL / PostgreSQL，填写连接信息，先测试连接再保存切换。
+数据库连接不再通过设置页切换，请编辑 `jobtrack-web/src/main/resources/application-{profile}.yml`
+中的 `spring.datasource`，并同步调整 `spring.sql.init.schema-locations`，重启服务后生效。

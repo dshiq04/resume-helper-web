@@ -6,8 +6,6 @@ target/
 node_modules/
 frontend/node_modules/
 frontend/dist/
-jobtrack-web/src/main/resources/static/*
-!jobtrack-web/src/main/resources/static/.gitkeep
 
 # Runtime data
 data/*

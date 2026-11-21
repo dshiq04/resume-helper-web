@@ -1,2 +1,0 @@
-org.springframework.boot.EnvironmentPostProcessor=\
-com.jobtrack.system.config.JsonConfigEnvironmentPostProcessor

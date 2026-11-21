@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * config.json 中 app 节点的绑定对象。
+ * application-{profile}.yml 中 app 节点的绑定对象。
  */
 @Data
 @Component

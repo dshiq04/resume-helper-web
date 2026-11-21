@@ -1,37 +1,31 @@
 package com.jobtrack.system.config;
 
 import lombok.Data;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 /**
- * config.json 中 database 节点的绑定对象。
+ * 当前数据库连接信息（来自 application-{profile}.yml 中的 spring.datasource）。
  *
- * <p>支持 sqlite / mysql / postgresql（保留 h2 作为兼容选项）。
- * 设置页保存后会把新配置写回 config.json，并立即切换连接池。</p>
+ * <p>只用于接口展示与连接测试，运行时不再写回配置文件；
+ * 调整数据库请修改对应环境的 yml 后重启服务。</p>
  */
 @Data
-@Component
-@ConfigurationProperties(prefix = "database")
 public class DatabaseSettings {
 
-    private String type = "sqlite";
-    private String file = "jobtrack.db";
+    private String type = "mysql";
     private String host = "127.0.0.1";
     private int port = 3306;
     private String name = "jobtrack";
-    private String username = "sa";
+    private String username = "";
     private String password = "";
     private String params = "";
     private int maxPoolSize = 10;
-    /** 直接指定 JDBC URL 时优先使用。 */
+    /** 原始 JDBC URL。 */
     private String url = "";
     private String driver = "";
 
     public DatabaseSettings copy() {
         DatabaseSettings copy = new DatabaseSettings();
         copy.setType(type);
-        copy.setFile(file);
         copy.setHost(host);
         copy.setPort(port);
         copy.setName(name);
