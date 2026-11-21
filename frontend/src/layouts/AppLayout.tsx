@@ -64,6 +64,19 @@ const PATH_KEYS: Record<string, string> = {
   "/settings": "nav.settings",
 };
 
+/** 面包屑层级：group 为一级菜单，key 为当前页对应的二级菜单 / 顶级菜单。 */
+const PATH_CRUMB: Record<string, { group?: string; key: string }> = {
+  "/": { group: "dash.eyebrow", key: "nav.all" },
+  "/spring": { group: "dash.eyebrow", key: "nav.spring" },
+  "/autumn": { group: "dash.eyebrow", key: "nav.autumn" },
+  "/internship": { group: "dash.eyebrow", key: "nav.internship" },
+  "/social": { group: "dash.eyebrow", key: "nav.social" },
+  "/resumes": { group: "nav.resumes", key: "nav.resumeList" },
+  "/statistics": { key: "nav.statistics" },
+  "/trash": { key: "nav.trash" },
+  "/settings": { key: "nav.settings" },
+};
+
 function tabForPath(path: string): PageTab | null {
   if (path.startsWith("/applications/")) {
     return { path, labelKey: "detail.title", closable: true };
@@ -191,12 +204,16 @@ export function AppLayout() {
   }, [location.pathname]);
 
 
-  const meta = useMemo(() => {
-    if (location.pathname.startsWith("/applications/")) {
-      return { eyebrow: t("nav.all"), title: t("detail.title") };
+  const meta = useMemo<{ trail: string[] }>(() => {
+    const path = location.pathname;
+    if (path.startsWith("/applications/")) {
+      return { trail: [t("dash.eyebrow"), t("nav.all"), t("detail.title")] };
     }
-    const labelKey = PATH_KEYS[location.pathname] ?? "nav.all";
-    return { eyebrow: t("dash.eyebrow"), title: t(labelKey) };
+    const item = PATH_CRUMB[path];
+    if (!item) {
+      return { trail: [t("dash.eyebrow"), t("nav.all")] };
+    }
+    return { trail: item.group ? [t(item.group), t(item.key)] : [t(item.key)] };
   }, [location.pathname, t]);
 
   const handleLogout = async () => {
@@ -316,10 +333,15 @@ export function AppLayout() {
             )}
             <Breadcrumb
               className="topbar-crumb"
-              items={[
-                { title: <span className="crumb-section">{meta.eyebrow}</span> },
-                { title: <span className="crumb-page">{meta.title}</span> },
-              ]}
+              items={meta.trail.map((label, index) => ({
+                title: (
+                  <span
+                    className={index === meta.trail.length - 1 ? "crumb-page" : "crumb-section"}
+                  >
+                    {label}
+                  </span>
+                ),
+              }))}
             />
           </div>
           <div className="topbar-right">
