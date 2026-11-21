@@ -1,7 +1,7 @@
 package com.jobtrack.system.database;
 
 import com.jobtrack.system.config.DatabaseSettings;
-import com.jobtrack.system.dto.DatabaseTestResult;
+import com.jobtrack.system.pojo.DatabaseTestResult;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;

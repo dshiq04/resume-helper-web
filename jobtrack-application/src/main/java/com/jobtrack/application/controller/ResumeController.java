@@ -1,9 +1,9 @@
 package com.jobtrack.application.controller;
 
-import com.jobtrack.application.dto.ResumeListResponse;
-import com.jobtrack.application.dto.ResumeUpdateRequest;
-import com.jobtrack.application.dto.ResumeView;
-import com.jobtrack.application.entity.Resume;
+import com.jobtrack.application.pojo.ResumeListResponse;
+import com.jobtrack.application.pojo.ResumeUpdateRequest;
+import com.jobtrack.application.pojo.ResumeView;
+import com.jobtrack.application.pojo.Resume;
 import com.jobtrack.application.service.ResumeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;

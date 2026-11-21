@@ -1,6 +1,6 @@
 package com.jobtrack.system.service;
 
-import com.jobtrack.system.entity.AccessTokenLog;
+import com.jobtrack.system.pojo.AccessTokenLog;
 import com.jobtrack.system.mapper.AccessTokenLogMapper;
 import com.jobtrack.system.messaging.TokenLogMessage;
 import lombok.RequiredArgsConstructor;

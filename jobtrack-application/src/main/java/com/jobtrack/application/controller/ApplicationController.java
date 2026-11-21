@@ -1,14 +1,14 @@
 package com.jobtrack.application.controller;
 
-import com.jobtrack.application.dto.ApplicationChangeView;
-import com.jobtrack.application.dto.ApplicationRequest;
-import com.jobtrack.application.dto.ApplicationUpdateRequest;
-import com.jobtrack.application.dto.BatchCategoryRequest;
-import com.jobtrack.application.dto.BatchStatusRequest;
-import com.jobtrack.application.dto.HistoryResponse;
-import com.jobtrack.application.dto.IdsRequest;
-import com.jobtrack.application.entity.ApplicationRecord;
-import com.jobtrack.application.dto.ImportResult;
+import com.jobtrack.application.pojo.ApplicationChangeView;
+import com.jobtrack.application.pojo.ApplicationRequest;
+import com.jobtrack.application.pojo.ApplicationUpdateRequest;
+import com.jobtrack.application.pojo.BatchCategoryRequest;
+import com.jobtrack.application.pojo.BatchStatusRequest;
+import com.jobtrack.application.pojo.HistoryResponse;
+import com.jobtrack.application.pojo.IdsRequest;
+import com.jobtrack.application.pojo.ApplicationRecord;
+import com.jobtrack.application.pojo.ImportResult;
 import com.jobtrack.application.service.ApplicationImportService;
 import com.jobtrack.application.service.ApplicationService;
 import com.jobtrack.common.api.PageResult;
@@ -75,7 +75,7 @@ public class ApplicationController {
     }
 
     @GetMapping("/applications/years")
-    public com.jobtrack.application.dto.YearList years() {
+    public com.jobtrack.application.pojo.YearList years() {
         return applicationService.years();
     }
 

@@ -1,13 +1,13 @@
 package com.jobtrack.system.controller;
 
-import com.jobtrack.system.dto.AuthResponse;
-import com.jobtrack.system.dto.CaptchaResponse;
-import com.jobtrack.system.dto.ChangePasswordRequest;
-import com.jobtrack.system.dto.LoginRequest;
-import com.jobtrack.system.dto.OnlineStatusResponse;
-import com.jobtrack.system.dto.ProfileRequest;
-import com.jobtrack.system.dto.RegisterRequest;
-import com.jobtrack.system.dto.UserView;
+import com.jobtrack.system.pojo.AuthResponse;
+import com.jobtrack.system.pojo.CaptchaResponse;
+import com.jobtrack.system.pojo.ChangePasswordRequest;
+import com.jobtrack.system.pojo.LoginRequest;
+import com.jobtrack.system.pojo.OnlineStatusResponse;
+import com.jobtrack.system.pojo.ProfileRequest;
+import com.jobtrack.system.pojo.RegisterRequest;
+import com.jobtrack.system.pojo.UserView;
 import com.jobtrack.system.security.SecurityUtils;
 import com.jobtrack.system.service.AuthService;
 import com.jobtrack.system.service.CaptchaService;

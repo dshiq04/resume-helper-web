@@ -6,6 +6,7 @@ import {
   Form,
   Input,
   InputNumber,
+  Segmented,
   Select,
 } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
@@ -28,6 +29,23 @@ interface ContactValues {
   email: string;
 }
 
+type ContactMethod = "phone" | "email";
+
+interface PasswordValues {
+  currentPassword: string;
+  contactType: ContactMethod;
+  countryCode: string;
+  phone: string;
+  email: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+/** 与服务端保持一致的基础格式校验。 */
+const EMAIL_PATTERN = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
+const LOCAL_PHONE_PATTERN = /^\d{5,15}$/;
+const FULL_PHONE_PATTERN = /^\+\d{6,15}$/;
+
 export function AccountProfilePage() {
   const { t } = useI18n();
   const { message } = AntdApp.useApp();
@@ -35,12 +53,8 @@ export function AccountProfilePage() {
   const [profileForm] = Form.useForm<ProfileValues>();
   const [contactForm] = Form.useForm<ContactValues>();
   const [usernameForm] = Form.useForm<{ username: string }>();
-  const [passwordForm] = Form.useForm<{
-    currentPassword: string;
-    contact: string;
-    newPassword: string;
-    confirmPassword: string;
-  }>();
+  const [passwordForm] = Form.useForm<PasswordValues>();
+  const contactType = Form.useWatch("contactType", passwordForm) ?? "phone";
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingContact, setSavingContact] = useState(false);
   const [profileSnapshot, setProfileSnapshot] = useState<UserProfile | null>(null);
@@ -155,19 +169,40 @@ export function AccountProfilePage() {
     }
   };
 
-  const changePassword = async (values: {
-    currentPassword: string;
-    contact: string;
-    newPassword: string;
-    confirmPassword: string;
-  }) => {
+  const changePassword = async (values: PasswordValues) => {
+    const isPhone = values.contactType !== "email";
+    const contact = isPhone
+      ? joinPhone(values.countryCode, values.phone)
+      : values.email.trim();
+    // 格式不正确时只提示用户修改，不发送请求。
+    if (isPhone && !FULL_PHONE_PATTERN.test(contact)) {
+      message.error(t("settings.phoneInvalid"));
+      return;
+    }
+    if (!isPhone && !EMAIL_PATTERN.test(contact)) {
+      message.error(t("settings.emailInvalid"));
+      return;
+    }
     if (values.newPassword !== values.confirmPassword) {
       message.error(t("settings.passwordMismatch"));
       return;
     }
+    if (values.newPassword === values.currentPassword) {
+      message.error(t("settings.passwordSame"));
+      return;
+    }
     setSavingPassword(true);
     try {
-      await authApi.changePassword(values.currentPassword, values.newPassword, values.contact.trim());
+      const result = await authApi.changePassword(
+        values.currentPassword,
+        values.newPassword,
+        contact,
+        isPhone ? "phone" : "email",
+      );
+      if (!result.changed) {
+        message.error(t("settings.passwordChangeFailed"));
+        return;
+      }
       message.success(t("settings.passwordChanged"));
       await logout();
     } catch (error) {
@@ -249,34 +284,100 @@ export function AccountProfilePage() {
 
           <div className="account-divider" />
 
-          <Form form={passwordForm} layout="vertical" onFinish={changePassword} requiredMark={false}>
+          <Form
+            form={passwordForm}
+            layout="vertical"
+            onFinish={changePassword}
+            onFinishFailed={() => message.warning(t("settings.fixErrors"))}
+            requiredMark={false}
+          >
             <Form.Item
               name="currentPassword"
               label={t("settings.currentPassword")}
-              rules={[{ required: true, message: t("settings.currentPassword") }]}
+              rules={[{ required: true, message: t("settings.currentPasswordRequired") }]}
             >
               <Input.Password autoComplete="current-password" />
             </Form.Item>
             <Form.Item
-              name="contact"
-              label={t("settings.contact")}
-              extra={t("settings.contactHint")}
-              rules={[{ required: true, message: t("settings.contactPlaceholder") }]}
+              name="contactType"
+              label={t("settings.contactMethod")}
+              initialValue="phone"
             >
-              <Input autoComplete="username" placeholder={t("settings.contactPlaceholder")} />
+              <Segmented
+                options={[
+                  { value: "phone", label: t("settings.contactPhone") },
+                  { value: "email", label: t("settings.contactEmail") },
+                ]}
+              />
             </Form.Item>
+            {contactType === "phone" ? (
+              <div className="form-grid two">
+                <Form.Item
+                  name="countryCode"
+                  label={t("auth.countryCode")}
+                  initialValue="+86"
+                >
+                  <Select showSearch optionFilterProp="label" options={COUNTRY_CODES} />
+                </Form.Item>
+                <Form.Item
+                  name="phone"
+                  label={t("auth.phone")}
+                  extra={t("settings.contactHint")}
+                  rules={[
+                    { required: true, message: t("settings.phoneRequired") },
+                    { pattern: LOCAL_PHONE_PATTERN, message: t("settings.phoneInvalid") },
+                  ]}
+                >
+                  <Input inputMode="tel" maxLength={15} placeholder="13800138000" />
+                </Form.Item>
+              </div>
+            ) : (
+              <Form.Item
+                name="email"
+                label={t("auth.email")}
+                extra={t("settings.contactHint")}
+                rules={[
+                  { required: true, message: t("settings.emailRequired") },
+                  { type: "email", message: t("settings.emailInvalid") },
+                ]}
+              >
+                <Input autoComplete="email" maxLength={128} />
+              </Form.Item>
+            )}
             <div className="form-grid two">
               <Form.Item
                 name="newPassword"
                 label={t("settings.newPassword")}
-                rules={[{ required: true, min: 6, message: t("settings.newPassword") }]}
+                rules={[
+                  { required: true, message: t("settings.newPasswordRequired") },
+                  { min: 6, max: 64, message: t("settings.newPasswordInvalid") },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || value !== getFieldValue("currentPassword")) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error(t("settings.passwordSame")));
+                    },
+                  }),
+                ]}
               >
                 <Input.Password autoComplete="new-password" />
               </Form.Item>
               <Form.Item
                 name="confirmPassword"
                 label={t("settings.confirmPassword")}
-                rules={[{ required: true, message: t("settings.confirmPassword") }]}
+                dependencies={["newPassword"]}
+                rules={[
+                  { required: true, message: t("settings.confirmPasswordRequired") },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || value === getFieldValue("newPassword")) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error(t("settings.passwordMismatch")));
+                    },
+                  }),
+                ]}
               >
                 <Input.Password autoComplete="new-password" />
               </Form.Item>

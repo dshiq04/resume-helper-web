@@ -42,10 +42,15 @@ export const authApi = {
   updateProfile(displayName: string) {
     return request<User>("/auth/me", { method: "PUT", data: { displayName } });
   },
-  changePassword(currentPassword: string, newPassword: string, contact: string) {
+  changePassword(
+    currentPassword: string,
+    newPassword: string,
+    contact: string,
+    contactType?: "phone" | "email",
+  ) {
     return request<{ changed: boolean }>("/auth/change-password", {
       method: "POST",
-      data: { currentPassword, newPassword, contact },
+      data: { currentPassword, newPassword, contact, contactType },
     });
   },
   logout() {

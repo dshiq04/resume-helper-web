@@ -3,7 +3,7 @@
         "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.jobtrack.application.mapper.ApplicationChangeMapper">
 
-    <resultMap id="ApplicationChangeMap" type="com.jobtrack.application.entity.ApplicationChange">
+    <resultMap id="ApplicationChangeMap" type="com.jobtrack.application.pojo.ApplicationChange">
         <id column="id" property="id"/>
         <result column="tenant_id" property="tenantId"/>
         <result column="application_id" property="applicationId"/>

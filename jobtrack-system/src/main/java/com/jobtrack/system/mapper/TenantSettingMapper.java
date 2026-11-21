@@ -1,7 +1,7 @@
 package com.jobtrack.system.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.jobtrack.system.entity.TenantSetting;
+import com.jobtrack.system.pojo.TenantSetting;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

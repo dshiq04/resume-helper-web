@@ -1,7 +1,7 @@
 package com.jobtrack.system.controller;
 
-import com.jobtrack.system.dto.PreferencesRequest;
-import com.jobtrack.system.dto.PreferencesResponse;
+import com.jobtrack.system.pojo.PreferencesRequest;
+import com.jobtrack.system.pojo.PreferencesResponse;
 import com.jobtrack.system.service.SettingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;

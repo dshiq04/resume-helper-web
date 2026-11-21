@@ -1,13 +1,13 @@
 package com.jobtrack.application.bootstrap;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.jobtrack.application.entity.ApplicationRecord;
+import com.jobtrack.application.pojo.ApplicationRecord;
 import com.jobtrack.application.mapper.ApplicationRecordMapper;
 import com.jobtrack.application.service.ApplicationCacheService;
 import com.jobtrack.application.service.ApplicationHistoryService;
 import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.common.context.TenantContext;
-import com.jobtrack.system.entity.SysTenant;
+import com.jobtrack.system.pojo.SysTenant;
 import com.jobtrack.system.mapper.SysTenantMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

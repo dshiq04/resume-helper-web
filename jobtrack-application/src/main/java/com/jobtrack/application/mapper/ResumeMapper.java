@@ -1,7 +1,7 @@
 package com.jobtrack.application.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.jobtrack.application.entity.Resume;
+import com.jobtrack.application.pojo.Resume;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

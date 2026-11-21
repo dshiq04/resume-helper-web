@@ -1,8 +1,8 @@
 package com.jobtrack.application.controller;
 
-import com.jobtrack.application.dto.DailyStatsResponse;
-import com.jobtrack.application.dto.FunnelResponse;
-import com.jobtrack.application.dto.StatsResponse;
+import com.jobtrack.application.pojo.DailyStatsResponse;
+import com.jobtrack.application.pojo.FunnelResponse;
+import com.jobtrack.application.pojo.StatsResponse;
 import com.jobtrack.application.service.StatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;

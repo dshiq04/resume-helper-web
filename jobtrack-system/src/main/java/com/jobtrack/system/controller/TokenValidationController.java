@@ -1,7 +1,7 @@
 package com.jobtrack.system.controller;
 
-import com.jobtrack.system.dto.TokenValidationRequest;
-import com.jobtrack.system.dto.TokenValidationResponse;
+import com.jobtrack.system.pojo.TokenValidationRequest;
+import com.jobtrack.system.pojo.TokenValidationResponse;
 import com.jobtrack.system.service.AccessTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;

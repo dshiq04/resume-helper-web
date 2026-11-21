@@ -29,13 +29,6 @@ interface ProfileValues {
   displayName: string;
 }
 
-interface PasswordValues {
-  currentPassword: string;
-  contact: string;
-  newPassword: string;
-  confirmPassword: string;
-}
-
 export function SettingsPage() {
   const { t, lang, setLang } = useI18n();
   const { message } = AntdApp.useApp();
@@ -44,7 +37,6 @@ export function SettingsPage() {
   const themeMode = useAppSelector((state) => state.ui.themeMode);
   const preferences = useAppSelector((state) => state.meta.preferences);
   const [profileForm] = Form.useForm<ProfileValues>();
-  const [passwordForm] = Form.useForm<PasswordValues>();
   const [idleEnabled, setIdleEnabled] = useState(preferences?.idleLockEnabled ?? false);
   const [idleMinutes, setIdleMinutes] = useState(preferences?.idleLockMinutes ?? 15);
   const [savingIdle, setSavingIdle] = useState(false);
@@ -131,24 +123,6 @@ export function SettingsPage() {
     }
   };
 
-  const changePassword = async (values: PasswordValues) => {
-    if (values.newPassword !== values.confirmPassword) {
-      message.error(t("settings.passwordMismatch"));
-      return;
-    }
-    try {
-      await authApi.changePassword(
-        values.currentPassword,
-        values.newPassword,
-        values.contact.trim(),
-      );
-      message.success(t("settings.passwordChanged"));
-      await logout();
-    } catch (error) {
-      message.error(errorMessage(error));
-    }
-  };
-
   const saveIdle = async () => {
     setSavingIdle(true);
     try {
@@ -186,36 +160,6 @@ export function SettingsPage() {
             <Button type="primary" htmlType="submit">
               {t("settings.saveProfile")}
             </Button>
-          </Form>
-        </section>
-
-        <section className="setting-card">
-          <div className="setting-card-head">
-            <h2>{t("settings.security")}</h2>
-          </div>
-          <Form form={passwordForm} layout="vertical" onFinish={changePassword} requiredMark={false}>
-            <Form.Item name="currentPassword" label={t("settings.currentPassword")} rules={[{ required: true }]}>
-              <Input.Password autoComplete="current-password" />
-            </Form.Item>
-            <Form.Item
-              name="contact"
-              label={t("settings.contact")}
-              extra={t("settings.contactHint")}
-              rules={[{ required: true, message: t("settings.contactPlaceholder") }]}
-            >
-              <Input placeholder={t("settings.contactPlaceholder")} />
-            </Form.Item>
-            <Form.Item
-              name="newPassword"
-              label={t("settings.newPassword")}
-              rules={[{ required: true, min: 6, max: 64 }]}
-            >
-              <Input.Password autoComplete="new-password" />
-            </Form.Item>
-            <Form.Item name="confirmPassword" label={t("settings.confirmPassword")} rules={[{ required: true }]}>
-              <Input.Password autoComplete="new-password" />
-            </Form.Item>
-            <Button htmlType="submit">{t("settings.changePassword")}</Button>
           </Form>
         </section>
 

@@ -1,13 +1,13 @@
 package com.jobtrack.system.controller;
 
-import com.jobtrack.system.dto.AccessTokenCreateRequest;
-import com.jobtrack.system.dto.AccessTokenLogPage;
-import com.jobtrack.system.dto.AccessTokenView;
-import com.jobtrack.system.dto.TokenStatusRequest;
-import com.jobtrack.system.dto.UserProfileRequest;
-import com.jobtrack.system.dto.UserProfileView;
-import com.jobtrack.system.dto.UserView;
-import com.jobtrack.system.dto.UsernameUpdateRequest;
+import com.jobtrack.system.pojo.AccessTokenCreateRequest;
+import com.jobtrack.system.pojo.AccessTokenLogPage;
+import com.jobtrack.system.pojo.AccessTokenView;
+import com.jobtrack.system.pojo.TokenStatusRequest;
+import com.jobtrack.system.pojo.UserProfileRequest;
+import com.jobtrack.system.pojo.UserProfileView;
+import com.jobtrack.system.pojo.UserView;
+import com.jobtrack.system.pojo.UsernameUpdateRequest;
 import com.jobtrack.system.security.AuthPrincipal;
 import com.jobtrack.system.security.SecurityUtils;
 import com.jobtrack.system.service.AccessTokenService;
