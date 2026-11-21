@@ -135,7 +135,9 @@ public class ApplicationServiceImpl implements ApplicationService {
     @Transactional
     public ApplicationRecord create(ApplicationRequest request) {
         ApplicationRecord record = new ApplicationRecord();
-        record.setCategory(categoryOrDefault(request.getCategory(), DomainConstants.CATEGORY_SPRING));
+        String category = normalizeFilter(request.getCategory());
+        requireCategory(category);
+        record.setCategory(category);
         record.setCompanyName(requireCompany(request.getCompanyName()));
         record.setLink(requireLink(request.getLink()));
         record.setPosition(trimToNull(request.getPosition()));
@@ -184,9 +186,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
         String previousStatus = record.getStatus();
 
-        if (request.getCategory() != null) {
-            record.setCategory(categoryOrDefault(request.getCategory(), record.getCategory()));
-        }
+        String category = normalizeFilter(request.getCategory());
+        requireCategory(category);
+        record.setCategory(category);
         if (request.getCompanyName() != null) {
             record.setCompanyName(requireCompany(request.getCompanyName()));
         }
@@ -446,7 +448,8 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     private void requireCategory(String value) {
         if (!DomainConstants.isValidCategory(value)) {
-            throw BusinessException.badRequest("invalid_category", "未知的投递类型");
+            throw BusinessException.badRequest("invalid_category",
+                    "投递类型不存在，请选择春招、秋招、实习或社招");
         }
     }
 

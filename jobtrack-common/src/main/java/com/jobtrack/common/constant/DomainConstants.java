@@ -24,6 +24,9 @@ public final class DomainConstants {
     public static final List<String> CATEGORIES = List.of(
             CATEGORY_SPRING, CATEGORY_AUTUMN, CATEGORY_INTERNSHIP, CATEGORY_SOCIAL);
 
+    /** 供 Spring Validation 使用的投递类型匹配表达式。 */
+    public static final String CATEGORY_PATTERN = "(?i)^(spring|autumn|internship|social)$";
+
     public static final List<String> STATUSES = List.of(
             STATUS_PENDING, STATUS_SCREENING, STATUS_WRITTEN,
             STATUS_INTERVIEW, STATUS_OFFER, STATUS_REJECTED);

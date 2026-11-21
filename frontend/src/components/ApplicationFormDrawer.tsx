@@ -187,7 +187,11 @@ export function ApplicationFormDrawer({
           <Input placeholder={t("form.linkPlaceholder")} />
         </Form.Item>
         <div className="form-grid two">
-          <Form.Item name="category" label={t("field.category")}>
+          <Form.Item
+            name="category"
+            label={t("field.category")}
+            rules={[{ required: true, message: t("form.categoryRequired") }]}
+          >
             <Select options={categoryOptions} />
           </Form.Item>
           <Form.Item name="year" label={t("field.year")}>
