@@ -26,6 +26,7 @@ public class AppProperties {
     private Jwt jwt = new Jwt();
     private Storage storage = new Storage();
     private Admin admin = new Admin();
+    private Rabbit rabbit = new Rabbit();
 
     public Path dataPath() {
         return Paths.get(dataDir).toAbsolutePath().normalize();
@@ -66,5 +67,10 @@ public class AppProperties {
         private String password = "123456";
         private String displayName = "管理员";
         private String tenantName = "默认工作区";
+    }
+
+    @Data
+    public static class Rabbit {
+        private boolean enabled = true;
     }
 }

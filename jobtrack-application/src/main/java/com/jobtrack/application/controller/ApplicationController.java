@@ -8,12 +8,17 @@ import com.jobtrack.application.dto.BatchStatusRequest;
 import com.jobtrack.application.dto.HistoryResponse;
 import com.jobtrack.application.dto.IdsRequest;
 import com.jobtrack.application.entity.ApplicationRecord;
+import com.jobtrack.application.dto.ImportResult;
+import com.jobtrack.application.service.ApplicationImportService;
 import com.jobtrack.application.service.ApplicationService;
 import com.jobtrack.common.api.PageResult;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.DeleteMapping;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
@@ -34,6 +40,7 @@ import java.util.Map;
 public class ApplicationController {
 
     private final ApplicationService applicationService;
+    private final ApplicationImportService applicationImportService;
 
     @GetMapping("/applications")
     public PageResult<ApplicationRecord> list(
@@ -49,6 +56,22 @@ public class ApplicationController {
             @RequestParam(defaultValue = "10") int pageSize) {
         return applicationService.list(search, category, status, channel, priority,
                 year, from, to, page, pageSize);
+    }
+
+    @GetMapping("/applications/template")
+    public ResponseEntity<byte[]> template() {
+        byte[] content = applicationImportService.template();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"resume-trail-import-template.xlsx\"")
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(content);
+    }
+
+    @PostMapping("/applications/import")
+    public ImportResult importApplications(@RequestParam("file") MultipartFile file) {
+        return applicationImportService.importFile(file);
     }
 
     @GetMapping("/applications/years")

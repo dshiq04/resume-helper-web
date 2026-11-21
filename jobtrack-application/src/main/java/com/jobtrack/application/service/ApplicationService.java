@@ -146,9 +146,11 @@ public class ApplicationService {
         record.setNextActionAt(request.getNextActionAt());
         record.setNotes(trimToNull(request.getNotes()));
         record.setPinned(Boolean.TRUE.equals(request.getPinned()));
-        record.setAppliedAt(LocalDateTime.now());
+        LocalDateTime appliedAt = request.getAppliedAt() == null
+                ? LocalDateTime.now() : request.getAppliedAt();
+        record.setAppliedAt(appliedAt);
         Integer requestedYear = normalizeYear(request.getYear());
-        record.setApplyYear(requestedYear == null ? record.getAppliedAt().getYear() : requestedYear);
+        record.setApplyYear(requestedYear == null ? appliedAt.getYear() : requestedYear);
         applicationMapper.insert(record);
 
         // 时间线始终从“待定”开始，再记录真实状态。

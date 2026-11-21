@@ -12,6 +12,7 @@ import com.jobtrack.common.context.TenantContext;
 import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.common.util.JsonUtils;
 import com.jobtrack.system.config.AppProperties;
+import com.jobtrack.system.messaging.AsyncTaskPublisher;
 import com.jobtrack.system.storage.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -47,6 +48,7 @@ public class ResumeService {
     private final FileCrypto fileCrypto;
     private final AppProperties appProperties;
     private final ObjectStorageService objectStorage;
+    private final AsyncTaskPublisher publisher;
 
     public ResumeListResponse list(String search) {
         var query = Wrappers.<Resume>lambdaQuery();
@@ -160,7 +162,9 @@ public class ResumeService {
     public void delete(Long id) {
         Resume resume = entity(id);
         resumeMapper.deleteById(id);
-        objectStorage.delete(resume.getStoredName());
+        if (!publisher.publishFileCleanup(resume.getStoredName())) {
+            objectStorage.delete(resume.getStoredName());
+        }
     }
 
     public Resume entity(Long id) {

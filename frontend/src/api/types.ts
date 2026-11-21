@@ -27,6 +27,13 @@ export interface User {
   avatarUrl?: string | null;
 }
 
+export interface ImportResult {
+  imported: number;
+  skipped: number;
+  total: number;
+  errors: string[];
+}
+
 export interface UserProfile {
   userId: number;
   realName?: string | null;

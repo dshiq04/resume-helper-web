@@ -59,4 +59,7 @@ public class ApplicationRequest {
     private String notes;
 
     private Boolean pinned;
+
+    /** 导入时指定投递时间，普通新增留空即可。 */
+    private LocalDateTime appliedAt;
 }

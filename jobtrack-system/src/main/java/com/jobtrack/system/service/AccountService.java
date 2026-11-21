@@ -15,6 +15,7 @@ import com.jobtrack.system.security.AuthPrincipal;
 import com.jobtrack.system.security.JwtService;
 import com.jobtrack.system.security.SessionInfo;
 import com.jobtrack.system.security.SessionService;
+import com.jobtrack.system.messaging.AsyncTaskPublisher;
 import com.jobtrack.system.storage.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -44,6 +45,7 @@ public class AccountService {
     private final JwtService jwtService;
     private final ObjectStorageService objectStorage;
     private final AvatarService avatarService;
+    private final AsyncTaskPublisher publisher;
 
     private static final Set<String> AVATAR_TYPES = Set.of("png", "jpg", "jpeg", "webp", "gif");
     private static final long AVATAR_MAX_BYTES = 5L * 1024 * 1024;
@@ -123,7 +125,9 @@ public class AccountService {
             profileMapper.updateById(profile);
         }
         if (previous != null && !previous.isBlank() && !previous.equals(key)) {
-            objectStorage.delete(previous);
+            if (!publisher.publishFileCleanup(previous)) {
+                objectStorage.delete(previous);
+            }
         }
         return view(profile);
     }

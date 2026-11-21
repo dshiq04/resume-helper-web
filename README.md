@@ -20,6 +20,7 @@
 - **状态时间线**：初筛 → 笔试 → 面试 → Offer/淘汰，记录每个阶段的日期、间隔与停留天数；历史缺失时可以补全。
 - **回收站**：删除先进入回收站，支持恢复、永久删除与清空。
 - **企业名自动补全**：根据历史投递去重提示公司名称。
+- **Excel 导入**：提供 `.xlsx` 模板，列顺序为年度、投递类型、公司、投递地址、时间；导入结果包含成功、跳过与错误明细。
 - **浏览器扩展**：替代原桌面端的独立快速录入窗口，可在任意招聘页一键收录当前链接。
 
 ### 简历库
@@ -284,6 +285,13 @@ app:
 - 设置页的「数据库连接」为只读展示 + 连通性测试；修改配置后重启服务生效。
 - 生产环境必须提供 `JWT_SECRET` 与 `STORAGE_SECRET` 环境变量，否则启动失败。
 
+### RabbitMQ
+
+- 通过 `spring-boot-starter-amqp` 接入，队列在 `@RabbitListener(queuesToDeclare = ...)` 中声明。
+- 删除文件、更新头像后的旧文件清理、授权码使用日志改为异步处理。
+- Broker 不可用时自动降级为同步删除/写库，不影响主流程。
+- 配置：`spring.rabbitmq.host/port/username/password`，开关 `app.rabbitmq.enabled`（默认 true）。
+
 ### Redis 与验证码
 
 - dev / test / prod 三个环境默认都开启 Redis 与图形验证码（`redis.enabled: true`、`captcha.enabled: true`）。
@@ -414,6 +422,8 @@ Content-Type: application/json
 | `GET` | `/api/auth/online` | 在线人数与存储类型 |
 | `GET` | `/api/applications` | 投递列表，支持搜索/类型/状态/渠道/年度/日期/分页 |
 | `GET` | `/api/applications/years` | 有记录的年度列表 |
+| `GET` | `/api/applications/template` | 下载 Excel 导入模板 |
+| `POST` | `/api/applications/import` | 导入 Excel |
 | `POST` | `/api/applications` | 新增投递 |
 | `GET` | `/api/application/{id}` | 投递详情 |
 | `PUT` | `/api/application/{id}` | 局部更新 |

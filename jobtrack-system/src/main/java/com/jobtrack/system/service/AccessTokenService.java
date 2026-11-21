@@ -15,6 +15,8 @@ import com.jobtrack.system.mapper.AccessTokenLogMapper;
 import com.jobtrack.system.mapper.AccessTokenMapper;
 import com.jobtrack.system.config.RedisSettings;
 import com.jobtrack.system.mapper.SysUserMapper;
+import com.jobtrack.system.messaging.AsyncTaskPublisher;
+import com.jobtrack.system.messaging.TokenLogMessage;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
@@ -55,6 +57,8 @@ public class AccessTokenService {
     private final SysUserMapper userMapper;
     private final StringRedisTemplate redisTemplate;
     private final RedisSettings redisSettings;
+    private final AsyncTaskPublisher publisher;
+    private final AccessTokenLogWriter logWriter;
 
     public List<AccessTokenView> list(Long userId) {
         return tokenMapper.selectList(Wrappers.<AccessToken>lambdaQuery()
@@ -330,24 +334,31 @@ public class AccessTokenService {
 
     private void logUse(AccessToken token, SysUser user, String result,
                         String code, String ip, String userAgent) {
-        AccessTokenLog entry = new AccessTokenLog();
+        Long tenantId = null;
+        Long userId = null;
+        Long tokenId = null;
+        String tokenName = null;
+        String scope = null;
+        String resources = null;
         if (token != null) {
-            entry.setTokenId(token.getId());
-            entry.setTokenName(token.getName());
-            entry.setScope(token.getScope());
-            entry.setResources(token.getResources());
-            entry.setTenantId(token.getTenantId());
-            entry.setUserId(token.getUserId());
+            tokenId = token.getId();
+            tokenName = token.getName();
+            scope = token.getScope();
+            resources = token.getResources();
+            tenantId = token.getTenantId();
+            userId = token.getUserId();
         }
         if (user != null) {
-            entry.setUserId(user.getId());
-            entry.setTenantId(user.getTenantId());
+            userId = user.getId();
+            tenantId = user.getTenantId();
         }
-        entry.setCodePrefix(code.length() > 10 ? code.substring(0, 10) : code);
-        entry.setResult(result);
-        entry.setIp(ip);
-        entry.setUserAgent(userAgent);
-        logMapper.insert(entry);
+        TokenLogMessage message = new TokenLogMessage(tenantId, userId, tokenId, tokenName,
+                code.length() > 10 ? code.substring(0, 10) : code,
+                scope, resources, result, ip, userAgent);
+        // Broker 不可用时降级为同步写库，保证日志不丢。
+        if (!publisher.publishTokenLog(message)) {
+            logWriter.save(message);
+        }
     }
 
     private AccessTokenView view(AccessToken token) {
