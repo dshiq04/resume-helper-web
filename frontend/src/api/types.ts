@@ -86,6 +86,13 @@ export interface AccessTokenLog {
   createdAt?: string | null;
 }
 
+export interface AccessTokenLogPage {
+  items: AccessTokenLog[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
 export interface AccessTokenInput {
   name?: string;
   scope: TokenScope;

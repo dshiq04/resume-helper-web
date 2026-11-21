@@ -2,7 +2,7 @@ import { request } from "./client";
 import type {
   AccessToken,
   AccessTokenInput,
-  AccessTokenLog,
+  AccessTokenLogPage,
   User,
   UserProfile,
 } from "./types";
@@ -33,11 +33,12 @@ export const accountApi = {
   deleteToken(id: number) {
     return request<{ deleted: boolean }>(`/account/tokens/${id}`, { method: "DELETE" });
   },
-  tokenLogs(params: { limit?: number; tokenId?: number; result?: string } = {}) {
+  tokenLogs(params: { page?: number; pageSize?: number; name?: string; result?: string } = {}) {
     const search = new URLSearchParams();
-    search.set("limit", String(params.limit ?? 50));
-    if (params.tokenId) search.set("tokenId", String(params.tokenId));
+    search.set("page", String(params.page ?? 1));
+    search.set("pageSize", String(params.pageSize ?? 10));
+    if (params.name) search.set("name", params.name);
     if (params.result) search.set("result", params.result);
-    return request<AccessTokenLog[]>(`/account/tokens/logs?${search.toString()}`);
+    return request<AccessTokenLogPage>(`/account/tokens/logs?${search.toString()}`);
   },
 };

@@ -1,8 +1,10 @@
 package com.jobtrack.system.service;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.system.dto.AccessTokenCreateRequest;
+import com.jobtrack.system.dto.AccessTokenLogPage;
 import com.jobtrack.system.dto.AccessTokenLogView;
 import com.jobtrack.system.dto.AccessTokenView;
 import com.jobtrack.system.dto.TokenValidationResponse;
@@ -194,16 +196,19 @@ public class AccessTokenService {
     public record TokenAuth(AccessToken token, SysUser user) {
     }
 
-    public List<AccessTokenLogView> logs(Long userId, int limit, Long tokenId, String result) {
-        int size = Math.min(200, Math.max(1, limit));
+    public AccessTokenLogPage logs(Long userId, int page, int pageSize, String name, String result) {
+        int current = Math.max(1, page);
+        int size = Math.min(100, Math.max(1, pageSize));
         String normalizedResult = result == null ? "" : result.trim().toLowerCase(Locale.ROOT);
-        return logMapper.selectList(Wrappers.<AccessTokenLog>lambdaQuery()
+        String nameKeyword = name == null ? "" : name.trim();
+        Page<AccessTokenLog> query = new Page<>(current, size);
+        Page<AccessTokenLog> resultPage = logMapper.selectPage(query,
+                Wrappers.<AccessTokenLog>lambdaQuery()
                         .eq(AccessTokenLog::getUserId, userId)
-                        .eq(tokenId != null, AccessTokenLog::getTokenId, tokenId)
+                        .like(!nameKeyword.isEmpty(), AccessTokenLog::getTokenName, nameKeyword)
                         .eq(!normalizedResult.isEmpty(), AccessTokenLog::getResult, normalizedResult)
-                        .orderByDesc(AccessTokenLog::getCreatedAt)
-                        .last("LIMIT " + size))
-                .stream()
+                        .orderByDesc(AccessTokenLog::getCreatedAt));
+        List<AccessTokenLogView> items = resultPage.getRecords().stream()
                 .map(log -> {
                     AccessTokenLogView view = new AccessTokenLogView();
                     BeanUtils.copyProperties(log, view, "resources");
@@ -211,6 +216,7 @@ public class AccessTokenService {
                     return view;
                 })
                 .toList();
+        return new AccessTokenLogPage(items, resultPage.getTotal(), current, size);
     }
 
     /**

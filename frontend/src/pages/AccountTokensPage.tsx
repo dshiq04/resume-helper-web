@@ -65,12 +65,19 @@ export function AccountTokensPage() {
   const [logs, setLogs] = useState<AccessTokenLog[]>([]);
   const [logsLoading, setLogsLoading] = useState(true);
   const [logResult, setLogResult] = useState<string>("");
+  const [logName, setLogName] = useState<string>("");
+  const [logPage, setLogPage] = useState(1);
+  const [logTotal, setLogTotal] = useState(0);
 
-  const loadLogs = (result = logResult) => {
+  const loadLogs = (page = logPage, name = logName, result = logResult) => {
     setLogsLoading(true);
     void accountApi
-      .tokenLogs({ limit: 50, result: result || undefined })
-      .then(setLogs)
+      .tokenLogs({ page, pageSize: 10, name: name || undefined, result: result || undefined })
+      .then((data) => {
+        setLogs(data.items);
+        setLogTotal(data.total);
+        setLogPage(data.page);
+      })
       .catch((error) => message.error(errorMessage(error)))
       .finally(() => setLogsLoading(false));
   };
@@ -81,7 +88,7 @@ export function AccountTokensPage() {
       .then(setTokens)
       .catch((error) => message.error(errorMessage(error)))
       .finally(() => setLoading(false));
-    loadLogs("");
+    loadLogs(1, "", "");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [message]);
 
@@ -387,12 +394,21 @@ export function AccountTokensPage() {
             <p className="setting-hint">{t("tokens.logsHint")}</p>
           </div>
           <div className="token-log-actions">
+            <Input.Search
+              allowClear
+              placeholder={t("tokens.logNameFilter")}
+              style={{ width: 170 }}
+              onSearch={(value) => {
+                setLogName(value);
+                loadLogs(1, value);
+              }}
+            />
             <Select
               value={logResult}
-              style={{ width: 140 }}
+              style={{ width: 130 }}
               onChange={(value) => {
                 setLogResult(value);
-                loadLogs(value);
+                loadLogs(1, logName, value);
               }}
               options={[
                 { value: "", label: t("tokens.allResults") },
@@ -402,7 +418,7 @@ export function AccountTokensPage() {
                 { value: "disabled", label: t("tokens.logDisabled") },
               ]}
             />
-            <Button icon={<ReloadOutlined />} onClick={() => loadLogs()}>
+            <Button icon={<ReloadOutlined />} onClick={() => loadLogs(logPage)}>
               {t("tokens.refresh")}
             </Button>
           </div>
@@ -413,7 +429,14 @@ export function AccountTokensPage() {
           loading={logsLoading}
           columns={logColumns}
           dataSource={logs}
-          pagination={false}
+          pagination={{
+            current: logPage,
+            pageSize: 10,
+            total: logTotal,
+            showSizeChanger: false,
+            showTotal: (total) => t("tokens.logTotal", { total }),
+            onChange: (page) => loadLogs(page),
+          }}
           scroll={{ x: 860 }}
           locale={{
             emptyText: (

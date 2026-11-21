@@ -1,7 +1,7 @@
 package com.jobtrack.system.controller;
 
 import com.jobtrack.system.dto.AccessTokenCreateRequest;
-import com.jobtrack.system.dto.AccessTokenLogView;
+import com.jobtrack.system.dto.AccessTokenLogPage;
 import com.jobtrack.system.dto.AccessTokenView;
 import com.jobtrack.system.dto.TokenStatusRequest;
 import com.jobtrack.system.dto.UserProfileRequest;
@@ -80,10 +80,11 @@ public class AccountController {
     }
 
     @GetMapping("/tokens/logs")
-    public List<AccessTokenLogView> tokenLogs(
-            @RequestParam(defaultValue = "50") int limit,
-            @RequestParam(required = false) Long tokenId,
+    public AccessTokenLogPage tokenLogs(
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int pageSize,
+            @RequestParam(required = false) String name,
             @RequestParam(required = false) String result) {
-        return accessTokenService.logs(SecurityUtils.currentUserId(), limit, tokenId, result);
+        return accessTokenService.logs(SecurityUtils.currentUserId(), page, pageSize, name, result);
     }
 }

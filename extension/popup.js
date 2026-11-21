@@ -9,6 +9,7 @@ const state = {
   accessCode: "",
   info: null,
   defaults: null,
+  category: "spring",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -137,16 +138,26 @@ function applyScope() {
   $("submit").disabled = readOnly;
 }
 
+function applyCategory() {
+  for (const button of document.querySelectorAll("#category-pills button")) {
+    button.classList.toggle("is-active", button.dataset.value === state.category);
+  }
+}
+
+function selectCategory(value) {
+  state.category = value || "spring";
+  applyCategory();
+}
+
 async function loadDefaults() {
   try {
     const result = await api("/system/quick-entry/defaults");
     if (result.ok && result.data) {
       state.defaults = result.data;
-      $("category").value = result.data.defaultCategory || "spring";
-      $("year").value = new Date(result.data.serverTime).getFullYear();
+      selectCategory(result.data.defaultCategory);
     }
   } catch {
-    $("year").value = new Date().getFullYear();
+    applyCategory();
   }
 }
 
@@ -282,11 +293,9 @@ async function handleSubmit(event) {
     const payload = {
       companyName: company,
       link,
-      category: $("category").value,
-      status: $("status").value,
-      year: Number($("year").value) || new Date().getFullYear(),
-      position: $("position").value.trim() || undefined,
-      channel: $("channel").value.trim() || undefined,
+      category: state.category,
+      status: "pending",
+      year: new Date().getFullYear(),
     };
     const result = await api("/applications", {
       method: "POST",
@@ -306,7 +315,6 @@ async function handleSubmit(event) {
     }
     setToast("已加入投递台账");
     $("company").value = "";
-    $("position").value = "";
     $("link").value = "";
     $("company").focus();
     await prefillActiveTab();
@@ -350,6 +358,15 @@ $("connect-form").addEventListener("submit", handleConnect);
 $("entry-form").addEventListener("submit", handleSubmit);
 $("open-connect").addEventListener("click", () => showConnectView(""));
 $("open-options").addEventListener("click", () => chrome.runtime.openOptionsPage());
+$("close-popup").addEventListener("click", () => window.close());
+$("clear").addEventListener("click", () => {
+  $("company").value = "";
+  $("link").value = "";
+  $("company").focus();
+});
+for (const button of document.querySelectorAll("#category-pills button")) {
+  button.addEventListener("click", () => selectCategory(button.dataset.value));
+}
 $("company").addEventListener("input", (event) => {
   window.clearTimeout(suggestCompanies.timer);
   suggestCompanies.timer = window.setTimeout(() => void suggestCompanies(event.target.value), 250);

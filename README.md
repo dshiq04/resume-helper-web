@@ -357,7 +357,7 @@ server {
 点击左下角头像或昵称进入「账户设置」（`/account/profile`、`/account/tokens` 二级路由）：
 
 - **个人资料**：头像（预留）、用户名、密码，以及基本信息 / 求职意向 / 教育背景 / 链接与简介等扩展资料，独立存放在 `user_profile` 表。
-- **授权码**：为浏览器扩展生成访问码，可选择权限类型（`read` / `write` / `readwrite`）和数据范围（投递、简历、统计、个人资料），支持有效期或长期有效、启用/停用与逻辑删除；页面下方展示最近 50 条使用记录，可按结果筛选。
+- **授权码**：为浏览器扩展生成访问码，可选择权限类型（`read` / `write` / `readwrite`）和数据范围（投递、简历、统计、个人资料），支持有效期或长期有效、启用/停用与逻辑删除；页面下方展示最近 10 条使用记录，可按结果筛选。
 
 扩展或第三方工具可调用无需登录的校验接口：
 
@@ -417,7 +417,7 @@ Content-Type: application/json
 | `GET/POST` | `/api/account/tokens` | 授权码列表 / 生成授权码 |
 | `PUT` | `/api/account/tokens/{id}/enabled` | 启用 / 停用授权码 |
 | `DELETE` | `/api/account/tokens/{id}` | 逻辑删除授权码（数据库保留） |
-| `GET` | `/api/account/tokens/logs?limit=50&result=` | 授权码使用日志（默认最近 50 条，可按结果过滤） |
+| `GET` | `/api/account/tokens/logs?page=1&pageSize=10&name=&result=` | 授权码使用日志（分页，可按名称与结果过滤） |
 | `POST` | `/api/tokens/validate` | 校验授权码（无需登录） |
 
 除健康检查、公共配置与登录/注册/验证码外，`/api/**` 都需要：

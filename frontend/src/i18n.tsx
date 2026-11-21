@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import zhCN from "antd/locale/zh_CN";
+import zhTWLocale from "antd/locale/zh_TW";
 import enUS from "antd/locale/en_US";
 import jaJP from "antd/locale/ja_JP";
 import koKR from "antd/locale/ko_KR";
@@ -15,12 +16,14 @@ import ruRU from "antd/locale/ru_RU";
 import type { Locale } from "antd/es/locale";
 import dayjs from "dayjs";
 import "dayjs/locale/zh-cn";
+import "dayjs/locale/zh-tw";
 import "dayjs/locale/ja";
 import "dayjs/locale/ko";
 import "dayjs/locale/ru";
 import { ja, ko, ru } from "./i18n/extra";
+import { zhTW } from "./i18n/zhTW";
 
-export type Lang = "zh-CN" | "en" | "ja" | "ko" | "ru";
+export type Lang = "zh-CN" | "zh-TW" | "en" | "ja" | "ko" | "ru";
 
 const zh: Record<string, string> = {
   "app.name": "履途 ResumeTrail",
@@ -351,7 +354,9 @@ const zh: Record<string, string> = {
   "tokens.enabled": "授权码已启用",
   "tokens.disabled": "授权码已停用",
   "tokens.logsTitle": "使用记录",
-  "tokens.logsHint": "默认显示最近 50 条，可按结果筛选。",
+  "tokens.logsHint": "默认显示最近 10 条，可按结果筛选。",
+  "tokens.logNameFilter": "按授权码名称筛选",
+  "tokens.logTotal": "共 {total} 条",
   "tokens.logsEmpty": "暂无使用记录",
   "tokens.logsTime": "时间",
   "tokens.logsResult": "结果",
@@ -735,7 +740,9 @@ const en: Record<string, string> = {
   "tokens.enabled": "Access code enabled",
   "tokens.disabled": "Access code disabled",
   "tokens.logsTitle": "Usage log",
-  "tokens.logsHint": "Latest 50 records; filter by result.",
+  "tokens.logsHint": "Latest 10 records; filter by result.",
+  "tokens.logNameFilter": "Filter by code name",
+  "tokens.logTotal": "{total} records",
   "tokens.logsEmpty": "No usage records yet",
   "tokens.logsTime": "Time",
   "tokens.logsResult": "Result",
@@ -792,6 +799,7 @@ const en: Record<string, string> = {
 
 const dictionaries: Record<Lang, Record<string, string>> = {
   "zh-CN": zh,
+  "zh-TW": zhTW,
   en,
   ja,
   ko,
@@ -800,6 +808,7 @@ const dictionaries: Record<Lang, Record<string, string>> = {
 
 const ANTD_LOCALES: Record<Lang, Locale> = {
   "zh-CN": zhCN,
+  "zh-TW": zhTWLocale,
   en: enUS,
   ja: jaJP,
   ko: koKR,
@@ -808,6 +817,7 @@ const ANTD_LOCALES: Record<Lang, Locale> = {
 
 const DAYJS_LOCALES: Record<Lang, string> = {
   "zh-CN": "zh-cn",
+  "zh-TW": "zh-tw",
   en: "en",
   ja: "ja",
   ko: "ko",
@@ -816,6 +826,7 @@ const DAYJS_LOCALES: Record<Lang, string> = {
 
 export const LANGUAGES: { value: Lang; label: string }[] = [
   { value: "zh-CN", label: "简体中文" },
+  { value: "zh-TW", label: "繁體中文" },
   { value: "en", label: "English" },
   { value: "ja", label: "日本語" },
   { value: "ko", label: "한국어" },
@@ -823,7 +834,8 @@ export const LANGUAGES: { value: Lang; label: string }[] = [
 ];
 
 function isLang(value: string | null): value is Lang {
-  return value === "zh-CN" || value === "en" || value === "ja" || value === "ko" || value === "ru";
+  return value === "zh-CN" || value === "zh-TW"
+    || value === "en" || value === "ja" || value === "ko" || value === "ru";
 }
 
 const DEFAULT_LANG: Lang = (() => {
