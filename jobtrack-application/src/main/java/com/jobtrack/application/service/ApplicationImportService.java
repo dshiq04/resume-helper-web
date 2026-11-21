@@ -10,6 +10,15 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.fesod.sheet.FesodSheet;
 import org.apache.fesod.sheet.context.AnalysisContext;
 import org.apache.fesod.sheet.read.listener.ReadListener;
+import org.apache.fesod.sheet.write.handler.SheetWriteHandler;
+import org.apache.fesod.sheet.write.metadata.holder.WriteSheetHolder;
+import org.apache.fesod.sheet.write.metadata.holder.WriteWorkbookHolder;
+import org.apache.poi.ss.usermodel.DataValidation;
+import org.apache.poi.ss.usermodel.DataValidationConstraint;
+import org.apache.poi.ss.usermodel.DataValidationHelper;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.util.CellRangeAddressList;
+import org.apache.poi.xssf.usermodel.XSSFDataValidation;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -31,6 +40,9 @@ import java.util.Locale;
 public class ApplicationImportService {
 
     private static final long MAX_BYTES = 10L * 1024 * 1024;
+    private static final String[] TEMPLATE_CATEGORIES = {"春招", "秋招", "实习", "社招"};
+    /** 下拉与默认行高覆盖到第 1000 行，足够日常导入使用。 */
+    private static final int TEMPLATE_VALIDATION_LAST_ROW = 999;
     private static final List<DateTimeFormatter> TIME_FORMATS = List.of(
             DateTimeFormatter.ofPattern("yyyy-M-d"),
             DateTimeFormatter.ofPattern("yyyy/M/d"),
@@ -44,6 +56,7 @@ public class ApplicationImportService {
     public byte[] template() {
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             FesodSheet.write(output, ApplicationImportRow.class)
+                    .registerWriteHandler(new TemplateSheetWriteHandler())
                     .sheet("投递导入模板")
                     .doWrite(List.of());
             return output.toByteArray();
@@ -160,5 +173,33 @@ public class ApplicationImportService {
 
     private String trim(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    /**
+     * 生成模板时的样式补充：统一数据行默认行高，并给「投递类型」列加下拉校验。
+     */
+    private static final class TemplateSheetWriteHandler implements SheetWriteHandler {
+
+        @Override
+        public void afterSheetCreate(WriteWorkbookHolder workbookHolder, WriteSheetHolder sheetHolder) {
+            Sheet sheet = sheetHolder.getSheet();
+            sheet.setDefaultRowHeightInPoints(22f);
+
+            DataValidationHelper helper = sheet.getDataValidationHelper();
+            DataValidationConstraint constraint =
+                    helper.createExplicitListConstraint(TEMPLATE_CATEGORIES);
+            // 第 2 行到第 1000 行，B 列（投递类型）。
+            CellRangeAddressList range = new CellRangeAddressList(
+                    1, TEMPLATE_VALIDATION_LAST_ROW, 1, 1);
+            DataValidation validation = helper.createValidation(constraint, range);
+            validation.setShowErrorBox(true);
+            validation.setErrorStyle(DataValidation.ErrorStyle.STOP);
+            validation.createErrorBox("投递类型不正确", "请从下拉列表中选择：春招、秋招、实习、社招");
+            validation.setShowPromptBox(true);
+            validation.createPromptBox("投递类型", "请选择：春招、秋招、实习、社招");
+            // XSSF 的 showDropDown 标记语义与 HSSF 相反。
+            validation.setSuppressDropDownArrow(validation instanceof XSSFDataValidation);
+            sheet.addValidationData(validation);
+        }
     }
 }

@@ -173,7 +173,7 @@ export function LoginPage() {
               label={t("auth.username")}
               rules={[{ required: true, message: t("auth.username") }]}
             >
-              <Input size="large" autoComplete="username" placeholder="admin" />
+              <Input size="large" autoComplete="username" placeholder={t("auth.usernamePlaceholder")} />
             </Form.Item>
             <Form.Item
               name="password"
@@ -183,7 +183,7 @@ export function LoginPage() {
               <Input.Password
                 size="large"
                 autoComplete={mode === "login" ? "current-password" : "new-password"}
-                placeholder="••••••"
+                placeholder={t("auth.passwordPlaceholder")}
               />
             </Form.Item>
 

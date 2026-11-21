@@ -290,7 +290,8 @@ app:
 - 通过 `spring-boot-starter-amqp` 接入，队列在 `@RabbitListener(queuesToDeclare = ...)` 中声明。
 - 删除文件、更新头像后的旧文件清理、授权码使用日志改为异步处理。
 - Broker 不可用时自动降级为同步删除/写库，不影响主流程。
-- 配置：`spring.rabbitmq.host/port/username/password`，开关 `app.rabbitmq.enabled`（默认 true）。
+- 配置：`spring.rabbitmq.host/port/username/password/virtual-host`，开关 `app.rabbitmq.enabled`（默认 true）。
+- Virtual Host 默认为 `/resume-helper`，可通过 `RABBITMQ_VIRTUAL_HOST` 环境变量覆盖；请在 Broker 上提前创建该 vhost 并给账号授权。
 
 ### Redis 与验证码
 

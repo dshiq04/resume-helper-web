@@ -10,7 +10,7 @@ import {
   Select,
   Switch,
 } from "antd";
-import { LogoutOutlined, UserOutlined } from "@ant-design/icons";
+import { CopyOutlined, InfoCircleOutlined, LogoutOutlined, UserOutlined } from "@ant-design/icons";
 import { authApi } from "../api/auth";
 import { databaseApi } from "../api/database";
 import { configApi } from "../api/config";
@@ -23,6 +23,7 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { savePreferences } from "../store/slices/metaSlice";
 import { setTheme } from "../store/slices/uiSlice";
 import { errorMessage } from "../utils/errors";
+import { copyText, getClientInfo, getDeviceId, type ClientInfo } from "../utils/clientInfo";
 
 interface ProfileValues {
   displayName: string;
@@ -40,7 +41,6 @@ export function SettingsPage() {
   const { user, logout, refreshUser } = useAuth();
   const dispatch = useAppDispatch();
   const themeMode = useAppSelector((state) => state.ui.themeMode);
-  const online = useAppSelector((state) => state.meta.online);
   const preferences = useAppSelector((state) => state.meta.preferences);
   const [profileForm] = Form.useForm<ProfileValues>();
   const [passwordForm] = Form.useForm<PasswordValues>();
@@ -52,6 +52,8 @@ export function SettingsPage() {
   const [dbInfo, setDbInfo] = useState<DatabaseInfo | null>(null);
   const [dbTesting, setDbTesting] = useState(false);
   const [dbMessage, setDbMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [deviceId] = useState(getDeviceId);
+  const [clientInfo, setClientInfo] = useState<ClientInfo>({ platform: "desktop", system: "—" });
 
   useEffect(() => {
     profileForm.setFieldsValue({ displayName: user?.displayName ?? "" });
@@ -72,6 +74,27 @@ export function SettingsPage() {
       .then(setDbInfo)
       .catch(() => setDbInfo(null));
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    void getClientInfo().then((info) => {
+      if (!cancelled) {
+        setClientInfo(info);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const copyDeviceId = async () => {
+    try {
+      await copyText(deviceId);
+      message.success(t("settings.copied"));
+    } catch (error) {
+      message.error(errorMessage(error));
+    }
+  };
 
   const testDatabase = async () => {
     setDbTesting(true);
@@ -272,47 +295,55 @@ export function SettingsPage() {
           <p className="setting-hint" style={{ marginTop: 12 }}>{t("settings.dbConfigHint")}</p>
         </section>
 
-        <section className="setting-card system-card">
-          <div className="setting-card-head">
-            <h2>{t("settings.system")}</h2>
+        <section className="setting-card system-card about-card">
+          <div className="about-head">
+            <span className="about-icon">
+              <InfoCircleOutlined />
+            </span>
+            <h2>{t("settings.about")}</h2>
+            <span className="about-version">
+              {t("settings.versionLabel")} V{systemInfo?.version ?? config?.version ?? "—"}
+            </span>
           </div>
-          <dl className="fact-list compact">
-            <div className="fact-row">
-              <dt>{t("settings.version")}</dt>
-              <dd>{systemInfo?.version ?? config?.version ?? "—"}</dd>
+
+          <div className="about-intro">
+            <h3>{t("app.name")}</h3>
+            <p>{t("settings.aboutDesc")}</p>
+          </div>
+
+          <div className="about-meta">
+            <div className="about-device">
+              <span className="about-label">{t("settings.deviceId")}</span>
+              <code className="about-device-code">{deviceId}</code>
+              <Button
+                type="text"
+                size="small"
+                className="about-copy"
+                icon={<CopyOutlined />}
+                onClick={() => void copyDeviceId()}
+                title={t("settings.copy")}
+                aria-label={t("settings.copy")}
+              />
             </div>
-            <div className="fact-row">
-              <dt>{t("settings.onlineMode")}</dt>
-              <dd>
-                {online?.mode === "redis"
-                  ? `${t("settings.redis")} · ${online.onlineUsers} ${t("common.people")}`
-                  : t("settings.memory")}
-              </dd>
+            <p className="about-hint">{t("settings.deviceHint")}</p>
+
+            <div className="about-platform">
+              <div className="about-platform-row">
+                <span>{t("settings.currentPlatform")}</span>
+                <strong>
+                  {clientInfo.platform === "mobile"
+                    ? t("settings.platformMobile")
+                    : clientInfo.platform === "tablet"
+                      ? t("settings.platformTablet")
+                      : t("settings.platformDesktop")}
+                </strong>
+              </div>
+              <div className="about-platform-row">
+                <span>{t("settings.os")}</span>
+                <strong>{clientInfo.system}</strong>
+              </div>
             </div>
-            <div className="fact-row">
-              <dt>{t("settings.captcha")}</dt>
-              <dd>
-                {config?.captchaEnabled ? t("settings.captchaOn") : t("settings.captchaOff")}
-              </dd>
-            </div>
-            <div className="fact-row">
-              <dt>{t("settings.database")}</dt>
-              <dd className="break">{systemInfo?.database || "—"}</dd>
-            </div>
-            <div className="fact-row">
-              <dt>{t("settings.activeProfile")}</dt>
-              <dd className="break">{systemInfo?.profile || "—"}</dd>
-            </div>
-            <div className="fact-row">
-              <dt>{t("settings.dataDir")}</dt>
-              <dd className="break">{systemInfo?.dataDir || "—"}</dd>
-            </div>
-            <div className="fact-row">
-              <dt>Java</dt>
-              <dd>{systemInfo?.javaVersion || "—"}</dd>
-            </div>
-          </dl>
-          <p className="setting-hint">{t("settings.captchaHint")}</p>
+          </div>
         </section>
       </div>
 

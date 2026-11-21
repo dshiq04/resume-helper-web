@@ -94,6 +94,17 @@
   border-radius: 4px;
   background: #fff;
 }
+.preview-embed {
+  height: 68vh;
+  min-height: 360px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--bg-sunken);
+}
+.preview-embed > * {
+  height: 100%;
+}
 .preview-image {
   display: grid;
   place-items: center;

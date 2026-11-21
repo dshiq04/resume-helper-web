@@ -28,10 +28,12 @@ public class RabbitConfig {
             @Value("${spring.rabbitmq.host:127.0.0.1}") String host,
             @Value("${spring.rabbitmq.port:5672}") int port,
             @Value("${spring.rabbitmq.username:guest}") String username,
-            @Value("${spring.rabbitmq.password:guest}") String password) {
+            @Value("${spring.rabbitmq.password:guest}") String password,
+            @Value("${spring.rabbitmq.virtual-host:/resume-helper}") String virtualHost) {
         CachingConnectionFactory factory = new CachingConnectionFactory(host, port);
         factory.setUsername(username);
         factory.setPassword(password);
+        factory.setVirtualHost(virtualHost);
         factory.setConnectionTimeout(2000);
         return factory;
     }

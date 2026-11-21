@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useState } from "react";
 import { App as AntdApp, Button, Empty, Input, Popconfirm, Spin } from "antd";
 import {
   DeleteOutlined,
@@ -15,11 +15,17 @@ import { downloadBlob } from "../api/client";
 import { resumeApi } from "../api/resumes";
 import type { Resume } from "../api/types";
 import { PageHeader } from "../components/PageHeader";
-import { ResumePreviewModal } from "../components/ResumePreviewModal";
 import { ResumeUploadModal } from "../components/ResumeUploadModal";
 import { useI18n } from "../i18n";
 import { errorMessage } from "../utils/errors";
 import { formatDate, formatSize, notifyDataChanged } from "../utils/format";
+
+// 文件预览依赖较多（PDF / Office / 图片解码器等），按需加载，避免拖慢首屏。
+const ResumePreviewModal = lazy(() =>
+  import("../components/ResumePreviewModal").then((module) => ({
+    default: module.ResumePreviewModal,
+  })),
+);
 
 export function ResumesPage() {
   const { t } = useI18n();
@@ -206,7 +212,11 @@ export function ResumesPage() {
           notifyDataChanged();
         }}
       />
-      <ResumePreviewModal resume={preview} onClose={() => setPreview(null)} />
+      {preview && (
+        <Suspense fallback={null}>
+          <ResumePreviewModal resume={preview} onClose={() => setPreview(null)} />
+        </Suspense>
+      )}
     </>
   );
 }

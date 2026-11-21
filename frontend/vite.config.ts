@@ -31,5 +31,10 @@ export default defineConfig(({ mode }) => {
       emptyOutDir: true,
       chunkSizeWarningLimit: 2000,
     },
+    // @eternalheart/react-file-preview 依赖 @jsquash/avif 的 worker，
+    // Vite 默认的 iife worker 格式不支持其代码分割。
+    worker: {
+      format: "es",
+    },
   };
 });

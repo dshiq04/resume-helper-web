@@ -2,6 +2,7 @@ package com.jobtrack.config;
 
 import com.jobtrack.common.api.ErrorResponse;
 import com.jobtrack.common.exception.BusinessException;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
@@ -81,8 +83,23 @@ public class GlobalExceptionHandler {
                 .body(new ErrorResponse("请求的资源不存在", "not_found"));
     }
 
+    /**
+     * 客户端在响应写出阶段断开（取消下载、关闭 PDF 预览、网络中断等）。
+     * 此时响应已提交，不能再写 JSON 错误体，否则会触发二次异常。
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public ResponseEntity<Void> handleAsyncRequestNotUsable(AsyncRequestNotUsableException exception) {
+        log.debug("客户端已断开，忽略响应写入失败: {}", exception.getMessage());
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+    }
+
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ErrorResponse> handleUnexpected(Exception exception) {
+    public ResponseEntity<?> handleUnexpected(Exception exception, HttpServletResponse response) {
+        if (response.isCommitted()) {
+            // 响应已提交（如文件下载中途失败），无法再返回错误响应体。
+            log.warn("响应已提交，无法返回错误响应: {}", exception.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
         log.error("未处理的异常", exception);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(new ErrorResponse("服务器开小差了，请稍后再试", "internal_error"));

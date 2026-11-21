@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { Button, Modal, Spin } from "antd";
-import DOMPurify from "dompurify";
-import mammoth from "mammoth";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
+import { FilePreviewEmbed } from "@eternalheart/react-file-preview";
+import "@eternalheart/react-file-preview/style.css";
 import { resumeApi } from "../api/resumes";
 import type { Resume } from "../api/types";
 import { useI18n } from "../i18n";
 import { downloadBlob } from "../api/client";
+import { useAppSelector } from "../store/hooks";
 import { errorMessage } from "../utils/errors";
 
 export function ResumePreviewModal({
@@ -17,48 +16,32 @@ export function ResumePreviewModal({
   resume: Resume | null;
   onClose: () => void;
 }) {
-  const { t } = useI18n();
+  const { t, lang } = useI18n();
+  const themeMode = useAppSelector((state) => state.ui.themeMode);
   const [loading, setLoading] = useState(false);
-  const [url, setUrl] = useState<string | null>(null);
-  const [markdown, setMarkdown] = useState<string | null>(null);
-  const [docHtml, setDocHtml] = useState<string | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!resume) {
-      setUrl(null);
-      setMarkdown(null);
-      setDocHtml(null);
+      setFiles([]);
       setError(null);
       return;
     }
-    let revoked: string | null = null;
     let cancelled = false;
     setLoading(true);
-    setUrl(null);
-    setMarkdown(null);
-    setDocHtml(null);
+    setFiles([]);
     setError(null);
 
     void (async () => {
       try {
         const blob = await resumeApi.fetchFile(resume.id);
         if (cancelled) return;
-        if (resume.fileType === "pdf" || ["png", "jpg", "jpeg", "webp"].includes(resume.fileType)) {
-          const objectUrl = URL.createObjectURL(blob);
-          revoked = objectUrl;
-          setUrl(objectUrl);
-        } else if (resume.fileType === "md" || resume.fileType === "markdown") {
-          setMarkdown(await blob.text());
-        } else if (resume.fileType === "docx") {
-          const buffer = await blob.arrayBuffer();
-          const result = await mammoth.convertToHtml({ arrayBuffer: buffer });
-          if (!cancelled) {
-            setDocHtml(DOMPurify.sanitize(result.value));
-          }
-        } else {
-          setError(t("resume.previewUnsupported"));
-        }
+        setFiles([
+          new File([blob], resume.fileName, {
+            type: blob.type || "application/octet-stream",
+          }),
+        ]);
       } catch (exception) {
         if (!cancelled) setError(errorMessage(exception));
       } finally {
@@ -68,15 +51,16 @@ export function ResumePreviewModal({
 
     return () => {
       cancelled = true;
-      if (revoked) URL.revokeObjectURL(revoked);
     };
-  }, [resume, t]);
+  }, [resume]);
 
   const download = async () => {
     if (!resume) return;
     const blob = await resumeApi.fetchFile(resume.id);
     downloadBlob(blob, resume.fileName);
   };
+
+  const previewLocale = lang === "zh-CN" ? "zh-CN" : lang === "zh-TW" ? "zh-TW" : "en-US";
 
   return (
     <Modal
@@ -101,18 +85,18 @@ export function ResumePreviewModal({
         </div>
       ) : error ? (
         <div className="preview-error">{error}</div>
-      ) : url && resume?.fileType === "pdf" ? (
-        <iframe title={resume.name} src={url} className="preview-frame" />
-      ) : url ? (
-        <div className="preview-image">
-          <img src={url} alt={resume?.name} />
+      ) : files.length > 0 ? (
+        <div className="preview-embed">
+          <FilePreviewEmbed
+            files={files}
+            currentIndex={0}
+            theme={themeMode}
+            locale={previewLocale}
+            showDownload={false}
+            showClose={false}
+            showNavigation={false}
+          />
         </div>
-      ) : markdown !== null ? (
-        <article className="markdown-body">
-          <ReactMarkdown remarkPlugins={[remarkGfm]}>{markdown}</ReactMarkdown>
-        </article>
-      ) : docHtml !== null ? (
-        <article className="markdown-body" dangerouslySetInnerHTML={{ __html: docHtml }} />
       ) : null}
     </Modal>
   );
