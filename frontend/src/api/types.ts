@@ -24,6 +24,7 @@ export interface User {
   displayName: string;
   role: string;
   tenantName: string;
+  avatarUrl?: string | null;
 }
 
 export interface UserProfile {

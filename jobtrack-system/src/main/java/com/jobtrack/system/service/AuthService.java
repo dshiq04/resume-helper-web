@@ -11,6 +11,9 @@ import com.jobtrack.system.dto.RegisterRequest;
 import com.jobtrack.system.dto.UserView;
 import com.jobtrack.system.entity.SysTenant;
 import com.jobtrack.system.entity.SysUser;
+import com.jobtrack.system.entity.UserProfile;
+import com.jobtrack.system.mapper.UserProfileMapper;
+import com.jobtrack.system.storage.ObjectStorageService;
 import com.jobtrack.system.mapper.SysTenantMapper;
 import com.jobtrack.system.mapper.SysUserMapper;
 import com.jobtrack.system.security.AuthPrincipal;
@@ -38,6 +41,8 @@ public class AuthService {
     private final JwtService jwtService;
     private final SessionService sessionService;
     private final CaptchaService captchaService;
+    private final UserProfileMapper profileMapper;
+    private final ObjectStorageService objectStorage;
 
     public AuthResponse login(LoginRequest request) {
         captchaService.verify(request.getCaptchaId(), request.getCaptchaCode());
@@ -149,15 +154,20 @@ public class AuthService {
         String sessionId = sessionService.create(new SessionInfo(user.getId(), user.getTenantId(),
                 user.getUsername(), user.getDisplayName(), user.getRole()), ttl);
         JwtService.IssuedToken issued = jwtService.issue(user, sessionId);
-        UserView view = new UserView(user.getId(), user.getTenantId(), user.getUsername(),
-                user.getDisplayName(), user.getRole(), tenant == null ? "" : tenant.getName());
-        return new AuthResponse(issued.token(), issued.expiresAt(), view);
+        return new AuthResponse(issued.token(), issued.expiresAt(), view(user, tenant));
     }
 
     private UserView view(SysUser user) {
-        SysTenant tenant = tenantMapper.selectById(user.getTenantId());
+        return view(user, tenantMapper.selectById(user.getTenantId()));
+    }
+
+    private UserView view(SysUser user, SysTenant tenant) {
+        UserProfile profile = profileMapper.selectOne(Wrappers.<UserProfile>lambdaQuery()
+                .eq(UserProfile::getUserId, user.getId()));
+        String avatarUrl = profile == null ? null : objectStorage.publicUrl(profile.getAvatarUrl());
         return new UserView(user.getId(), user.getTenantId(), user.getUsername(),
-                user.getDisplayName(), user.getRole(), tenant == null ? "" : tenant.getName());
+                user.getDisplayName(), user.getRole(), tenant == null ? "" : tenant.getName(),
+                avatarUrl);
     }
 
     private String normalizeUsername(String value) {

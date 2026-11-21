@@ -276,7 +276,13 @@ export function AppLayout() {
 
       <div className="side-foot">
         <NavLink to="/account/profile" className="side-user" title={t("account.title")}>
-          <div className="avatar">{user?.displayName?.slice(0, 1) || "U"}</div>
+          <div className="avatar">
+            {user?.avatarUrl ? (
+              <img src={user.avatarUrl} alt={user.displayName || user.username} />
+            ) : (
+              user?.displayName?.slice(0, 1) || "U"
+            )}
+          </div>
           {!rail && (
             <div className="side-user-text">
               <strong>{user?.displayName || user?.username}</strong>

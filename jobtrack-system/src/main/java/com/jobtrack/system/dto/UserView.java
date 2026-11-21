@@ -15,4 +15,5 @@ public class UserView {
     private String displayName;
     private String role;
     private String tenantName;
+    private String avatarUrl;
 }

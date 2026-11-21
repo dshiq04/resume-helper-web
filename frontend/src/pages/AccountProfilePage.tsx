@@ -67,6 +67,7 @@ export function AccountProfilePage() {
     try {
       const profile = await accountApi.uploadAvatar(file);
       setAvatarUrl(profile.avatarUrl || "");
+      await refreshUser();
       message.success(t("settings.saved"));
     } catch (error) {
       message.error(errorMessage(error));
