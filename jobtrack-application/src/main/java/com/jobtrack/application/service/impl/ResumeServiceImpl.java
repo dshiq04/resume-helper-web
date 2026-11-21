@@ -39,16 +39,10 @@ public class ResumeServiceImpl implements ResumeService {
     public static final Map<String, String> SUPPORTED_TYPES = Map.ofEntries(
             Map.entry("pdf", "application/pdf"),
             Map.entry("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
-            Map.entry("pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
             Map.entry("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
             Map.entry("html", "text/html; charset=utf-8"),
-            Map.entry("htm", "text/html; charset=utf-8"),
             Map.entry("png", "image/png"),
-            Map.entry("jpg", "image/jpeg"),
-            Map.entry("jpeg", "image/jpeg"),
-            Map.entry("webp", "image/webp"),
-            Map.entry("md", "text/markdown; charset=utf-8"),
-            Map.entry("markdown", "text/markdown; charset=utf-8"));
+            Map.entry("md", "text/markdown; charset=utf-8"));
 
     private final ResumeMapper resumeMapper;
     private final FileCrypto fileCrypto;
@@ -79,8 +73,11 @@ public class ResumeServiceImpl implements ResumeService {
 
     @Transactional
     public ResumeView create(String name, String tagsRaw, MultipartFile file) {
-        if (file == null || file.isEmpty()) {
+        if (file == null) {
             throw BusinessException.badRequest("file_required", "请选择要上传的简历文件");
+        }
+        if (file.getSize() <= 0 || file.isEmpty()) {
+            throw BusinessException.badRequest("file_empty", "文件大小为 0，禁止上传");
         }
         int maxMb = Math.max(1, appProperties.getStorage().getMaxFileSizeMb());
         if (file.getSize() > (long) maxMb * 1024 * 1024) {
@@ -91,7 +88,7 @@ public class ResumeServiceImpl implements ResumeService {
         String extension = extensionOf(originalName);
         if (!SUPPORTED_TYPES.containsKey(extension)) {
             throw BusinessException.badRequest("unsupported_file_type",
-                    "仅支持 PDF、DOCX、PPTX、PNG、JPG、WEBP、Markdown 文件");
+                    "仅支持 PDF、HTML、XLSX、DOCX、PNG、MD 文件");
         }
         if (originalName.isBlank()) {
             originalName = "resume." + extension;
@@ -99,10 +96,7 @@ public class ResumeServiceImpl implements ResumeService {
 
         String resumeName = name == null ? "" : name.trim();
         if (resumeName.isEmpty()) {
-            resumeName = originalName.substring(0, originalName.length() - extension.length() - 1);
-        }
-        if (resumeName.isBlank()) {
-            resumeName = "未命名简历";
+            throw BusinessException.badRequest("name_required", "请输入简历名称");
         }
         if (resumeName.length() > 255) {
             throw BusinessException.badRequest("name_too_long", "简历名称不能超过 255 个字符");
@@ -116,7 +110,7 @@ public class ResumeServiceImpl implements ResumeService {
             throw BusinessException.badRequest("file_unreadable", "无法读取上传的文件");
         }
         if (content.length == 0) {
-            throw BusinessException.badRequest("file_empty", "文件内容为空");
+            throw BusinessException.badRequest("file_empty", "文件大小为 0，禁止上传");
         }
 
         long tenantId = TenantContext.get() == null ? 0L : TenantContext.require();
@@ -147,7 +141,7 @@ public class ResumeServiceImpl implements ResumeService {
         if (request.getName() != null) {
             String name = request.getName().trim();
             if (name.isEmpty()) {
-                throw BusinessException.badRequest("name_required", "简历名称不能为空");
+                throw BusinessException.badRequest("name_required", "请输入简历名称");
             }
             if (name.length() > 255) {
                 throw BusinessException.badRequest("name_too_long", "简历名称不能超过 255 个字符");

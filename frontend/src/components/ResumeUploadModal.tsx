@@ -19,6 +19,13 @@ interface Values {
   tags: string[];
 }
 
+const SUPPORTED_EXTENSIONS = ["pdf", "html", "xlsx", "docx", "png", "md"];
+
+function fileExtension(fileName: string): string {
+  const dot = fileName.lastIndexOf(".");
+  return dot < 0 ? "" : fileName.slice(dot + 1).toLowerCase();
+}
+
 export function ResumeUploadModal({ open, editing, onClose, onSaved }: Props) {
   const { t } = useI18n();
   const { message } = AntdApp.useApp();
@@ -36,17 +43,36 @@ export function ResumeUploadModal({ open, editing, onClose, onSaved }: Props) {
   }, [editing, form, open]);
 
   const submit = async (values: Values) => {
+    const name = values.name?.trim() ?? "";
+    if (!name) {
+      message.error(t("resume.nameRequired"));
+      return;
+    }
+    if (name.length > 255) {
+      message.error(t("resume.nameTooLong"));
+      return;
+    }
+    if (!editing) {
+      if (!file) {
+        message.warning(t("resume.file"));
+        return;
+      }
+      if (file.size <= 0) {
+        message.error(t("resume.fileEmpty"));
+        return;
+      }
+      if (!SUPPORTED_EXTENSIONS.includes(fileExtension(file.name))) {
+        message.error(t("resume.fileType"));
+        return;
+      }
+    }
+
     setSaving(true);
     try {
       if (editing) {
-        await resumeApi.update(editing.id, { name: values.name, tags: values.tags });
+        await resumeApi.update(editing.id, { name, tags: values.tags });
       } else {
-        if (!file) {
-          message.warning(t("resume.file"));
-          setSaving(false);
-          return;
-        }
-        await resumeApi.create(values.name || file.name, values.tags ?? [], file);
+        await resumeApi.create(name, values.tags ?? [], file as File);
       }
       message.success(t("settings.saved"));
       onSaved();
@@ -73,13 +99,16 @@ export function ResumeUploadModal({ open, editing, onClose, onSaved }: Props) {
         </div>
       }
     >
-      <Form form={form} layout="vertical" onFinish={submit} requiredMark={false}>
+      <Form form={form} layout="vertical" onFinish={submit}>
         <Form.Item
           name="name"
           label={t("resume.name")}
-          rules={[{ required: !editing, message: t("resume.name") }]}
+          rules={[
+            { required: true, whitespace: true, message: t("resume.nameRequired") },
+            { max: 255, message: t("resume.nameTooLong") },
+          ]}
         >
-          <Input placeholder={t("resume.namePlaceholder")} />
+          <Input maxLength={255} placeholder={t("resume.namePlaceholder")} />
         </Form.Item>
         <Form.Item name="tags" label={t("field.tags")}>
           <Select
@@ -92,9 +121,19 @@ export function ResumeUploadModal({ open, editing, onClose, onSaved }: Props) {
         </Form.Item>
         {!editing && (
           <Upload.Dragger
-            accept=".pdf,.docx,.pptx,.xlsx,.html,.htm,.png,.jpg,.jpeg,.webp,.md,.markdown"
+            accept=".pdf,.html,.xlsx,.docx,.png,.md"
             maxCount={1}
             beforeUpload={(selected) => {
+              if (selected.size <= 0) {
+                setFile(null);
+                message.error(t("resume.fileEmpty"));
+                return Upload.LIST_IGNORE;
+              }
+              if (!SUPPORTED_EXTENSIONS.includes(fileExtension(selected.name))) {
+                setFile(null);
+                message.error(t("resume.fileType"));
+                return Upload.LIST_IGNORE;
+              }
               setFile(selected);
               if (!form.getFieldValue("name")) {
                 form.setFieldValue("name", selected.name.replace(/\.[^.]+$/, ""));
