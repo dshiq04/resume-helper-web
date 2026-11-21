@@ -306,7 +306,7 @@ async function handleSubmit(event) {
       companyName: company,
       link,
       category: state.category,
-      status: "pending",
+      status: "screening",
       year: new Date().getFullYear(),
     };
     const result = await api("/applications", {
