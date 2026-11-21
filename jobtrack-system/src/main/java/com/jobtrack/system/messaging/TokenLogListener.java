@@ -4,7 +4,6 @@ import com.jobtrack.common.util.JsonUtils;
 import com.jobtrack.system.service.AccessTokenLogWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
@@ -18,7 +17,7 @@ public class TokenLogListener {
 
     private final AccessTokenLogWriter logWriter;
 
-    @RabbitListener(queuesToDeclare = @Queue(name = MessagingQueues.TOKEN_LOG, durable = "true"))
+    @RabbitListener(queues = MessagingQueues.TOKEN_LOG)
     public void handle(String payload) {
         try {
             TokenLogMessage message = JsonUtils.fromJson(payload, TokenLogMessage.class);

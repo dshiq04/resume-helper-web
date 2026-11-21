@@ -4,7 +4,6 @@ import com.jobtrack.common.util.JsonUtils;
 import com.jobtrack.system.storage.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.amqp.rabbit.annotation.Queue;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 
@@ -18,7 +17,7 @@ public class FileCleanupListener {
 
     private final ObjectStorageService objectStorage;
 
-    @RabbitListener(queuesToDeclare = @Queue(name = MessagingQueues.FILE_CLEANUP, durable = "true"))
+    @RabbitListener(queues = MessagingQueues.FILE_CLEANUP)
     public void handle(String payload) {
         try {
             FileCleanupMessage message = JsonUtils.fromJson(payload, FileCleanupMessage.class);

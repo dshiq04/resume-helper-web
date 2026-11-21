@@ -1,9 +1,13 @@
 package com.jobtrack.system.messaging;
 
+import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.amqp.rabbit.core.RabbitAdmin;
+import org.springframework.boot.ApplicationRunner;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -14,6 +18,7 @@ import org.springframework.context.annotation.Configuration;
  * 不会自动创建 RabbitTemplate / @RabbitListener 所需的容器工厂，
  * 因此这里只做最小的连接与模板声明，队列由 @RabbitListener 自动声明。
  */
+@Slf4j
 @Configuration
 @EnableRabbit
 public class RabbitConfig {
@@ -34,6 +39,34 @@ public class RabbitConfig {
     @Bean
     public RabbitTemplate rabbitTemplate(ConnectionFactory connectionFactory) {
         return new RabbitTemplate(connectionFactory);
+    }
+
+    @Bean
+    public ApplicationRunner rabbitQueueInitializer(RabbitAdmin rabbitAdmin) {
+        return args -> {
+            try {
+                rabbitAdmin.declareQueue(new Queue(MessagingQueues.FILE_CLEANUP, true));
+                rabbitAdmin.declareQueue(new Queue(MessagingQueues.TOKEN_LOG, true));
+                log.info("RabbitMQ 队列已声明");
+            } catch (Exception exception) {
+                log.warn("RabbitMQ 队列声明失败（Broker 不可用时会自动降级）: {}", exception.getMessage());
+            }
+        };
+    }
+
+    @Bean
+    public Queue fileCleanupQueue() {
+        return new Queue(MessagingQueues.FILE_CLEANUP, true);
+    }
+
+    @Bean
+    public Queue tokenLogQueue() {
+        return new Queue(MessagingQueues.TOKEN_LOG, true);
+    }
+
+    @Bean
+    public RabbitAdmin rabbitAdmin(ConnectionFactory connectionFactory) {
+        return new RabbitAdmin(connectionFactory);
     }
 
     @Bean
