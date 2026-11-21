@@ -39,9 +39,11 @@ public class ResumeServiceImpl implements ResumeService {
     public static final Map<String, String> SUPPORTED_TYPES = Map.ofEntries(
             Map.entry("pdf", "application/pdf"),
             Map.entry("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
-            Map.entry("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            Map.entry("pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
             Map.entry("html", "text/html; charset=utf-8"),
             Map.entry("png", "image/png"),
+            Map.entry("jpg", "image/jpeg"),
+            Map.entry("jpeg", "image/jpeg"),
             Map.entry("md", "text/markdown; charset=utf-8"));
 
     private final ResumeMapper resumeMapper;
@@ -88,7 +90,7 @@ public class ResumeServiceImpl implements ResumeService {
         String extension = extensionOf(originalName);
         if (!SUPPORTED_TYPES.containsKey(extension)) {
             throw BusinessException.badRequest("unsupported_file_type",
-                    "仅支持 PDF、HTML、XLSX、DOCX、PNG、MD 文件");
+                    "仅支持 PDF、HTML、PPTX、DOCX、PNG、JPG、JPEG、MD 文件");
         }
         if (originalName.isBlank()) {
             originalName = "resume." + extension;

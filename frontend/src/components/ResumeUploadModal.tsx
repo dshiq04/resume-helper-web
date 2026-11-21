@@ -19,7 +19,7 @@ interface Values {
   tags: string[];
 }
 
-const SUPPORTED_EXTENSIONS = ["pdf", "html", "xlsx", "docx", "png", "md"];
+const SUPPORTED_EXTENSIONS = ["pdf", "html", "pptx", "docx", "png", "jpg", "jpeg", "md"];
 
 function fileExtension(fileName: string): string {
   const dot = fileName.lastIndexOf(".");
@@ -121,7 +121,7 @@ export function ResumeUploadModal({ open, editing, onClose, onSaved }: Props) {
         </Form.Item>
         {!editing && (
           <Upload.Dragger
-            accept=".pdf,.html,.xlsx,.docx,.png,.md"
+            accept=".pdf,.html,.pptx,.docx,.png,.jpg,.jpeg,.md"
             maxCount={1}
             beforeUpload={(selected) => {
               if (selected.size <= 0) {
