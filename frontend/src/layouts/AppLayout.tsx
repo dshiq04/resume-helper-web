@@ -14,12 +14,14 @@ import {
   FileTextOutlined,
   InboxOutlined,
   LogoutOutlined,
+  MenuFoldOutlined,
   MenuOutlined,
+  MenuUnfoldOutlined,
   MoonOutlined,
   SettingOutlined,
   SunOutlined,
 } from "@ant-design/icons";
-import { App as AntdApp, Drawer, Menu as AntdMenu, type MenuProps } from "antd";
+import { App as AntdApp, Breadcrumb, Drawer, Menu as AntdMenu, type MenuProps } from "antd";
 import dayjs from "dayjs";
 import {
   NavLink,
@@ -264,16 +266,6 @@ export function AppLayout() {
       {!isMobile && (
         <aside className="sidebar">
           {sidebarContent}
-          {!isTablet && (
-            <button
-              type="button"
-              className="sidebar-toggle"
-              onClick={() => dispatch(setSidebarCollapsed(!collapsed))}
-              title={rail ? t("common.view") : t("common.close")}
-            >
-              {rail ? "»" : "«"}
-            </button>
-          )}
         </aside>
       )}
 
@@ -290,10 +282,23 @@ export function AppLayout() {
                 <MenuOutlined />
               </button>
             )}
-            <div className="topbar-crumb">
-              <span>{meta.eyebrow}</span>
-              <b>{meta.title}</b>
-            </div>
+            {!isMobile && !isTablet && (
+              <button
+                type="button"
+                className="topbar-collapse"
+                onClick={() => dispatch(setSidebarCollapsed(!collapsed))}
+                title={rail ? t("common.view") : t("common.close")}
+              >
+                {rail ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
+              </button>
+            )}
+            <Breadcrumb
+              className="topbar-crumb"
+              items={[
+                { title: <span className="crumb-section">{meta.eyebrow}</span> },
+                { title: <span className="crumb-page">{meta.title}</span> },
+              ]}
+            />
           </div>
           <div className="topbar-right">
             <span className="topbar-date">{dayjs().format("YYYY.MM.DD")}</span>

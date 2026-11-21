@@ -1,0 +1,219 @@
+// 设置页：数据备份（导出 / 导入）
+@use "variables" as v;
+@use "mixins" as m;
+
+.setting-card.data-card {
+  grid-column: 1 / -1;
+}
+
+.backup-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+
+  @include m.respond-down(v.$bp-lg) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.backup-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: v.$radius-md;
+  background: var(--bg-sunken);
+}
+
+.backup-panel-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+
+  h3 {
+    margin: 0 0 4px;
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 13px;
+    font-weight: 600;
+  }
+
+  p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 10.5px;
+    line-height: 1.7;
+  }
+}
+
+.backup-icon {
+  display: grid;
+  flex: 0 0 34px;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 16px;
+
+  &.is-import {
+    border: 1px solid var(--line);
+    background: var(--bg-elev);
+    color: var(--clay);
+  }
+}
+
+.backup-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    padding: 3px 8px;
+    border: 1px solid var(--line);
+    border-radius: v.$radius-pill;
+    background: var(--bg-elev);
+    color: var(--muted);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+}
+
+.backup-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+}
+
+.backup-meta {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.backup-drop {
+  display: block;
+
+  .ant-upload-drag {
+    min-height: 124px;
+    border-color: var(--line-strong);
+    background: var(--bg-elev);
+    transition: border-color v.$ease-fast, background v.$ease-fast;
+
+    &:hover {
+      border-color: var(--accent);
+      background: var(--accent-soft);
+    }
+  }
+
+  .ant-upload-btn {
+    padding: 16px 12px;
+  }
+
+  .ant-upload-drag-icon {
+    margin-bottom: 6px;
+
+    .anticon {
+      color: var(--accent);
+      font-size: 26px;
+    }
+  }
+
+  .ant-upload-text {
+    color: var(--ink);
+    font-size: 11.5px;
+  }
+
+  .ant-upload-hint {
+    margin-top: 2px;
+    color: var(--muted);
+    font-size: 10px;
+  }
+}
+
+.backup-file {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px dashed var(--accent);
+  border-radius: v.$radius-sm;
+  background: var(--bg-elev);
+
+  .backup-file-icon {
+    color: var(--accent);
+    font-size: 20px;
+  }
+}
+
+.backup-file-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  gap: 2px;
+
+  strong {
+    color: var(--ink);
+    font-size: 11.5px;
+    font-weight: 600;
+    @include m.ellipsis;
+  }
+
+  span {
+    color: var(--muted);
+    font-size: 10px;
+  }
+}
+
+.backup-options {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.backup-result {
+  display: flex;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--accent);
+  border-radius: v.$radius-sm;
+  background: var(--accent-soft);
+  color: var(--accent-ink);
+  font-size: 10.5px;
+
+  > .anticon {
+    margin-top: 2px;
+    font-size: 16px;
+  }
+
+  > div {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    gap: 2px;
+  }
+
+  strong {
+    font-size: 11.5px;
+  }
+
+  span {
+    color: var(--muted);
+  }
+
+  ul {
+    margin: 4px 0 0;
+    padding-left: 14px;
+    color: var(--muted);
+  }
+}
