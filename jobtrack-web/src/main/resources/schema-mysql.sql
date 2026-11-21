@@ -162,6 +162,8 @@ CREATE TABLE IF NOT EXISTS access_token (
     code VARCHAR(80) NOT NULL,
     scope VARCHAR(16) NOT NULL,
     resources VARCHAR(200) NOT NULL DEFAULT 'applications,resumes,statistics,profile',
+    enabled TINYINT(1) NOT NULL DEFAULT 1,
+    deleted TINYINT(1) NOT NULL DEFAULT 0,
     expires_on DATE NULL,
     last_used_at DATETIME NULL,
     created_at DATETIME NULL,

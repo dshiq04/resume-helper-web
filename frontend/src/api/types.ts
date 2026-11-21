@@ -67,8 +67,22 @@ export interface AccessToken {
   code: string;
   scope: TokenScope;
   resources: TokenResource[];
+  enabled: boolean;
   expiresOn?: string | null;
   lastUsedAt?: string | null;
+  createdAt?: string | null;
+}
+
+export interface AccessTokenLog {
+  id: number;
+  tokenId?: number | null;
+  tokenName?: string | null;
+  codePrefix?: string | null;
+  scope?: TokenScope | null;
+  resources: TokenResource[];
+  result: "valid" | "invalid" | "expired" | "disabled";
+  ip?: string | null;
+  userAgent?: string | null;
   createdAt?: string | null;
 }
 

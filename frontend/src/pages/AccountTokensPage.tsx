@@ -22,10 +22,11 @@ import {
   DeleteOutlined,
   InboxOutlined,
   PlusOutlined,
+  ReloadOutlined,
 } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { accountApi } from "../api/account";
-import type { AccessToken, TokenResource, TokenScope } from "../api/types";
+import type { AccessToken, AccessTokenLog, TokenResource, TokenScope } from "../api/types";
 import { useI18n } from "../i18n";
 import { errorMessage } from "../utils/errors";
 
@@ -43,6 +44,13 @@ const SCOPE_COLORS: Record<TokenScope, string> = {
   readwrite: "green",
 };
 
+const LOG_COLORS: Record<AccessTokenLog["result"], string> = {
+  valid: "green",
+  invalid: "red",
+  expired: "orange",
+  disabled: "default",
+};
+
 const ALL_RESOURCES: TokenResource[] = ["applications", "resumes", "statistics", "profile"];
 
 export function AccountTokensPage() {
@@ -54,6 +62,18 @@ export function AccountTokensPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [created, setCreated] = useState<AccessToken | null>(null);
+  const [logs, setLogs] = useState<AccessTokenLog[]>([]);
+  const [logsLoading, setLogsLoading] = useState(true);
+  const [logResult, setLogResult] = useState<string>("");
+
+  const loadLogs = (result = logResult) => {
+    setLogsLoading(true);
+    void accountApi
+      .tokenLogs({ limit: 50, result: result || undefined })
+      .then(setLogs)
+      .catch((error) => message.error(errorMessage(error)))
+      .finally(() => setLogsLoading(false));
+  };
 
   useEffect(() => {
     void accountApi
@@ -61,7 +81,19 @@ export function AccountTokensPage() {
       .then(setTokens)
       .catch((error) => message.error(errorMessage(error)))
       .finally(() => setLoading(false));
+    loadLogs("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [message]);
+
+  const toggleToken = async (record: AccessToken, enabled: boolean) => {
+    try {
+      const updated = await accountApi.updateTokenStatus(record.id, enabled);
+      setTokens((list) => list.map((item) => (item.id === updated.id ? updated : item)));
+      message.success(enabled ? t("tokens.enabled") : t("tokens.disabled"));
+    } catch (error) {
+      message.error(errorMessage(error));
+    }
+  };
 
   const scopeLabel = (scope: TokenScope) => {
     if (scope === "read") return t("tokens.scopeRead");
@@ -74,6 +106,13 @@ export function AccountTokensPage() {
     if (resource === "resumes") return t("tokens.resourceResumes");
     if (resource === "statistics") return t("tokens.resourceStatistics");
     return t("tokens.resourceProfile");
+  };
+
+  const logResultLabel = (result: AccessTokenLog["result"]) => {
+    if (result === "valid") return t("tokens.logValid");
+    if (result === "expired") return t("tokens.logExpired");
+    if (result === "disabled") return t("tokens.logDisabled");
+    return t("tokens.logInvalid");
   };
 
   const resourceOptions = ALL_RESOURCES.map((value) => ({
@@ -138,6 +177,18 @@ export function AccountTokensPage() {
         width: 96,
         render: (scope: TokenScope) => (
           <Tag color={SCOPE_COLORS[scope]}>{scopeLabel(scope)}</Tag>
+        ),
+      },
+      {
+        title: t("tokens.columnStatus"),
+        dataIndex: "enabled",
+        width: 80,
+        render: (enabled: boolean, record) => (
+          <Switch
+            size="small"
+            checked={enabled}
+            onChange={(checked) => void toggleToken(record, checked)}
+          />
         ),
       },
       {
@@ -215,6 +266,64 @@ export function AccountTokensPage() {
     [created, t],
   );
 
+  const logColumns = useMemo<ColumnsType<AccessTokenLog>>(
+    () => [
+      {
+        title: t("tokens.logsTime"),
+        dataIndex: "createdAt",
+        width: 150,
+        render: (value: string) =>
+          value ? dayjs(value).format("YYYY-MM-DD HH:mm:ss") : "—",
+      },
+      {
+        title: t("tokens.columnCode"),
+        dataIndex: "codePrefix",
+        render: (_: string, record) => (
+          <span className="token-log-code">
+            <strong>{record.tokenName || "—"}</strong>
+            <span>{record.codePrefix ? `${record.codePrefix}…` : "—"}</span>
+          </span>
+        ),
+      },
+      {
+        title: t("tokens.logsResult"),
+        dataIndex: "result",
+        width: 100,
+        render: (result: AccessTokenLog["result"]) => (
+          <Tag color={LOG_COLORS[result]}>{logResultLabel(result)}</Tag>
+        ),
+      },
+      {
+        title: t("tokens.columnScope"),
+        dataIndex: "scope",
+        width: 90,
+        render: (scope: TokenScope | null) => (scope ? scopeLabel(scope) : "—"),
+      },
+      {
+        title: t("tokens.columnResources"),
+        dataIndex: "resources",
+        width: 180,
+        render: (resources: TokenResource[]) => (
+          <span className="token-resources">
+            {(resources ?? []).map((item) => (
+              <Tag key={item} bordered={false}>
+                {resourceLabel(item)}
+              </Tag>
+            ))}
+          </span>
+        ),
+      },
+      {
+        title: t("tokens.logsIp"),
+        dataIndex: "ip",
+        width: 130,
+        render: (ip: string | null) => <span className="token-date">{ip || "—"}</span>,
+      },
+    ],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [t],
+  );
+
   return (
     <div className="account-layout">
       <section className="setting-card account-tokens-card">
@@ -265,6 +374,52 @@ export function AccountTokensPage() {
                 <InboxOutlined />
                 <strong>{t("tokens.empty")}</strong>
                 <span>{t("tokens.emptyHint")}</span>
+              </div>
+            ),
+          }}
+        />
+      </section>
+
+      <section className="setting-card account-logs-card">
+        <div className="account-tokens-head">
+          <div>
+            <h2>{t("tokens.logsTitle")}</h2>
+            <p className="setting-hint">{t("tokens.logsHint")}</p>
+          </div>
+          <div className="token-log-actions">
+            <Select
+              value={logResult}
+              style={{ width: 140 }}
+              onChange={(value) => {
+                setLogResult(value);
+                loadLogs(value);
+              }}
+              options={[
+                { value: "", label: t("tokens.allResults") },
+                { value: "valid", label: t("tokens.logValid") },
+                { value: "invalid", label: t("tokens.logInvalid") },
+                { value: "expired", label: t("tokens.logExpired") },
+                { value: "disabled", label: t("tokens.logDisabled") },
+              ]}
+            />
+            <Button icon={<ReloadOutlined />} onClick={() => loadLogs()}>
+              {t("tokens.refresh")}
+            </Button>
+          </div>
+        </div>
+        <Table<AccessTokenLog>
+          rowKey="id"
+          size="middle"
+          loading={logsLoading}
+          columns={logColumns}
+          dataSource={logs}
+          pagination={false}
+          scroll={{ x: 860 }}
+          locale={{
+            emptyText: (
+              <div className="token-empty">
+                <InboxOutlined />
+                <strong>{t("tokens.logsEmpty")}</strong>
               </div>
             ),
           }}

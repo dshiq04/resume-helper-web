@@ -153,6 +153,8 @@ CREATE TABLE IF NOT EXISTS access_token (
     code VARCHAR(80) NOT NULL,
     scope VARCHAR(16) NOT NULL,
     resources VARCHAR(200) NOT NULL DEFAULT 'applications,resumes,statistics,profile',
+    enabled BOOLEAN NOT NULL DEFAULT TRUE,
+    deleted BOOLEAN NOT NULL DEFAULT FALSE,
     expires_on DATE,
     last_used_at TIMESTAMP,
     created_at TIMESTAMP,

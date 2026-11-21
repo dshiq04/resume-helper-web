@@ -158,6 +158,34 @@
   font-size: 10.5px;
 }
 
+.token-log-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.token-log-code {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  gap: 1px;
+
+  strong {
+    color: var(--ink);
+    font-size: 11px;
+    @include m.ellipsis;
+  }
+
+  span {
+    color: var(--muted);
+    font-size: 9.5px;
+  }
+}
+
+.account-logs-card .ant-table {
+  font-size: 11.5px;
+}
+
 .token-empty {
   display: flex;
   flex-direction: column;

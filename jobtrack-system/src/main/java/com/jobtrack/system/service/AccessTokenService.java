@@ -69,6 +69,7 @@ public class AccessTokenService {
         token.setName(normalizeName(request.getName()));
         token.setScope(scope);
         token.setResources(joinResources(request.getResources()));
+        token.setEnabled(true);
         token.setExpiresOn(expiresOn);
         token.setCode("rt_" + UUID.randomUUID().toString().replace("-", ""));
         tokenMapper.insert(token);
@@ -81,7 +82,22 @@ public class AccessTokenService {
         if (token == null || !userId.equals(token.getUserId())) {
             throw BusinessException.notFound("token_not_found", "授权码不存在或已删除");
         }
+        // 逻辑删除：数据库保留记录，查询与校验都会自动排除。
         tokenMapper.deleteById(id);
+    }
+
+    @Transactional
+    public AccessTokenView setEnabled(Long userId, Long id, boolean enabled) {
+        AccessToken token = tokenMapper.selectById(id);
+        if (token == null || !userId.equals(token.getUserId())) {
+            throw BusinessException.notFound("token_not_found", "授权码不存在或已删除");
+        }
+        AccessToken update = new AccessToken();
+        update.setId(id);
+        update.setEnabled(enabled);
+        tokenMapper.updateById(update);
+        token.setEnabled(enabled);
+        return view(token);
     }
 
     /**
@@ -101,9 +117,19 @@ public class AccessTokenService {
             logUse(null, null, "invalid", code, ip, userAgent);
             return TokenValidationResponse.invalid("invalid");
         }
+        // 每次使用（含过期 / 停用）都刷新最近使用时间。
+        AccessToken touch = new AccessToken();
+        touch.setId(token.getId());
+        touch.setLastUsedAt(LocalDateTime.now());
+        tokenMapper.updateById(touch);
+
         if (token.getExpiresOn() != null && token.getExpiresOn().isBefore(LocalDate.now())) {
             logUse(token, null, "expired", code, ip, userAgent);
             return TokenValidationResponse.invalid("expired");
+        }
+        if (Boolean.FALSE.equals(token.getEnabled())) {
+            logUse(token, null, "disabled", code, ip, userAgent);
+            return TokenValidationResponse.invalid("disabled");
         }
         SysUser user = userMapper.selectById(token.getUserId());
         if (user == null || !Boolean.TRUE.equals(user.getEnabled())) {
@@ -111,10 +137,6 @@ public class AccessTokenService {
             return TokenValidationResponse.invalid("disabled");
         }
 
-        AccessToken touch = new AccessToken();
-        touch.setId(token.getId());
-        touch.setLastUsedAt(LocalDateTime.now());
-        tokenMapper.updateById(touch);
         logUse(token, user, "valid", code, ip, userAgent);
 
         TokenValidationResponse response = new TokenValidationResponse();
@@ -129,10 +151,13 @@ public class AccessTokenService {
         return response;
     }
 
-    public List<AccessTokenLogView> logs(Long userId, int limit) {
+    public List<AccessTokenLogView> logs(Long userId, int limit, Long tokenId, String result) {
         int size = Math.min(200, Math.max(1, limit));
+        String normalizedResult = result == null ? "" : result.trim().toLowerCase(Locale.ROOT);
         return logMapper.selectList(Wrappers.<AccessTokenLog>lambdaQuery()
                         .eq(AccessTokenLog::getUserId, userId)
+                        .eq(tokenId != null, AccessTokenLog::getTokenId, tokenId)
+                        .eq(!normalizedResult.isEmpty(), AccessTokenLog::getResult, normalizedResult)
                         .orderByDesc(AccessTokenLog::getCreatedAt)
                         .last("LIMIT " + size))
                 .stream()

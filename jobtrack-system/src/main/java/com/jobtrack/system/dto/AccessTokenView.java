@@ -13,6 +13,7 @@ public class AccessTokenView {
     private String name;
     private String code;
     private String scope;
+    private Boolean enabled;
     private List<String> resources;
     private LocalDate expiresOn;
     private LocalDateTime lastUsedAt;

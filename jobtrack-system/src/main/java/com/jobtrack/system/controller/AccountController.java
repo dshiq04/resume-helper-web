@@ -3,6 +3,7 @@ package com.jobtrack.system.controller;
 import com.jobtrack.system.dto.AccessTokenCreateRequest;
 import com.jobtrack.system.dto.AccessTokenLogView;
 import com.jobtrack.system.dto.AccessTokenView;
+import com.jobtrack.system.dto.TokenStatusRequest;
 import com.jobtrack.system.dto.UserProfileRequest;
 import com.jobtrack.system.dto.UserProfileView;
 import com.jobtrack.system.dto.UserView;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -71,8 +73,17 @@ public class AccountController {
         return Map.of("deleted", true);
     }
 
+    @PutMapping("/tokens/{id}/enabled")
+    public AccessTokenView updateTokenStatus(@PathVariable Long id,
+                                             @Valid @RequestBody TokenStatusRequest request) {
+        return accessTokenService.setEnabled(SecurityUtils.currentUserId(), id, request.getEnabled());
+    }
+
     @GetMapping("/tokens/logs")
-    public List<AccessTokenLogView> tokenLogs() {
-        return accessTokenService.logs(SecurityUtils.currentUserId(), 100);
+    public List<AccessTokenLogView> tokenLogs(
+            @RequestParam(defaultValue = "50") int limit,
+            @RequestParam(required = false) Long tokenId,
+            @RequestParam(required = false) String result) {
+        return accessTokenService.logs(SecurityUtils.currentUserId(), limit, tokenId, result);
     }
 }
