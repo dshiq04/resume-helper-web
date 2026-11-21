@@ -6,7 +6,6 @@ import {
   ReloadOutlined,
   SunOutlined,
 } from "@ant-design/icons";
-import { ApiError } from "../api/client";
 import { authApi } from "../api/auth";
 import { configApi } from "../api/config";
 import type { CaptchaResponse, PublicConfig } from "../api/types";
@@ -16,7 +15,7 @@ import { LANGUAGES, useI18n } from "../i18n";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { toggleTheme } from "../store/slices/uiSlice";
 import { COUNTRY_CODES } from "../utils/countryCodes";
-import { errorMessage } from "../utils/errors";
+import { errorMessage, isApiErrorCode } from "../utils/errors";
 
 type Mode = "login" | "register";
 
@@ -54,16 +53,20 @@ export function LoginPage() {
     }
   }, []);
 
-  useEffect(() => {
-    void (async () => {
-      try {
-        const value = await configApi.get();
-        setConfig(value);
-      } catch {
-        setConfig(null);
-      }
-    })();
+  const loadConfig = useCallback(async () => {
+    try {
+      const value = await configApi.get();
+      setConfig(value);
+      return value;
+    } catch {
+      setConfig(null);
+      return null;
+    }
   }, []);
+
+  useEffect(() => {
+    void loadConfig();
+  }, [loadConfig]);
 
   useEffect(() => {
     if (config?.captchaEnabled) {
@@ -79,7 +82,21 @@ export function LoginPage() {
   }, [form, mode]);
 
   const handleSubmit = async (values: AuthValues) => {
-    if (config?.captchaEnabled && !values.captchaCode) {
+    // 首次进入页面时配置可能还没返回，先等待，避免漏掉验证码字段导致登录失败。
+    let currentConfig = config;
+    if (!currentConfig) {
+      currentConfig = await loadConfig();
+    }
+    if (!currentConfig) {
+      message.error(t("error.network"));
+      return;
+    }
+    if (currentConfig.captchaEnabled && !captcha) {
+      message.warning(t("auth.captchaRefresh"));
+      void loadCaptcha();
+      return;
+    }
+    if (currentConfig.captchaEnabled && !values.captchaCode) {
       message.warning(t("auth.captchaPlaceholder"));
       return;
     }
@@ -117,12 +134,12 @@ export function LoginPage() {
     } catch (error) {
       // 登录失败统一提示，避免显示通用错误或暴露账号是否存在。
       message.error(
-        error instanceof ApiError && error.code === "invalid_credentials"
+        isApiErrorCode(error, "invalid_credentials")
           ? t("auth.invalidCredentials")
           : errorMessage(error),
       );
       form.setFieldValue("captchaCode", "");
-      if (config?.captchaEnabled) {
+      if (currentConfig.captchaEnabled) {
         void loadCaptcha();
       }
     } finally {
