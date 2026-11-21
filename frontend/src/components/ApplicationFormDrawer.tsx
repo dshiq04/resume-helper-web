@@ -170,7 +170,7 @@ export function ApplicationFormDrawer({
         </div>
       }
     >
-      <Form form={form} layout="vertical" onFinish={submit} requiredMark={false}>
+      <Form form={form} layout="vertical" onFinish={submit}>
         <div className="form-section-label">{t("form.basic")}</div>
         <Form.Item
           name="companyName"

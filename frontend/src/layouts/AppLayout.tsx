@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import {
+  AppstoreOutlined,
   BarChartOutlined,
   CloseOutlined,
   DeleteOutlined,
@@ -18,8 +19,12 @@ import {
   MenuOutlined,
   MenuUnfoldOutlined,
   MoonOutlined,
+  ProfileOutlined,
   SettingOutlined,
+  SolutionOutlined,
+  StarOutlined,
   SunOutlined,
+  TeamOutlined,
 } from "@ant-design/icons";
 import { App as AntdApp, Breadcrumb, Drawer, Menu as AntdMenu, type MenuProps } from "antd";
 import dayjs from "dayjs";
@@ -136,14 +141,27 @@ export function AppLayout() {
         icon: <InboxOutlined />,
         label: t("dash.eyebrow"),
         children: [
-          { key: "/", label: withCount(t("nav.all"), stats?.total) },
-          { key: "/spring", label: withCount(t("nav.spring"), stats?.byCategory?.spring) },
-          { key: "/autumn", label: withCount(t("nav.autumn"), stats?.byCategory?.autumn) },
+          { key: "/", icon: <AppstoreOutlined />, label: withCount(t("nav.all"), stats?.total) },
+          {
+            key: "/spring",
+            icon: <SunOutlined />,
+            label: withCount(t("nav.spring"), stats?.byCategory?.spring),
+          },
+          {
+            key: "/autumn",
+            icon: <StarOutlined />,
+            label: withCount(t("nav.autumn"), stats?.byCategory?.autumn),
+          },
           {
             key: "/internship",
+            icon: <SolutionOutlined />,
             label: withCount(t("nav.internship"), stats?.byCategory?.internship),
           },
-          { key: "/social", label: withCount(t("nav.social"), stats?.byCategory?.social) },
+          {
+            key: "/social",
+            icon: <TeamOutlined />,
+            label: withCount(t("nav.social"), stats?.byCategory?.social),
+          },
         ],
       },
       {
@@ -151,7 +169,11 @@ export function AppLayout() {
         icon: <FileTextOutlined />,
         label: t("nav.resumes"),
         children: [
-          { key: "/resumes", label: withCount(t("nav.resumeList"), stats?.resumes) },
+          {
+            key: "/resumes",
+            icon: <ProfileOutlined />,
+            label: withCount(t("nav.resumeList"), stats?.resumes),
+          },
         ],
       },
       { key: "/statistics", icon: <BarChartOutlined />, label: t("nav.statistics") },

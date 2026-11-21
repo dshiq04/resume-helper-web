@@ -66,7 +66,7 @@ export function QuickEntryModal({ open, defaultCategory, onClose, onSaved }: Pro
       className="quick-modal"
     >
       <p className="modal-lead">{t("quick.hint")}</p>
-      <Form form={form} layout="vertical" onFinish={submit} requiredMark={false}>
+      <Form form={form} layout="vertical" onFinish={submit}>
         <Form.Item
           name="companyName"
           label={t("field.company")}
