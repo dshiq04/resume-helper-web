@@ -16,6 +16,7 @@ import com.jobtrack.system.pojo.UserView;
 import com.jobtrack.system.pojo.SysTenant;
 import com.jobtrack.system.pojo.SysUser;
 import com.jobtrack.system.pojo.UserProfile;
+import com.jobtrack.system.mapper.UserAgreementMapper;
 import com.jobtrack.system.mapper.UserProfileMapper;
 
 import com.jobtrack.system.mapper.SysTenantMapper;
@@ -30,6 +31,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -39,6 +41,8 @@ import java.util.regex.Pattern;
 public class AuthServiceImpl implements AuthService {
 
     private static final String INVALID_CREDENTIALS_MESSAGE = "用户名或密码错误";
+    private static final String CONTACT_TAKEN_MESSAGE =
+            "当前手机号/邮箱已存在，请更换其他的手机号/邮箱或者直接登录";
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[A-Za-z0-9_.-]{3,32}$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
@@ -52,6 +56,7 @@ public class AuthServiceImpl implements AuthService {
     private final SessionService sessionService;
     private final CaptchaService captchaService;
     private final UserProfileMapper profileMapper;
+    private final UserAgreementMapper agreementMapper;
     private final AvatarService avatarService;
 
     public AuthResponse login(LoginRequest request) {
@@ -94,6 +99,10 @@ public class AuthServiceImpl implements AuthService {
         if (!email.isEmpty() && !EMAIL_PATTERN.matcher(email).matches()) {
             throw BusinessException.badRequest("invalid_email", "请输入正确的邮箱地址");
         }
+        if (request.getPassword() == null
+                || !request.getPassword().equals(request.getConfirmPassword())) {
+            throw BusinessException.badRequest("password_mismatch", "两次输入的密码不一致");
+        }
         String username = normalizeUsername(request.getUsername());
         if (!USERNAME_PATTERN.matcher(username).matches()) {
             throw BusinessException.badRequest("invalid_username",
@@ -102,7 +111,17 @@ public class AuthServiceImpl implements AuthService {
         Long existing = userMapper.selectCount(Wrappers.<SysUser>lambdaQuery()
                 .eq(SysUser::getUsername, username));
         if (existing != null && existing > 0) {
-            throw BusinessException.conflict("username_taken", "该用户名已被占用");
+            throw BusinessException.conflict("username_taken",
+                    "该用户名已被占用，请更换其他用户名或者直接登录");
+        }
+        for (UserProfile saved : profileMapper.selectContactsIgnoreTenant()) {
+            if (!phone.isEmpty() && samePhone(fullPhone(request.getCountryCode(), phone), saved.getPhone())) {
+                throw BusinessException.conflict("contact_taken", CONTACT_TAKEN_MESSAGE);
+            }
+            if (!email.isEmpty() && saved.getEmail() != null
+                    && email.equalsIgnoreCase(saved.getEmail().trim())) {
+                throw BusinessException.conflict("contact_taken", CONTACT_TAKEN_MESSAGE);
+            }
         }
 
         String tenantName = clean(request.getTenantName());
@@ -127,6 +146,8 @@ public class AuthServiceImpl implements AuthService {
         user.setRole("USER");
         user.setEnabled(true);
         userMapper.insert(user);
+        // 注册成功即记录该用户已同意协议。
+        agreementMapper.insertIgnoreTenant(tenant.getId(), user.getId(), LocalDateTime.now());
 
         UserProfile profile = new UserProfile();
         profile.setTenantId(tenant.getId());
@@ -288,5 +309,17 @@ public class AuthServiceImpl implements AuthService {
 
     private String phoneDigits(String value) {
         return normalizePhone(value).replace("+", "");
+    }
+
+    /** 兼容账号中只保存本地号码、没有国家区号的历史数据。 */
+    private boolean samePhone(String left, String right) {
+        String a = phoneDigits(left);
+        String b = phoneDigits(right);
+        if (a.isEmpty() || b.isEmpty()) {
+            return false;
+        }
+        return a.equals(b)
+                || (a.length() >= 7 && b.length() >= 7
+                && (a.endsWith(b) || b.endsWith(a)));
     }
 }

@@ -23,6 +23,7 @@ type Mode = "login" | "register";
 interface AuthValues {
   username: string;
   password: string;
+  confirmPassword?: string;
   displayName?: string;
   tenantName?: string;
   captchaCode?: string;
@@ -105,6 +106,10 @@ export function LoginPage() {
     }
     const registerContactType = values.contactType === "email" ? "email" : "phone";
     if (mode === "register") {
+      if (values.password !== values.confirmPassword) {
+        message.error(t("settings.passwordMismatch"));
+        return;
+      }
       if (registerContactType === "phone") {
         if (!values.phone?.trim()) {
           message.warning(t("settings.phoneRequired"));
@@ -143,6 +148,7 @@ export function LoginPage() {
         await register({
           username: values.username,
           password: values.password,
+          confirmPassword: values.confirmPassword,
           displayName: values.displayName,
           tenantName: values.tenantName,
           contactType: registerContactType,
@@ -242,18 +248,28 @@ export function LoginPage() {
             </button>
           </div>
 
-          <Form form={form} layout="vertical" onFinish={handleSubmit} requiredMark={false}>
+          <Form form={form} layout="vertical" onFinish={handleSubmit}>
             <Form.Item
               name="username"
               label={t("auth.username")}
-              rules={[{ required: true, message: t("auth.username") }]}
+              rules={[
+                { required: true, message: t("auth.username") },
+                ...(mode === "register"
+                  ? [{ pattern: /^[A-Za-z0-9_.-]{3,32}$/, message: t("account.usernameHint") }]
+                  : []),
+              ]}
             >
               <Input size="large" autoComplete="username" placeholder={t("auth.usernamePlaceholder")} />
             </Form.Item>
             <Form.Item
               name="password"
               label={t("auth.password")}
-              rules={[{ required: true, message: t("auth.password") }]}
+              rules={[
+                { required: true, message: t("auth.password") },
+                ...(mode === "register"
+                  ? [{ min: 6, max: 64, message: t("settings.newPasswordInvalid") }]
+                  : []),
+              ]}
             >
               <Input.Password
                 size="large"
@@ -261,6 +277,30 @@ export function LoginPage() {
                 placeholder={t("auth.passwordPlaceholder")}
               />
             </Form.Item>
+            {mode === "register" && (
+              <Form.Item
+                name="confirmPassword"
+                label={t("settings.confirmPassword")}
+                dependencies={["password"]}
+                rules={[
+                  { required: true, message: t("settings.confirmPasswordRequired") },
+                  ({ getFieldValue }) => ({
+                    validator(_, value) {
+                      if (!value || value === getFieldValue("password")) {
+                        return Promise.resolve();
+                      }
+                      return Promise.reject(new Error(t("settings.passwordMismatch")));
+                    },
+                  }),
+                ]}
+              >
+                <Input.Password
+                  size="large"
+                  autoComplete="new-password"
+                  placeholder={t("settings.confirmPassword")}
+                />
+              </Form.Item>
+            )}
 
             {mode === "register" && (
               <>
@@ -268,6 +308,7 @@ export function LoginPage() {
                   name="contactType"
                   label={t("settings.contactMethod")}
                   initialValue="phone"
+                  rules={[{ required: true, message: t("auth.contactRequired") }]}
                 >
                   <Segmented
                     options={[
@@ -325,11 +366,19 @@ export function LoginPage() {
                     />
                   </Form.Item>
                 )}
-                <Form.Item name="displayName" label={t("auth.displayName")}>
-                  <Input size="large" placeholder={t("auth.displayName")} />
+                <Form.Item
+                  name="displayName"
+                  label={t("auth.displayName")}
+                  rules={[{ required: true, message: t("auth.displayName") }]}
+                >
+                  <Input size="large" maxLength={64} placeholder={t("auth.displayName")} />
                 </Form.Item>
-                <Form.Item name="tenantName" label={t("auth.workspace")}>
-                  <Input size="large" placeholder={t("auth.workspace")} />
+                <Form.Item
+                  name="tenantName"
+                  label={t("auth.workspace")}
+                  rules={[{ required: true, message: t("auth.workspace") }]}
+                >
+                  <Input size="large" maxLength={64} placeholder={t("auth.workspace")} />
                 </Form.Item>
               </>
             )}
@@ -363,6 +412,7 @@ export function LoginPage() {
                 checked={agreementAccepted}
                 onChange={() => setAgreementOpen(true)}
               >
+                <span className="agreement-required">*</span>
                 {t("auth.agreementPrefix")}
                 <button
                   type="button"

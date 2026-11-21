@@ -21,6 +21,7 @@ interface LoginInput {
 }
 
 interface RegisterInput extends LoginInput {
+  confirmPassword?: string;
   displayName?: string;
   tenantName?: string;
   contactType?: "phone" | "email";

@@ -21,6 +21,7 @@ export const authApi = {
   register(input: {
     username: string;
     password: string;
+    confirmPassword?: string;
     displayName?: string;
     tenantName?: string;
     contactType?: "phone" | "email";

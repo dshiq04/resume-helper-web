@@ -7,6 +7,8 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.util.List;
+
 @Mapper
 public interface UserProfileMapper extends BaseMapper<UserProfile> {
 
@@ -14,4 +16,9 @@ public interface UserProfileMapper extends BaseMapper<UserProfile> {
     @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT * FROM user_profile WHERE user_id = #{userId} LIMIT 1")
     UserProfile selectByUserIdIgnoreTenant(@Param("userId") Long userId);
+
+    /** 注册时检查手机号/邮箱是否已被其他账号使用。 */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT tenant_id, user_id, phone, email FROM user_profile WHERE phone IS NOT NULL OR email IS NOT NULL")
+    List<UserProfile> selectContactsIgnoreTenant();
 }

@@ -123,6 +123,16 @@ CREATE TABLE IF NOT EXISTS resumes (
     KEY idx_resumes_name (name)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS user_agreement (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    tenant_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    accepted_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_user_agreement_user (user_id),
+    KEY idx_user_agreement_tenant (tenant_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 默认工作区与管理员账号（密码 123456 的 BCrypt 哈希）
 INSERT INTO sys_tenant (code, name, created_at)
 SELECT 'default', '默认工作区', NOW()

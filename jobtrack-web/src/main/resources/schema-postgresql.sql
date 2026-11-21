@@ -145,6 +145,15 @@ CREATE TABLE IF NOT EXISTS user_profile (
 );
 CREATE INDEX IF NOT EXISTS idx_user_profile_tenant ON user_profile (tenant_id);
 
+CREATE TABLE IF NOT EXISTS user_agreement (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    accepted_at TIMESTAMP NOT NULL,
+    CONSTRAINT uk_user_agreement_user UNIQUE (user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_agreement_tenant ON user_agreement (tenant_id);
+
 CREATE TABLE IF NOT EXISTS access_token (
     id BIGSERIAL PRIMARY KEY,
     tenant_id BIGINT NOT NULL,

@@ -116,6 +116,15 @@ CREATE TABLE IF NOT EXISTS resumes (
 CREATE INDEX IF NOT EXISTS idx_resumes_tenant ON resumes (tenant_id, pinned);
 CREATE INDEX IF NOT EXISTS idx_resumes_name ON resumes (name);
 
+CREATE TABLE IF NOT EXISTS user_agreement (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    accepted_at TIMESTAMP NOT NULL,
+    CONSTRAINT uk_user_agreement_user UNIQUE (user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_agreement_tenant ON user_agreement (tenant_id);
+
 -- 默认工作区与管理员账号（密码 123456 的 BCrypt 哈希）
 INSERT INTO sys_tenant (code, name, created_at)
 SELECT 'default', '默认工作区', NOW()
