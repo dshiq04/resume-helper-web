@@ -6,6 +6,7 @@ import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -30,6 +31,7 @@ public class ApplicationUpdateRequest {
     private String link;
 
     @NotNull(message = "请选择年度")
+    @Positive(message = "年度必须为正整数")
     @Min(value = 2000, message = "年度需在 2000-2100 之间")
     @Max(value = 2100, message = "年度需在 2000-2100 之间")
     private Integer year;

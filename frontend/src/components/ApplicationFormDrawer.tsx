@@ -197,7 +197,20 @@ export function ApplicationFormDrawer({
           <Form.Item
             name="year"
             label={t("field.year")}
-            rules={[{ required: true, message: t("form.yearRequired") }]}
+            rules={[
+              { required: true, message: t("form.yearRequired") },
+              {
+                validator: (_, value) => {
+                  if (value === undefined || value === null) {
+                    return Promise.resolve();
+                  }
+                  if (!Number.isInteger(value) || value < 2000 || value > 2100) {
+                    return Promise.reject(new Error(t("form.yearInvalid")));
+                  }
+                  return Promise.resolve();
+                },
+              },
+            ]}
           >
             <Select options={years.map((year) => ({ value: year, label: String(year) }))} />
           </Form.Item>
