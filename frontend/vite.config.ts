@@ -8,10 +8,13 @@ const frontendRoot = fileURLToPath(new URL(".", import.meta.url));
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, frontendRoot, "");
+  // 默认监听所有网卡，方便同一局域网内的手机/平板访问开发服务器。
+  // 如需只允许本机访问，可设置 VITE_DEV_HOST=127.0.0.1。
+  const devHost = env.VITE_DEV_HOST || "0.0.0.0";
   return {
     plugins: [react()],
     server: {
-      host: "127.0.0.1",
+      host: devHost,
       port: 5173,
       strictPort: true,
       proxy: {
@@ -22,7 +25,7 @@ export default defineConfig(({ mode }) => {
       },
     },
     preview: {
-      host: "127.0.0.1",
+      host: devHost,
       port: 4173,
       strictPort: true,
     },

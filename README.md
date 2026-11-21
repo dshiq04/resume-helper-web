@@ -176,6 +176,8 @@ cd frontend
 npm run dev
 ```
 
+Vite 默认监听 `0.0.0.0:5173`，同一局域网内的手机/平板可通过终端输出的 `Network` 地址访问。若只允许本机访问，在 `frontend/.env.development` 中设置 `VITE_DEV_HOST=127.0.0.1`。
+
 ---
 
 ## 前端 .env
@@ -189,10 +191,11 @@ npm run dev
 | `VITE_APP_DEFAULT_LANGUAGE` | 默认界面语言 | `zh-CN` |
 | `VITE_SHOW_DEVELOPMENT_WATERMARK` | 是否显示「开发中品质，请谅解」水印 | `true` |
 | `VITE_API_BASE_URL` | 后端接口地址 | `/api` |
+| `VITE_DEV_HOST` | 开发/预览服务器监听地址，`0.0.0.0` 支持局域网访问 | `0.0.0.0` |
 
 环境覆盖：
 
-- `.env.development`：开发环境，`VITE_API_BASE_URL=/api`，Vite 代理到 `http://127.0.0.1:18080`
+- `.env.development`：开发环境，`VITE_API_BASE_URL=/api`，Vite 代理到 `http://127.0.0.1:18080`；默认监听所有网卡
 - `.env.test`：测试环境，默认连接 `http://127.0.0.1:18081/api`
 - `.env.production`：生产环境，默认同源 `/api`（由 Nginx 反向代理到后端）；前后端不同域时改为后端完整地址
 
