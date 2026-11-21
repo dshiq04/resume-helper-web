@@ -159,7 +159,7 @@ export const zhTW: Record<string, string> = {
   "form.categoryHint": "公司名稱、投遞連結、投遞型別、年度和狀態為必填項。",
   "form.categoryRequired": "請選擇投遞型別",
   "form.yearRequired": "請選擇年度",
-  "form.yearInvalid": "年度必須為 2000-2100 之間的正整數",
+  "form.yearInvalid": "年度必須為正整數",
   "form.statusRequired": "請選擇狀態",
   "quick.title": "快速錄入",
   "quick.hint": "填入公司名稱與投遞連結即可，其他資訊稍後補。",

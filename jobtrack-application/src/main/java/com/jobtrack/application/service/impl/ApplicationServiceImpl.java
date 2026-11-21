@@ -384,9 +384,6 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (year <= 0) {
             throw BusinessException.badRequest("invalid_year", "年度必须为正整数");
         }
-        if (year < 2000 || year > 2100) {
-            throw BusinessException.badRequest("invalid_year", "年度需在 2000-2100 之间");
-        }
         return year;
     }
 

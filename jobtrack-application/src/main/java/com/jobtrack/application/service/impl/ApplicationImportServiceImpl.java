@@ -131,7 +131,7 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         request.setCategory(mapCategory(row.getCategory()));
         request.setStatus(DomainConstants.STATUS_SCREENING);
         Integer year = row.getYear();
-        if (year == null || year < 2000 || year > 2100) {
+        if (year == null || year <= 0) {
             year = appliedAt == null ? LocalDate.now().getYear() : appliedAt.getYear();
         }
         request.setYear(year);

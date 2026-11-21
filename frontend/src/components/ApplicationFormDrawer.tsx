@@ -115,8 +115,6 @@ export function ApplicationFormDrawer({
     { value: "remote", label: t("workMode.remote") },
   ];
 
-  const currentYear = new Date().getFullYear();
-  const years = Array.from({ length: 9 }, (_, index) => currentYear + 2 - index);
 
   const submit = async (values: FormValues) => {
     const input: ApplicationInput = {
@@ -204,7 +202,7 @@ export function ApplicationFormDrawer({
                   if (value === undefined || value === null) {
                     return Promise.resolve();
                   }
-                  if (!Number.isInteger(value) || value < 2000 || value > 2100) {
+                  if (!Number.isInteger(value) || value <= 0) {
                     return Promise.reject(new Error(t("form.yearInvalid")));
                   }
                   return Promise.resolve();
@@ -212,7 +210,7 @@ export function ApplicationFormDrawer({
               },
             ]}
           >
-            <Select options={years.map((year) => ({ value: year, label: String(year) }))} />
+            <InputNumber min={1} precision={0} style={{ width: "100%" }} />
           </Form.Item>
         </div>
         <div className="form-grid two">
