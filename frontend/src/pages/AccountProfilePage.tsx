@@ -10,6 +10,7 @@ import {
   Select,
 } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
+import { useNavigate } from "react-router-dom";
 import { accountApi } from "../api/account";
 import { authApi } from "../api/auth";
 import type { UserProfile } from "../api/types";
@@ -49,7 +50,8 @@ const FULL_PHONE_PATTERN = /^\+\d{6,15}$/;
 export function AccountProfilePage() {
   const { t } = useI18n();
   const { message } = AntdApp.useApp();
-  const { user, refreshUser, logout } = useAuth();
+  const { user, refreshUser, clearSession } = useAuth();
+  const navigate = useNavigate();
   const [profileForm] = Form.useForm<ProfileValues>();
   const [contactForm] = Form.useForm<ContactValues>();
   const [usernameForm] = Form.useForm<{ username: string }>();
@@ -204,7 +206,9 @@ export function AccountProfilePage() {
         return;
       }
       message.success(t("settings.passwordChanged"));
-      await logout();
+      // 服务端已在修改密码时注销全部会话，这里只清理本地状态并回到登录页。
+      clearSession();
+      navigate("/login", { replace: true });
     } catch (error) {
       message.error(errorMessage(error));
     } finally {

@@ -51,6 +51,8 @@ export const authApi = {
     return request<{ changed: boolean }>("/auth/change-password", {
       method: "POST",
       data: { currentPassword, newPassword, contact, contactType },
+      // 密码校验失败不能触发全局 401 退出登录。
+      handleUnauthorized: false,
     });
   },
   logout() {

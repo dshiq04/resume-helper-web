@@ -3,7 +3,7 @@ import { setToken } from "../api/client";
 import type { AuthResponse } from "../api/types";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
-  clearSession,
+  clearSession as clearSessionAction,
   initializeAuth,
   loginUser,
   logoutUser,
@@ -37,7 +37,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void dispatch(initializeAuth());
-    const handler = () => dispatch(clearSession());
+    const handler = () => dispatch(clearSessionAction());
     window.addEventListener("jobtrack:unauthorized", handler);
     return () => window.removeEventListener("jobtrack:unauthorized", handler);
   }, [dispatch]);
@@ -63,6 +63,11 @@ export function useAuth() {
     },
     async logout() {
       await dispatch(logoutUser()).unwrap();
+      dispatch(resetTabs());
+    },
+    /** 仅清理本地登录态；服务端令牌已失效时使用，避免再发一次注定 401 的请求。 */
+    clearSession() {
+      dispatch(clearSessionAction());
       dispatch(resetTabs());
     },
     async refreshUser() {

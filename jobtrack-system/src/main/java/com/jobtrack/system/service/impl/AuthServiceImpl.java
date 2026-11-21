@@ -149,7 +149,8 @@ public class AuthServiceImpl implements AuthService {
             throw BusinessException.unauthorized("user_not_found", "账号不存在");
         }
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPasswordHash())) {
-            throw BusinessException.unauthorized("invalid_password", "当前密码不正确");
+            // 当前密码错误属于输入校验失败，不能返回 401，否则前端会误判为登录失效。
+            throw BusinessException.badRequest("invalid_password", "当前密码不正确");
         }
         if (request.getCurrentPassword().equals(request.getNewPassword())) {
             throw BusinessException.badRequest("same_password", "新密码不能与当前密码相同");
@@ -173,15 +174,21 @@ public class AuthServiceImpl implements AuthService {
             if (!PHONE_PATTERN.matcher(contactPhone).matches()) {
                 throw BusinessException.badRequest("invalid_phone", "请输入正确的手机号");
             }
-            if (!contactPhone.equals(phoneDigits(storedPhone))) {
-                throw BusinessException.unauthorized("contact_mismatch", "手机号与账号不符");
+            String storedPhoneDigits = phoneDigits(storedPhone);
+            // 兼容历史数据：账号里可能没有保存国家区号，只保存了本地号码。
+            boolean matched = !storedPhoneDigits.isEmpty()
+                    && (contactPhone.equals(storedPhoneDigits)
+                    || storedPhoneDigits.endsWith(contactPhone)
+                    || contactPhone.endsWith(storedPhoneDigits));
+            if (!matched) {
+                throw BusinessException.badRequest("contact_mismatch", "手机号与账号不符");
             }
         } else if ("email".equals(contactType)) {
             if (!EMAIL_PATTERN.matcher(contact).matches()) {
                 throw BusinessException.badRequest("invalid_email", "请输入正确的邮箱地址");
             }
             if (storedEmail.isEmpty() || !contact.equalsIgnoreCase(storedEmail)) {
-                throw BusinessException.unauthorized("contact_mismatch", "邮箱与账号不符");
+                throw BusinessException.badRequest("contact_mismatch", "邮箱与账号不符");
             }
         } else if (!contactType.isEmpty()) {
             throw BusinessException.badRequest("invalid_contact_type", "不支持的联系方式类型");
@@ -195,7 +202,7 @@ public class AuthServiceImpl implements AuthService {
                     || storedPhoneDigits.endsWith(contactPhone)
                     || contactPhone.endsWith(storedPhoneDigits));
             if (!emailMatched && !phoneMatched) {
-                throw BusinessException.unauthorized("contact_mismatch",
+                throw BusinessException.badRequest("contact_mismatch",
                         "手机号或邮箱与账号不符");
             }
         }
