@@ -1,5 +1,6 @@
 package com.jobtrack.application.pojo;
 
+import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -13,9 +14,11 @@ public class ApplicationUpdateRequest {
 
     private String category;
 
+    @NotBlank(message = "请输入公司名称")
     @Size(max = 255, message = "公司名称不能超过 255 个字符")
     private String companyName;
 
+    @NotBlank(message = "请输入投递链接")
     @Size(max = 2048, message = "投递链接不能超过 2048 个字符")
     private String link;
 

@@ -92,7 +92,7 @@ public class ApplicationController {
 
     @PutMapping("/application/{id}")
     public ApplicationRecord update(@PathVariable Long id,
-                                    @RequestBody ApplicationUpdateRequest request) {
+                                    @Valid @RequestBody ApplicationUpdateRequest request) {
         return applicationService.update(id, request);
     }
 

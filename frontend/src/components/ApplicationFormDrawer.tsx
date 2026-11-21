@@ -175,14 +175,14 @@ export function ApplicationFormDrawer({
         <Form.Item
           name="companyName"
           label={t("field.company")}
-          rules={[{ required: true, message: t("form.companyRequired") }]}
+          rules={[{ required: true, whitespace: true, message: t("form.companyRequired") }]}
         >
           <CompanyAutoComplete placeholder={t("form.companyPlaceholder")} />
         </Form.Item>
         <Form.Item
           name="link"
           label={t("field.link")}
-          rules={[{ required: true, message: t("form.linkRequired") }]}
+          rules={[{ required: true, whitespace: true, message: t("form.linkRequired") }]}
         >
           <Input placeholder={t("form.linkPlaceholder")} />
         </Form.Item>
