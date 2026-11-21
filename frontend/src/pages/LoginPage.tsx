@@ -42,6 +42,7 @@ export function LoginPage() {
   const [captcha, setCaptcha] = useState<CaptchaResponse | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [agreementOpen, setAgreementOpen] = useState(false);
+  const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [form] = Form.useForm<AuthValues>();
 
   const loadCaptcha = useCallback(async () => {
@@ -73,6 +74,7 @@ export function LoginPage() {
 
   useEffect(() => {
     form.resetFields();
+    setAgreementAccepted(false);
   }, [form, mode]);
 
   const handleSubmit = async (values: AuthValues) => {
@@ -84,7 +86,7 @@ export function LoginPage() {
       message.warning(t("auth.contactRequired"));
       return;
     }
-    if (!values.agreement) {
+    if (!agreementAccepted) {
       message.warning(t("auth.agreementRequired"));
       return;
     }
@@ -133,18 +135,18 @@ export function LoginPage() {
           </div>
         </div>
         <div className="editorial-body">
-          <span className="eyebrow">A LEDGER FOR YOUR SEARCH</span>
+          <span className="eyebrow">{t("login.eyebrow")}</span>
           <h1>{t("app.tagline")}</h1>
           <p>{t("app.desc")}</p>
           <ul className="editorial-list">
-            <li>多用户工作区，账号之间数据完全隔离</li>
-            <li>春招、秋招、实习与社招，按年度归档</li>
-            <li>状态时间线、简历库、Excel 导入与统计复盘</li>
-            <li>Redis 可选的列表缓存与在线状态</li>
+            <li>{t("login.point1")}</li>
+            <li>{t("login.point2")}</li>
+            <li>{t("login.point3")}</li>
+            <li>{t("login.point4")}</li>
           </ul>
         </div>
         <div className="editorial-foot">
-          <span>自托管 · MySQL / PostgreSQL</span>
+          <span>{t("login.selfHosted")}</span>
           <span>v{config?.version ?? import.meta.env.VITE_APP_VERSION ?? "1.2"}</span>
         </div>
       </section>
@@ -171,10 +173,10 @@ export function LoginPage() {
         <div className="login-form-wrap">
           <div className="login-heading">
             <span className="eyebrow">
-              {mode === "login" ? "SIGN IN" : "CREATE ACCOUNT"}
+              {mode === "login" ? t("auth.signInEyebrow") : t("auth.createAccountEyebrow")}
             </span>
             <h2>{mode === "login" ? t("auth.loginTitle") : t("auth.registerTitle")}</h2>
-            <p>{mode === "login" ? t("auth.loginSubtitle") : t("auth.registerSubtitle")}</p>
+            {mode === "login" && <p>{t("auth.loginSubtitle")}</p>}
           </div>
 
           <div className="auth-switch">
@@ -249,7 +251,7 @@ export function LoginPage() {
                 <Form.Item name="displayName" label={t("auth.displayName")}>
                   <Input size="large" placeholder={t("auth.displayName")} />
                 </Form.Item>
-                <Form.Item name="tenantName" label={t("auth.workspace")} extra={t("auth.workspaceHint")}>
+                <Form.Item name="tenantName" label={t("auth.workspace")}>
                   <Input size="large" placeholder={t("auth.workspace")} />
                 </Form.Item>
               </>
@@ -279,19 +281,11 @@ export function LoginPage() {
               </Form.Item>
             )}
 
-            <Form.Item
-              name="agreement"
-              valuePropName="checked"
-              rules={[
-                {
-                  validator: (_, checked) =>
-                    checked
-                      ? Promise.resolve()
-                      : Promise.reject(new Error(t("auth.agreementRequired"))),
-                },
-              ]}
-            >
-              <Checkbox>
+            <div className="agreement-row">
+              <Checkbox
+                checked={agreementAccepted}
+                onChange={() => setAgreementOpen(true)}
+              >
                 {t("auth.agreementPrefix")}
                 <button
                   type="button"
@@ -305,7 +299,7 @@ export function LoginPage() {
                   {t("auth.agreementLink")}
                 </button>
               </Checkbox>
-            </Form.Item>
+            </div>
 
             <Button
               type="primary"
@@ -319,15 +313,13 @@ export function LoginPage() {
               <ArrowRightOutlined />
             </Button>
           </Form>
-
-          {mode === "login" && <p className="login-hint">{t("auth.defaultHint")}</p>}
-          {mode === "register" && <p className="login-hint">{t("auth.workspaceHint")}</p>}
         </div>
       </section>
 
       <UserAgreementModal
         open={agreementOpen}
         onClose={() => setAgreementOpen(false)}
+        onAgree={() => setAgreementAccepted(true)}
       />
     </div>
   );

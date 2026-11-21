@@ -350,7 +350,6 @@ export function SettingsPage() {
                     aria-label={t("settings.copy")}
                   />
                 </div>
-                <p className="about-hint">{t("settings.deviceHint")}</p>
               </>
             )}
 

@@ -15,13 +15,28 @@ import koKR from "antd/locale/ko_KR";
 import ruRU from "antd/locale/ru_RU";
 import type { Locale } from "antd/es/locale";
 import dayjs from "dayjs";
-import "dayjs/locale/zh-cn";
-import "dayjs/locale/zh-tw";
-import "dayjs/locale/ja";
-import "dayjs/locale/ko";
-import "dayjs/locale/ru";
+import dayjsZhCn from "dayjs/locale/zh-cn";
+import dayjsZhTw from "dayjs/locale/zh-tw";
+import dayjsJa from "dayjs/locale/ja";
+import dayjsKo from "dayjs/locale/ko";
+import dayjsRu from "dayjs/locale/ru";
 import { ja, ko, ru } from "./i18n/extra";
 import { zhTW } from "./i18n/zhTW";
+
+// Vite 8 会移除仅副作用形式的 dayjs locale 导入，这里显式注册。
+dayjs.locale(dayjsZhCn);
+dayjs.locale(dayjsZhTw);
+dayjs.locale(dayjsJa);
+dayjs.locale(dayjsKo);
+dayjs.locale(dayjsRu);
+
+const DAYJS_LOCALE_DATA: Record<string, unknown> = {
+  "zh-cn": dayjsZhCn,
+  "zh-tw": dayjsZhTw,
+  ja: dayjsJa,
+  ko: dayjsKo,
+  ru: dayjsRu,
+};
 
 export type Lang = "zh-CN" | "zh-TW" | "en" | "ja" | "ko" | "ru";
 
@@ -447,6 +462,18 @@ const zh: Record<string, string> = {
   "settings.contactPlaceholder": "请输入手机号或邮箱",
   "agreement.title": "用户协议",
   "agreement.disclaimer": "本项目为开源项目，注册并登录视为同意本协议。禁止将本项目用于任何违法、侵权或损害他人权益的行为。因使用或部署本项目产生的任何问题、损失或法律责任，由部署的组织及用户自行承担；本项目及作者不承担任何责任。",
+  "agreement.scrollHint": "请向下滚动阅读完整协议后再确认",
+  "agreement.confirm": "我已阅读并同意",
+  "login.eyebrow": "为每一次投递留下线索",
+  "login.point1": "多用户工作区，账号之间数据完全隔离",
+  "login.point2": "春招、秋招、实习与社招，按年度归档",
+  "login.point3": "状态时间线、简历库、Excel 导入与统计复盘",
+  "login.point4": "Redis 可选的列表缓存与在线状态",
+  "login.selfHosted": "自托管 · MySQL / PostgreSQL",
+  "auth.signInEyebrow": "登录",
+  "auth.createAccountEyebrow": "创建账号",
+  "dash.startDate": "开始日期",
+  "dash.endDate": "结束日期",
 };
 
 const en: Record<string, string> = {
@@ -871,6 +898,18 @@ const en: Record<string, string> = {
   "settings.contactPlaceholder": "Enter your phone number or email",
   "agreement.title": "User Agreement",
   "agreement.disclaimer": "This project is open source. Registering or signing in means you accept this agreement. You must not use this project for any illegal or infringing activity. Any problems, losses, or legal liability arising from the use or deployment of this project are borne by the deploying organization and the user; the project and its author accept no responsibility.",
+  "agreement.scrollHint": "Scroll to the bottom of the agreement to confirm",
+  "agreement.confirm": "I have read and agree",
+  "login.eyebrow": "A LEDGER FOR YOUR SEARCH",
+  "login.point1": "Multi-user workspaces with fully isolated data",
+  "login.point2": "Spring, autumn, internship and experienced-hire tracks, archived by year",
+  "login.point3": "Status timeline, resume library, Excel import and analytics",
+  "login.point4": "Optional Redis caching and online presence",
+  "login.selfHosted": "Self-hosted · MySQL / PostgreSQL",
+  "auth.signInEyebrow": "SIGN IN",
+  "auth.createAccountEyebrow": "CREATE ACCOUNT",
+  "dash.startDate": "Start date",
+  "dash.endDate": "End date",
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = {
@@ -882,13 +921,19 @@ const dictionaries: Record<Lang, Record<string, string>> = {
   ru,
 };
 
+/** Vite 8 对部分 CommonJS 语言包会多包一层 default，这里统一解包。 */
+const normalizeAntdLocale = (locale: unknown): Locale => {
+  const value = locale as { default?: Locale };
+  return (value?.default ?? value) as Locale;
+};
+
 const ANTD_LOCALES: Record<Lang, Locale> = {
-  "zh-CN": zhCN,
-  "zh-TW": zhTWLocale,
-  en: enUS,
-  ja: jaJP,
-  ko: koKR,
-  ru: ruRU,
+  "zh-CN": normalizeAntdLocale(zhCN),
+  "zh-TW": normalizeAntdLocale(zhTWLocale),
+  en: normalizeAntdLocale(enUS),
+  ja: normalizeAntdLocale(jaJP),
+  ko: normalizeAntdLocale(koKR),
+  ru: normalizeAntdLocale(ruRU),
 };
 
 const DAYJS_LOCALES: Record<Lang, string> = {
@@ -899,6 +944,28 @@ const DAYJS_LOCALES: Record<Lang, string> = {
   ko: "ko",
   ru: "ru",
 };
+
+/**
+ * Vite 开发环境会把预构建的 antd 与业务代码拆成两份 dayjs 实例。
+ * 这里把同一份 locale 数据注册到预构建实例上，避免日期组件仍显示英文。
+ * 生产构建只有一份实例，不会执行这段逻辑。
+ */
+async function syncDevDayjsLocale(locale: string) {
+  if (!import.meta.env.DEV || locale === "en") {
+    return;
+  }
+  const data = DAYJS_LOCALE_DATA[locale];
+  if (!data) {
+    return;
+  }
+  try {
+    const devDayjsPath = "/node_modules/.vite/deps/dayjs.js";
+    const dayjsModule = await import(/* @vite-ignore */ devDayjsPath);
+    dayjsModule.default.locale(data);
+  } catch {
+    // 开发环境路径不可用时忽略，不影响生产构建。
+  }
+}
 
 export const LANGUAGES: { value: Lang; label: string }[] = [
   { value: "zh-CN", label: "简体中文" },
@@ -940,6 +1007,7 @@ export function I18nProvider({ children }: { children: ReactNode }) {
     document.documentElement.lang = lang;
     // Ant Design 的日期组件依赖 dayjs locale，切换语言时同步更新。
     dayjs.locale(DAYJS_LOCALES[lang]);
+    void syncDevDayjsLocale(DAYJS_LOCALES[lang]);
   }, [lang]);
 
   const setLang = useCallback((value: Lang) => setLangState(value), []);

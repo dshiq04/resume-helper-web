@@ -148,6 +148,27 @@
 .agreement-body strong {
   color: var(--danger);
 }
+.agreement-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+.agreement-row {
+  margin-bottom: 18px;
+}
+.agreement-row .ant-checkbox-wrapper {
+  align-items: flex-start;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.agreement-row .ant-checkbox {
+  margin-top: 2px;
+}
+.agreement-scroll-hint {
+  color: var(--muted);
+  font-size: 11px;
+}
 .agreement-link {
   margin-left: 4px;
   padding: 0;

@@ -6,7 +6,8 @@ interface Filters {
   search: string;
   status: Status | "all";
   channel: string;
-  year: number | "all";
+  from: string;
+  to: string;
   page: number;
   pageSize: number;
 }
@@ -14,7 +15,6 @@ interface Filters {
 interface ApplicationsState {
   items: Application[];
   total: number;
-  years: number[];
   loading: boolean;
   selectedKeys: number[];
   filters: Filters;
@@ -23,14 +23,14 @@ interface ApplicationsState {
 const initialState: ApplicationsState = {
   items: [],
   total: 0,
-  years: [],
   loading: false,
   selectedKeys: [],
   filters: {
     search: "",
     status: "all",
     channel: "",
-    year: "all",
+    from: "",
+    to: "",
     page: 1,
     pageSize: 10,
   },
@@ -40,8 +40,6 @@ export const fetchApplications = createAsyncThunk(
   "applications/fetch",
   async (params: ListParams) => applicationApi.list(params),
 );
-
-export const fetchYears = createAsyncThunk("applications/years", async () => applicationApi.years());
 
 const applicationsSlice = createSlice({
   name: "applications",
@@ -53,7 +51,8 @@ const applicationsSlice = createSlice({
         action.payload.search !== undefined ||
         action.payload.status !== undefined ||
         action.payload.channel !== undefined ||
-        action.payload.year !== undefined
+        action.payload.from !== undefined ||
+        action.payload.to !== undefined
       ) {
         state.filters.page = 1;
       }
@@ -92,9 +91,6 @@ const applicationsSlice = createSlice({
       })
       .addCase(fetchApplications.rejected, (state) => {
         state.loading = false;
-      })
-      .addCase(fetchYears.fulfilled, (state, action) => {
-        state.years = action.payload.items;
       });
   },
 });

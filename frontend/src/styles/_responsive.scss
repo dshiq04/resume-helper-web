@@ -755,14 +755,42 @@ body {
 .side-nav .ant-menu-inline-collapsed .ant-menu-submenu-title {
   padding-inline: calc(50% - 8px) !important;
 }
-.side-nav .ant-menu-inline-collapsed .menu-count {
+.side-nav .ant-menu-inline-collapsed > .ant-menu-item > .ant-menu-title-content,
+.side-nav .ant-menu-inline-collapsed > .ant-menu-submenu > .ant-menu-submenu-title > .ant-menu-title-content {
   display: none;
 }
-.side-nav .ant-menu-inline-collapsed .ant-menu-title-content {
+.side-nav .ant-menu-inline-collapsed > .ant-menu-item .menu-count,
+.side-nav .ant-menu-inline-collapsed > .ant-menu-submenu > .ant-menu-submenu-title .menu-count {
   display: none;
 }
 .side-nav .ant-menu-submenu-arrow {
   color: var(--sidebar-muted);
+}
+/* 折叠后弹出的二级菜单不受折叠隐藏规则影响。 */
+.ant-menu-submenu-popup .ant-menu {
+  min-width: 190px;
+  background: var(--sidebar);
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  box-shadow: var(--shadow-float);
+  font-family: var(--sans);
+}
+.ant-menu-submenu-popup .ant-menu-vertical .ant-menu-item {
+  padding-left: 14px !important;
+  color: var(--sidebar-ink) !important;
+  font-size: 12.5px;
+}
+.ant-menu-submenu-popup .ant-menu-vertical .ant-menu-item:hover {
+  background: rgba(255, 255, 255, 0.08) !important;
+}
+.ant-menu-submenu-popup .ant-menu-title-content,
+.ant-menu-submenu-popup .menu-label,
+.ant-menu-submenu-popup .menu-count {
+  display: inline-flex !important;
+}
+.ant-menu-submenu-popup .menu-count {
+  margin-left: 8px;
+  color: var(--sidebar-ink);
 }
 .menu-label {
   display: flex;

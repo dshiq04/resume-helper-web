@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo } from "react";
-import { App as AntdApp, ConfigProvider, Spin, Watermark } from "antd";
+import { useCallback, useEffect } from "react";
+import { App as AntdApp, Spin, Watermark } from "antd";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { useI18n } from "./i18n";
@@ -16,11 +16,10 @@ import { StatisticsPage } from "./pages/StatisticsPage";
 import { TrashPage } from "./pages/TrashPage";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
 import { loadPreferences, refreshStats } from "./store/slices/metaSlice";
-import { createTheme } from "./theme";
 
 function AppShell() {
   const { user, loading, logout } = useAuth();
-  const { t, antdLocale } = useI18n();
+  const { t } = useI18n();
   const { message } = AntdApp.useApp();
   const dispatch = useAppDispatch();
   const location = useLocation();
@@ -82,8 +81,6 @@ function AppShell() {
     };
   }, [logout, message, preferences, t, user]);
 
-  const themeConfig = useMemo(() => createTheme(themeMode), [themeMode]);
-
   const body = loading ? (
     <div className="boot-screen">
       <img className="boot-logo" src="/logo.svg" alt="ResumeTrail" />
@@ -117,32 +114,26 @@ function AppShell() {
     </Routes>
   );
 
-  return (
-    <ConfigProvider theme={themeConfig} locale={antdLocale}>
-      <AntdApp>
-        {showWatermark ? (
-          <Watermark
-            className="app-watermark"
-            content="开发中品质，请谅解"
-            gap={[140, 140]}
-            rotate={-22}
-            zIndex={6}
-            font={{
-              color:
-                themeMode === "dark"
-                  ? "rgba(255, 255, 255, 0.07)"
-                  : "rgba(22, 22, 29, 0.06)",
-              fontSize: 14,
-            }}
-            style={{ minHeight: "100vh" }}
-          >
-            {body}
-          </Watermark>
-        ) : (
-          body
-        )}
-      </AntdApp>
-    </ConfigProvider>
+  return showWatermark ? (
+    <Watermark
+      className="app-watermark"
+      content="开发中品质，请谅解"
+      gap={[140, 140]}
+      rotate={-22}
+      zIndex={6}
+      font={{
+        color:
+          themeMode === "dark"
+            ? "rgba(255, 255, 255, 0.07)"
+            : "rgba(22, 22, 29, 0.06)",
+        fontSize: 14,
+      }}
+      style={{ minHeight: "100vh" }}
+    >
+      {body}
+    </Watermark>
+  ) : (
+    <>{body}</>
   );
 }
 

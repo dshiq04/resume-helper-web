@@ -13,6 +13,12 @@ export default defineConfig(({ mode }) => {
   const devHost = env.VITE_DEV_HOST || "0.0.0.0";
   return {
     plugins: [react()],
+    resolve: {
+      // Ant Design 内部也引用 dayjs。统一指向同一入口，避免开发环境出现两份 dayjs
+      // 实例，导致日期组件语言与设置中的语言不同步。
+      alias: [{ find: /^dayjs$/, replacement: "dayjs/dayjs.min.js" }],
+      dedupe: ["dayjs"],
+    },
     server: {
       host: devHost,
       port: 5173,

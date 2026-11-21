@@ -40,6 +40,8 @@ export const USER_AGREEMENTS: Record<Lang, string> = {
 
 **严禁将本项目用于任何违法、侵权或损害他人权益的行为。因使用或部署本项目产生的任何问题、损失或法律责任，由部署的组织及用户自行承担；本项目及作者不承担任何责任。**
 
+本项目的开源许可协议以 GitHub 仓库（https://github.com/dshiq04/resume-helper-web）中发布的 LICENSE 文件为准。如本协议与该项目许可证在开源许可事项上存在冲突，以 GitHub 仓库中的许可证为准。
+
 ## 六、第三方服务
 
 本项目可能依赖第三方开源组件、浏览器能力、对象存储或其他外部服务。相关服务的可用性、安全性和合规性由对应提供方负责，本项目及作者不对其作出保证。
@@ -52,7 +54,7 @@ export const USER_AGREEMENTS: Record<Lang, string> = {
 
 ## 八、其他
 
-本协议未尽事宜，适用部署方所在地法律法规。若本协议任何条款被认定为无效或不可执行，不影响其他条款的效力。`,
+本协议未尽事宜，适用部署方所在地法律法规。若本协议任何条款被认定为无效或不可执行，不影响其他条款的效力。本协议以简体中文版本为准；如其他语言版本与简体中文版本存在歧义或冲突，以简体中文版本为准。本项目作者对本协议及本项目相关事项享有最终解释权。`,
 
   "zh-TW": `## 一、協議說明
 
@@ -90,6 +92,8 @@ export const USER_AGREEMENTS: Record<Lang, string> = {
 
 **嚴禁將本專案用於任何違法、侵權或損害他人權益的行為。因使用或部署本專案產生的任何問題、損失或法律責任，由部署的組織及使用者自行承擔；本專案及作者不承擔任何責任。**
 
+本專案的開源許可協議以 GitHub 儲存庫（https://github.com/dshiq04/resume-helper-web）中發布的 LICENSE 檔案為準。如本協議與該專案許可證在開源許可事項上存在衝突，以 GitHub 儲存庫中的許可證為準。
+
 ## 六、第三方服務
 
 本專案可能依賴第三方開源元件、瀏覽器能力、物件儲存或其他外部服務。相關服務的可用性、安全性和合規性由對應提供方負責，本專案及作者不對其作出保證。
@@ -102,7 +106,7 @@ export const USER_AGREEMENTS: Record<Lang, string> = {
 
 ## 八、其他
 
-本協議未盡事宜，適用部署方所在地法律法規。若本協議任何條款被認定為無效或不可執行，不影響其他條款的效力。`,
+本協議未盡事宜，適用部署方所在地法律法規。若本協議任何條款被認定為無效或不可執行，不影響其他條款的效力。本協議以簡體中文版本為準；如其他語言版本與簡體中文版本存在歧義或衝突，以簡體中文版本為準。本專案作者對本協議及本專案相關事項享有最終解釋權。`,
 
   en: `## 1. About this agreement
 
@@ -140,6 +144,8 @@ The Project is open-source software provided "as is", without any express or imp
 
 **You must not use the Project for any illegal or infringing activity. Any problems, losses or legal liability arising from the use or deployment of the Project are borne by the deploying organization and the user. The Project and its author accept no responsibility.**
 
+The open-source license for this project is the LICENSE file published in the GitHub repository (https://github.com/dshiq04/resume-helper-web). If this agreement conflicts with that license on licensing matters, the license in the GitHub repository prevails.
+
 ## 6. Third-party services
 
 The Project may rely on third-party open-source components, browser capabilities, object storage or other external services. Their availability, security and compliance are the responsibility of their respective providers, and the Project and its author make no guarantees about them.
@@ -152,7 +158,7 @@ The Project may rely on third-party open-source components, browser capabilities
 
 ## 8. Miscellaneous
 
-Matters not covered here are governed by the laws applicable where the deployer is located. If any provision is held invalid or unenforceable, the remaining provisions remain in effect.`,
+Matters not covered here are governed by the laws applicable where the deployer is located. If any provision is held invalid or unenforceable, the remaining provisions remain in effect. The Simplified Chinese version of this agreement is the authoritative version. If there is any ambiguity or conflict between a translation and the Simplified Chinese version, the Simplified Chinese version prevails. The author of this project has the final right to interpret this agreement and matters related to the project.`,
 
   ja: `## 1. 本規約について
 
@@ -190,6 +196,8 @@ Matters not covered here are governed by the laws applicable where the deployer 
 
 **本プロジェクトを違法行為や権利侵害に利用してはなりません。本プロジェクトの利用または導入に起因する問題、損失、法的責任は、導入組織および利用者が負担し、本プロジェクトおよび作者は一切の責任を負いません。**
 
+本プロジェクトのオープンソースライセンスは、GitHub リポジトリ（https://github.com/dshiq04/resume-helper-web）で公開されている LICENSE ファイルに従います。本規約と当該ライセンスの間でライセンス事項に関する矛盾がある場合は、GitHub リポジトリのライセンスが優先します。
+
 ## 6. 第三者サービス
 
 本プロジェクトは、第三者のオープンソースコンポーネント、ブラウザ機能、オブジェクトストレージなどを利用する場合があります。これらの可用性、安全性、法令遵守は各提供者が責任を負い、本プロジェクトおよび作者は保証しません。
@@ -202,7 +210,7 @@ Matters not covered here are governed by the laws applicable where the deployer 
 
 ## 8. その他
 
-本規約に定めのない事項は、導入組織の所在地の法令に従います。いずれかの条項が無効または執行不能と判断されても、その他の条項は有効に存続します。`,
+本規約に定めのない事項は、導入組織の所在地の法令に従います。いずれかの条項が無効または執行不能と判断されても、その他の条項は有効に存続します。本規約の正文は簡体字中国語版を基準とします。他の言語の翻訳と簡体字中国語版の間に不一致や矛盾がある場合は、簡体字中国語版が優先します。本プロジェクトの作者は、本規約および本プロジェクトに関する事項について最終的な解釈権を有します。`,
 
   ko: `## 1. 본 약관 안내
 
@@ -240,6 +248,8 @@ Matters not covered here are governed by the laws applicable where the deployer 
 
 **본 프로젝트를 불법 또는 권리 침해 행위에 사용해서는 안 됩니다. 본 프로젝트의 사용 또는 배포로 발생하는 모든 문제, 손실 또는 법적 책임은 배포 조직과 이용자가 부담하며, 본 프로젝트와 작성자는 어떠한 책임도 지지 않습니다.**
 
+본 프로젝트의 오픈소스 라이선스는 GitHub 저장소(https://github.com/dshiq04/resume-helper-web)에 게시된 LICENSE 파일을 따릅니다. 본 약관과 해당 라이선스가 라이선스 사항에서 충돌하는 경우 GitHub 저장소의 라이선스가 우선합니다.
+
 ## 6. 제3자 서비스
 
 본 프로젝트는 제3자 오픈소스 구성 요소, 브라우저 기능, 오브젝트 스토리지 등 외부 서비스를 이용할 수 있습니다. 해당 서비스의 가용성, 보안 및 규정 준수는 각 제공자가 책임지며, 본 프로젝트와 작성자는 이를 보증하지 않습니다.
@@ -252,7 +262,7 @@ Matters not covered here are governed by the laws applicable where the deployer 
 
 ## 8. 기타
 
-본 약관에 정하지 않은 사항은 배포 조직 소재지의 법률을 따릅니다. 본 약관의 일부 조항이 무효 또는 집행 불가능으로 판단되더라도 나머지 조항의 효력은 유지됩니다.`,
+본 약관에 정하지 않은 사항은 배포 조직 소재지의 법률을 따릅니다. 본 약관의 일부 조항이 무효 또는 집행 불가능으로 판단되더라도 나머지 조항의 효력은 유지됩니다. 본 약관의 기준 버전은 중국어 간체판입니다. 다른 언어 번역과 중국어 간체판 사이에 모호함이나 충돌이 있는 경우 중국어 간체판이 우선합니다. 본 프로젝트의 작성자는 본 약관 및 본 프로젝트 관련 사항에 대한 최종 해석권을 가집니다.`,
 
   ru: `## 1. Об этом соглашении
 
@@ -290,6 +300,8 @@ Matters not covered here are governed by the laws applicable where the deployer 
 
 **Запрещается использовать Проект для любых незаконных действий или нарушения прав. Любые проблемы, убытки или юридическая ответственность, возникшие в результате использования или развёртывания Проекта, несёт развернувшая организация и пользователь. Проект и его автор не несут никакой ответственности.**
 
+Лицензия на открытый исходный код для настоящего проекта определяется файлом LICENSE, опубликованным в репозитории GitHub (https://github.com/dshiq04/resume-helper-web). Если настоящее соглашение противоречит этой лицензии в вопросах лицензирования, преимущественную силу имеет лицензия в репозитории GitHub.
+
 ## 6. Сторонние сервисы
 
 Проект может использовать сторонние открытые компоненты, возможности браузера, объектные хранилища и иные внешние сервисы. Доступность, безопасность и соответствие требованиям таких сервисов обеспечивают их поставщики; Проект и его автор не дают никаких гарантий.
@@ -302,5 +314,5 @@ Matters not covered here are governed by the laws applicable where the deployer 
 
 ## 8. Прочие условия
 
-Вопросы, не урегулированные настоящим соглашением, регулируются законодательством по месту нахождения развёртывающей организации. Если какое-либо положение признано недействительным или неисполнимым, остальные положения продолжают действовать.`,
+Вопросы, не урегулированные настоящим соглашением, регулируются законодательством по месту нахождения развёртывающей организации. Если какое-либо положение признано недействительным или неисполнимым, остальные положения продолжают действовать. Основной версией настоящего соглашения является версия на упрощённом китайском языке. В случае каких-либо неясностей или противоречий между переводом и версией на упрощённом китайском языке преимущественную силу имеет версия на упрощённом китайском языке. Автор проекта имеет окончательное право толкования настоящего соглашения и вопросов, связанных с проектом.`,
 };

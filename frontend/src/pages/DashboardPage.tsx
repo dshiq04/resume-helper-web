@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { App as AntdApp, Button, Empty, Input, Popconfirm, Select } from "antd";
+import { App as AntdApp, Button, DatePicker, Empty, Input, Popconfirm, Select } from "antd";
+import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
 import {
   CloudUploadOutlined,
@@ -23,7 +24,6 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 import {
   clearSelection,
   fetchApplications,
-  fetchYears,
   removeLocal,
   setFilter,
   setPage,
@@ -58,7 +58,6 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
   const stats = useAppSelector((state) => state.meta.stats);
   const items = useAppSelector((state) => state.applications.items);
   const total = useAppSelector((state) => state.applications.total);
-  const years = useAppSelector((state) => state.applications.years);
   const loading = useAppSelector((state) => state.applications.loading);
   const selectedKeys = useAppSelector((state) => state.applications.selectedKeys);
   const filters = useAppSelector((state) => state.applications.filters);
@@ -77,15 +76,6 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
     [t],
   );
 
-  const yearList = useMemo(() => {
-    const current = new Date().getFullYear();
-    return Array.from(new Set([current, ...years])).sort((left, right) => right - left);
-  }, [years]);
-
-  useEffect(() => {
-    dispatch(fetchYears());
-  }, [dispatch]);
-
   useEffect(() => {
     dispatch(
       fetchApplications({
@@ -93,7 +83,8 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
         category,
         status: filters.status,
         channel: filters.channel,
-        year: filters.year,
+        from: filters.from,
+        to: filters.to,
         page: filters.page,
         pageSize: filters.pageSize,
       }),
@@ -106,7 +97,8 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
     filters.pageSize,
     filters.search,
     filters.status,
-    filters.year,
+    filters.from,
+    filters.to,
   ]);
 
   const refresh = () => {
@@ -116,7 +108,8 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
         category,
         status: filters.status,
         channel: filters.channel,
-        year: filters.year,
+        from: filters.from,
+        to: filters.to,
         page: filters.page,
         pageSize: filters.pageSize,
       }),
@@ -273,21 +266,35 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
               ...CHANNELS.map((value) => ({ value, label: value })),
             ]}
           />
-          <Select
-            className="toolbar-select year-select"
-            value={filters.year}
-            onChange={(value) => dispatch(setFilter({ year: value }))}
-            options={[
-              { value: "all", label: t("common.allYears") },
-              ...yearList.map((year) => ({ value: year, label: `${year}` })),
-            ]}
+          <DatePicker.RangePicker
+            className="toolbar-range"
+            allowClear
+            value={
+              filters.from && filters.to
+                ? [dayjs(filters.from), dayjs(filters.to)]
+                : null
+            }
+            onChange={(values) => {
+              if (values && values[0] && values[1]) {
+                dispatch(
+                  setFilter({
+                    from: values[0].startOf("day").format("YYYY-MM-DD HH:mm:ss"),
+                    to: values[1].endOf("day").format("YYYY-MM-DD HH:mm:ss"),
+                  }),
+                );
+              } else {
+                dispatch(setFilter({ from: "", to: "" }));
+              }
+            }}
+            placeholder={[t("dash.startDate"), t("dash.endDate")]}
+            format="YYYY-MM-DD"
           />
           <Button
             type="text"
             icon={<FilterOutlined />}
             onClick={() => {
               setSearchInput("");
-              dispatch(setFilter({ search: "", status: "all", channel: "", year: "all" }));
+              dispatch(setFilter({ search: "", status: "all", channel: "", from: "", to: "" }));
             }}
           >
             {t("common.reset")}
