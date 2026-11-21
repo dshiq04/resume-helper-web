@@ -33,7 +33,6 @@ import java.util.List;
 import java.util.Set;
 
 @Service
-@Transactional
 @RequiredArgsConstructor
 public class ApplicationServiceImpl implements ApplicationService {
 
