@@ -6,6 +6,7 @@ import {
   ReloadOutlined,
   SunOutlined,
 } from "@ant-design/icons";
+import { ApiError } from "../api/client";
 import { authApi } from "../api/auth";
 import { configApi } from "../api/config";
 import type { CaptchaResponse, PublicConfig } from "../api/types";
@@ -114,7 +115,12 @@ export function LoginPage() {
         });
       }
     } catch (error) {
-      message.error(errorMessage(error));
+      // 登录失败统一提示，避免显示通用错误或暴露账号是否存在。
+      message.error(
+        error instanceof ApiError && error.code === "invalid_credentials"
+          ? t("auth.invalidCredentials")
+          : errorMessage(error),
+      );
       form.setFieldValue("captchaCode", "");
       if (config?.captchaEnabled) {
         void loadCaptcha();

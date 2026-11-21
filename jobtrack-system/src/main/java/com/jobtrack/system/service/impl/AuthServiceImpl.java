@@ -38,6 +38,7 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
 
+    private static final String INVALID_CREDENTIALS_MESSAGE = "用户名或密码错误";
     private static final Pattern USERNAME_PATTERN = Pattern.compile("^[A-Za-z0-9_.-]{3,32}$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
@@ -59,7 +60,7 @@ public class AuthServiceImpl implements AuthService {
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
                 .eq(SysUser::getUsername, username));
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
-            throw BusinessException.unauthorized("invalid_credentials", "用户名或密码错误");
+            throw BusinessException.unauthorized("invalid_credentials", INVALID_CREDENTIALS_MESSAGE);
         }
         if (!Boolean.TRUE.equals(user.getEnabled())) {
             throw BusinessException.forbidden("account_disabled", "该账号已被停用");

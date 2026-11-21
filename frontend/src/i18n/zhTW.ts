@@ -54,6 +54,7 @@ export const zhTW: Record<string, string> = {
   "auth.password": "密碼",
   "auth.usernamePlaceholder": "請輸入使用者名稱",
   "auth.passwordPlaceholder": "請輸入使用者密碼",
+  "auth.invalidCredentials": "使用者名稱或密碼錯誤",
   "auth.displayName": "暱稱",
   "auth.workspace": "工作區名稱",
   "auth.workspaceHint": "註冊後資料獨立存放，與其他賬號互不可見。",
