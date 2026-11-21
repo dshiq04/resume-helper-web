@@ -72,11 +72,6 @@ async function loadSettings() {
   return stored;
 }
 
-function updateFooter() {
-  $("server-label").textContent = state.serverUrl.replace(/^https?:\/\//, "");
-  $("open-web").href = state.serverUrl;
-}
-
 async function api(path, options = {}) {
   const headers = { Accept: "application/json", ...(options.headers || {}) };
   if (state.accessCode) {
@@ -218,7 +213,6 @@ async function startEntry() {
     : info.username || "已连接";
   applyScope();
   showView("entry");
-  updateFooter();
   await loadDefaults();
   await prefillActiveTab();
   await suggestCompanies("");
@@ -333,7 +327,6 @@ function showConnectView(message) {
 
 async function init() {
   await loadSettings();
-  updateFooter();
   fillFromQuery();
 
   if (!state.accessCode) {
