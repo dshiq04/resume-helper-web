@@ -6,6 +6,7 @@ import com.jobtrack.system.service.AccessTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -23,10 +24,20 @@ public class TokenValidationController {
     private final AccessTokenService accessTokenService;
 
     @PostMapping("/validate")
-    public TokenValidationResponse validate(@Valid @RequestBody TokenValidationRequest request,
-                                            HttpServletRequest httpRequest) {
-        return accessTokenService.validate(request.getCode(),
+    public ResponseEntity<TokenValidationResponse> validate(
+            @Valid @RequestBody TokenValidationRequest request,
+            HttpServletRequest httpRequest) {
+        TokenValidationResponse response = accessTokenService.validate(request.getCode(),
                 clientIp(httpRequest), httpRequest.getHeader("User-Agent"));
+        if (response.isValid()) {
+            return ResponseEntity.ok(response);
+        }
+        int status = switch (String.valueOf(response.getReason())) {
+            case "expired" -> 410;
+            case "disabled" -> 403;
+            default -> 401;
+        };
+        return ResponseEntity.status(status).body(response);
     }
 
     private String clientIp(HttpServletRequest request) {

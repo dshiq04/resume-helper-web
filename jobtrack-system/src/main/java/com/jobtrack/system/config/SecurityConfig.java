@@ -75,7 +75,12 @@ public class SecurityConfig {
                                 "/api/health",
                                 "/api/config")
                         .permitAll()
-                        .requestMatchers("/api/**").authenticated()
+                        // 授权码权限由 SCOPE_* 权限控制：读接口需要 read/readwrite，
+                        // 写接口需要 write/readwrite；JWT 登录用户拥有全部 SCOPE。
+                        .requestMatchers(HttpMethod.GET, "/api/**")
+                        .hasAnyAuthority("SCOPE_read", "SCOPE_readwrite")
+                        .requestMatchers("/api/**")
+                        .hasAnyAuthority("SCOPE_write", "SCOPE_readwrite")
                         .anyRequest().permitAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
@@ -85,11 +90,15 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
         List<String> origins = appProperties.getCors().getAllowedOrigins();
-        if (origins == null || origins.isEmpty() || origins.contains("*")) {
-            configuration.setAllowedOriginPatterns(List.of("*"));
-        } else {
-            configuration.setAllowedOrigins(origins);
+        // 使用 origin patterns 以支持通配符；浏览器扩展来源始终放行。
+        List<String> patterns = new java.util.ArrayList<>(
+                origins == null ? List.of() : origins);
+        if (patterns.isEmpty()) {
+            patterns = List.of("*");
+        } else if (!patterns.contains("*")) {
+            patterns.add("chrome-extension://*");
         }
+        configuration.setAllowedOriginPatterns(patterns);
         configuration.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         configuration.setAllowedHeaders(List.of("*"));
         configuration.setExposedHeaders(List.of("Content-Disposition"));

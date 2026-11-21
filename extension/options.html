@@ -18,46 +18,37 @@
 
     <main class="popup-body">
       <section class="options-card">
-        <h2>服务地址</h2>
-        <form id="server-form" class="form">
+        <h2>服务连接</h2>
+        <form id="connect-form" class="form">
+          <div class="grid-2">
+            <label>
+              <span>服务器</span>
+              <input id="server-host" placeholder="http://127.0.0.1" autocomplete="off" />
+            </label>
+            <label>
+              <span>端口</span>
+              <input id="server-port" type="number" min="1" max="65535" placeholder="18080" />
+            </label>
+          </div>
           <label>
-            <span>服务端地址</span>
-            <input id="server-url" placeholder="http://127.0.0.1:18080" />
+            <span>授权码</span>
+            <input id="access-code" placeholder="rt_..." autocomplete="off" />
           </label>
-          <button class="primary" type="submit">保存并测试连接</button>
+          <button id="save" class="primary" type="submit">保存并校验</button>
         </form>
-        <p id="server-status" class="status-line"><span class="dot"></span>未检测</p>
+        <p id="connect-error" class="error" hidden></p>
+        <p id="status" class="status-line"><span class="dot"></span>未检测</p>
+        <button id="clear" class="link-button" type="button">清除授权码</button>
       </section>
 
       <section class="options-card">
-        <h2>账号</h2>
-        <div id="account-panel">
-          <div id="account-info" class="status-line" hidden></div>
-          <form id="login-form" class="form">
-            <label>
-              <span>用户名</span>
-              <input id="login-username" autocomplete="username" value="admin" />
-            </label>
-            <label>
-              <span>密码</span>
-              <input id="login-password" type="password" autocomplete="current-password" />
-            </label>
-            <label id="captcha-field" hidden>
-              <span>验证码</span>
-              <div class="captcha-row">
-                <input id="login-captcha" maxlength="8" placeholder="输入图中字符" />
-                <button id="captcha-image" class="captcha-image" type="button" title="点击刷新">
-                  <span>点击获取</span>
-                </button>
-              </div>
-            </label>
-            <button id="login-submit" class="primary" type="submit">登录</button>
-          </form>
-          <p id="login-error" class="error" hidden></p>
-          <button id="logout" class="link-button" type="button" hidden>退出登录</button>
-        </div>
+        <h2>授权码说明</h2>
         <p class="foot-note">
-          验证码由服务端 config.json 的 captcha.enabled 控制，开启验证码时必须同时启用 Redis。
+          在网页端「账户设置 → 授权码」生成。授权码支持只读 / 只写 / 读写三种类型：
+          只读可用于查询，录入投递需要读写权限；只写权限无法读取数据，扩展不会接受。
+        </p>
+        <p class="foot-note">
+          每次校验会检查授权码是否存在、是否在有效期、账号是否存在且状态正常，未通过时禁止录入。
         </p>
       </section>
 

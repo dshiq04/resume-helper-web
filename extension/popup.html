@@ -18,39 +18,40 @@
     </header>
 
     <main class="popup-body">
-      <section id="login-view" class="view" hidden>
-        <p class="lead">先登录你的投递台账，扩展会保存会话 token。</p>
-        <form id="login-form" class="form">
+      <section id="connect-view" class="view" hidden>
+        <p class="lead">填写服务地址与授权码，校验通过后才能录入投递。</p>
+        <form id="connect-form" class="form">
+          <div class="grid-2">
+            <label>
+              <span>服务器</span>
+              <input id="server-host" placeholder="http://127.0.0.1" autocomplete="off" />
+            </label>
+            <label>
+              <span>端口</span>
+              <input id="server-port" type="number" min="1" max="65535" placeholder="18080" />
+            </label>
+          </div>
           <label>
-            <span>用户名</span>
-            <input id="login-username" autocomplete="username" value="admin" />
+            <span>授权码</span>
+            <input id="access-code" placeholder="rt_..." autocomplete="off" />
           </label>
-          <label>
-            <span>密码</span>
-            <input id="login-password" type="password" autocomplete="current-password" />
-          </label>
-          <label id="captcha-field" hidden>
-            <span>验证码</span>
-            <div class="captcha-row">
-              <input id="login-captcha" maxlength="8" placeholder="输入图中字符" />
-              <button id="captcha-image" class="captcha-image" type="button" title="点击刷新">
-                <span>点击获取</span>
-              </button>
-            </div>
-          </label>
-          <button id="login-submit" class="primary" type="submit">登录</button>
+          <button id="connect-submit" class="primary" type="submit">保存并校验</button>
         </form>
-        <p id="login-error" class="error" hidden></p>
+        <p id="connect-error" class="error" hidden></p>
         <p class="foot-note">
-          还没有账号？请先在网页端注册：<a id="web-link" href="#" target="_blank">打开履途 ResumeTrail</a>
+          授权码在网页端「账户设置 → 授权码」生成，需要读或读写权限；录入请使用读写授权码。
         </p>
       </section>
 
       <section id="entry-view" class="view" hidden>
         <div class="account-line">
-          <span id="account-name">已登录</span>
-          <button id="logout" class="link-button" type="button">退出</button>
+          <span id="account-name">—</span>
+          <span id="account-scope" class="scope-pill" hidden></span>
+          <button id="open-connect" class="link-button" type="button">设置</button>
         </div>
+        <p id="read-only-note" class="read-only-note" hidden>
+          当前授权码为只读权限，只能查询，无法录入。请改用读写授权码。
+        </p>
         <form id="entry-form" class="form">
           <label>
             <span>公司名称 <b>*</b></span>

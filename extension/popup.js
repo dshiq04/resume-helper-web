@@ -1,25 +1,42 @@
-const DEFAULT_SERVER = "http://127.0.0.1:18080";
-const TOKEN_KEY = "jobtrack.token";
+const DEFAULT_HOST = "http://127.0.0.1";
+const DEFAULT_PORT = "18080";
 const SERVER_KEY = "jobtrack.serverUrl";
+const CODE_KEY = "jobtrack.accessCode";
 const CATEGORY_KEY = "jobtrack.defaultCategory";
 
 const state = {
-  serverUrl: DEFAULT_SERVER,
-  token: "",
-  captchaEnabled: false,
-  captcha: null,
+  serverUrl: `${DEFAULT_HOST}:${DEFAULT_PORT}`,
+  accessCode: "",
+  info: null,
   defaults: null,
-  user: null,
 };
 
 const $ = (id) => document.getElementById(id);
 
-function normalizeServer(value) {
-  return (value || DEFAULT_SERVER).trim().replace(/\/+$/, "") || DEFAULT_SERVER;
+function normalizeServer(host, port) {
+  let base = (host || DEFAULT_HOST).trim();
+  if (!/^https?:\/\//i.test(base)) {
+    base = `http://${base}`;
+  }
+  base = base.replace(/\/+$/, "").replace(/:\d+$/, "");
+  const value = (port || DEFAULT_PORT).toString().trim() || DEFAULT_PORT;
+  return `${base}:${value}`;
+}
+
+function parseServer(url) {
+  try {
+    const parsed = new URL(url);
+    return {
+      host: `${parsed.protocol}//${parsed.hostname}`,
+      port: parsed.port || DEFAULT_PORT,
+    };
+  } catch {
+    return { host: DEFAULT_HOST, port: DEFAULT_PORT };
+  }
 }
 
 function showView(name) {
-  $("login-view").hidden = name !== "login";
+  $("connect-view").hidden = name !== "connect";
   $("entry-view").hidden = name !== "entry";
 }
 
@@ -44,20 +61,26 @@ function setToast(message, isError = false) {
 }
 
 async function loadSettings() {
-  const stored = await chrome.storage.local.get([TOKEN_KEY, SERVER_KEY, CATEGORY_KEY]);
-  state.serverUrl = normalizeServer(stored[SERVER_KEY]);
-  state.token = stored[TOKEN_KEY] || "";
+  const stored = await chrome.storage.local.get([SERVER_KEY, CODE_KEY, CATEGORY_KEY]);
+  state.serverUrl = stored[SERVER_KEY] || state.serverUrl;
+  state.accessCode = stored[CODE_KEY] || "";
+  const { host, port } = parseServer(state.serverUrl);
+  $("server-host").value = host;
+  $("server-port").value = port;
+  $("access-code").value = state.accessCode;
   return stored;
 }
 
-async function setToken(token) {
-  state.token = token || "";
-  await chrome.storage.local.set({ [TOKEN_KEY]: state.token });
+function updateFooter() {
+  $("server-label").textContent = state.serverUrl.replace(/^https?:\/\//, "");
+  $("open-web").href = state.serverUrl;
 }
 
 async function api(path, options = {}) {
   const headers = { Accept: "application/json", ...(options.headers || {}) };
-  if (state.token) headers.Authorization = `Bearer ${state.token}`;
+  if (state.accessCode) {
+    headers.Authorization = `Bearer ${state.accessCode}`;
+  }
   const response = await fetch(`${state.serverUrl}/api${path}`, { ...options, headers });
   let data = null;
   try {
@@ -68,32 +91,50 @@ async function api(path, options = {}) {
   return { ok: response.ok, status: response.status, data };
 }
 
-async function loadPublicConfig() {
+async function validateCode(code) {
+  const response = await fetch(`${state.serverUrl}/api/tokens/validate`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ code }),
+  });
+  let data = null;
   try {
-    const result = await api("/config");
-    if (result.ok && result.data) {
-      state.captchaEnabled = !!result.data.captchaEnabled;
-    }
+    data = await response.json();
   } catch {
-    state.captchaEnabled = false;
+    data = null;
   }
-  $("captcha-field").hidden = !state.captchaEnabled;
-  if (state.captchaEnabled) {
-    await refreshCaptcha();
-  }
+  return { status: response.status, data };
 }
 
-async function refreshCaptcha() {
-  try {
-    const result = await api("/auth/captcha");
-    if (result.ok && result.data) {
-      state.captcha = result.data;
-      const button = $("captcha-image");
-      button.innerHTML = `<img src="${result.data.image}" alt="验证码" />`;
-    }
-  } catch {
-    state.captcha = null;
+function validateMessage(result) {
+  if (result.status === 410 || (result.data && result.data.reason === "expired")) {
+    return "授权码已过期，请重新生成";
   }
+  if (result.status === 403 || (result.data && result.data.reason === "disabled")) {
+    return "授权码已停用或账号状态异常";
+  }
+  if (result.status === 401 || (result.data && result.data.reason === "invalid")) {
+    return "授权码不存在或已被删除";
+  }
+  if (result.status === 400) {
+    return "请输入正确的授权码";
+  }
+  return "授权码校验失败，请稍后重试";
+}
+
+function scopeLabel(scope) {
+  if (scope === "read") return "只读";
+  if (scope === "write") return "只写";
+  return "读写";
+}
+
+function applyScope() {
+  const scope = state.info ? state.info.scope : "";
+  const readOnly = scope === "read";
+  $("account-scope").hidden = !scope;
+  $("account-scope").textContent = scopeLabel(scope);
+  $("read-only-note").hidden = !readOnly;
+  $("submit").disabled = readOnly;
 }
 
 async function loadDefaults() {
@@ -128,24 +169,6 @@ function fillFromQuery() {
   if (title) $("company").value = guessCompany(title);
 }
 
-async function checkSession() {
-  if (!state.token) return false;
-  try {
-    const result = await api("/auth/me");
-    if (result.ok && result.data) {
-      state.user = result.data;
-      $("account-name").textContent = `${result.data.displayName || result.data.username} · ${result.data.tenantName || ""}`;
-      return true;
-    }
-    if (result.status === 401) {
-      await setToken("");
-    }
-  } catch {
-    // 服务端未启动时停留在登录页，用户可以在设置里修改地址。
-  }
-  return false;
-}
-
 async function prefillActiveTab() {
   if ($("link").value) return;
   try {
@@ -177,35 +200,52 @@ async function suggestCompanies(keyword) {
   }
 }
 
-async function handleLogin(event) {
+async function startEntry() {
+  const info = state.info || {};
+  $("account-name").textContent = info.displayName
+    ? `${info.displayName} · @${info.username}`
+    : info.username || "已连接";
+  applyScope();
+  showView("entry");
+  updateFooter();
+  await loadDefaults();
+  await prefillActiveTab();
+  await suggestCompanies("");
+  const focusTarget = state.info && state.info.scope === "read" ? $("link") : $("company");
+  focusTarget.focus();
+}
+
+async function handleConnect(event) {
   event.preventDefault();
-  const error = $("login-error");
+  const error = $("connect-error");
   showError(error, "");
-  const button = $("login-submit");
+  const button = $("connect-submit");
   button.disabled = true;
   try {
-    const payload = {
-      username: $("login-username").value.trim(),
-      password: $("login-password").value,
-      captchaId: state.captcha ? state.captcha.captchaId : undefined,
-      captchaCode: $("login-captcha").value.trim() || undefined,
-    };
-    const result = await api("/auth/login", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
-    if (!result.ok) {
-      showError(error, (result.data && result.data.error) || "登录失败");
-      if (state.captchaEnabled) await refreshCaptcha();
+    state.serverUrl = normalizeServer($("server-host").value, $("server-port").value);
+    const code = $("access-code").value.trim();
+    if (!code) {
+      showError(error, "请填写授权码");
       return;
     }
-    await setToken(result.data.token);
-    state.user = result.data.user;
-    $("account-name").textContent = `${result.data.user.displayName || result.data.user.username} · ${result.data.user.tenantName || ""}`;
+    const result = await validateCode(code);
+    if (!result.data || !result.data.valid) {
+      showError(error, validateMessage(result));
+      return;
+    }
+    if (result.data.scope !== "read" && result.data.scope !== "readwrite") {
+      showError(error, "该授权码为只写权限，无法读取数据；请使用读或读写权限");
+      return;
+    }
+    state.accessCode = code;
+    state.info = result.data;
+    await chrome.storage.local.set({
+      [SERVER_KEY]: state.serverUrl,
+      [CODE_KEY]: state.accessCode,
+    });
     await startEntry();
-  } catch (exception) {
-    showError(error, "无法连接服务端，请检查设置中的地址");
+  } catch {
+    showError(error, "无法连接服务端，请检查服务器与端口");
   } finally {
     button.disabled = false;
   }
@@ -213,6 +253,10 @@ async function handleLogin(event) {
 
 async function handleSubmit(event) {
   event.preventDefault();
+  if (state.info && state.info.scope === "read") {
+    setToast("只读授权码无法录入，请更换读写授权码", true);
+    return;
+  }
   const company = $("company").value.trim();
   const link = $("link").value.trim();
   if (!company || !link) {
@@ -222,6 +266,19 @@ async function handleSubmit(event) {
   const button = $("submit");
   button.disabled = true;
   try {
+    // 每次录入前重新校验：存在、未过期、用户可用、状态正常。
+    const checked = await validateCode(state.accessCode);
+    if (!checked.data || !checked.data.valid) {
+      setToast(validateMessage(checked), true);
+      showConnectView(validateMessage(checked));
+      return;
+    }
+    if (checked.data.scope === "read") {
+      setToast("只读授权码无法录入，请更换读写授权码", true);
+      return;
+    }
+    state.info = checked.data;
+    applyScope();
     const payload = {
       companyName: company,
       link,
@@ -238,9 +295,10 @@ async function handleSubmit(event) {
     });
     if (!result.ok) {
       if (result.status === 401) {
-        await setToken("");
-        showView("login");
-        setToast("登录已失效，请重新登录", true);
+        setToast("授权码已失效，请重新校验", true);
+        showConnectView("授权码已失效，请重新校验");
+      } else if (result.status === 403) {
+        setToast((result.data && result.data.error) || "授权码权限不足，无法录入", true);
       } else {
         setToast((result.data && result.data.error) || "提交失败", true);
       }
@@ -259,48 +317,39 @@ async function handleSubmit(event) {
   }
 }
 
-async function startEntry() {
-  showView("entry");
-  await loadDefaults();
-  await prefillActiveTab();
-  await suggestCompanies("");
-  $("company").focus();
+function showConnectView(message) {
+  showView("connect");
+  showError($("connect-error"), message || "");
+  $("access-code").focus();
 }
 
 async function init() {
   await loadSettings();
-  $("server-label").textContent = state.serverUrl.replace(/^https?:\/\//, "");
-  $("open-web").href = state.serverUrl;
-  $("web-link").href = state.serverUrl;
+  updateFooter();
   fillFromQuery();
 
-  const session = await checkSession();
-  if (session) {
-    await startEntry();
+  if (!state.accessCode) {
+    showView("connect");
     return;
   }
-
-  showView("login");
-  await loadPublicConfig();
-  await prefillActiveTab();
-  $("login-username").focus();
+  try {
+    const result = await validateCode(state.accessCode);
+    if (result.data && result.data.valid
+        && (result.data.scope === "read" || result.data.scope === "readwrite")) {
+      state.info = result.data;
+      await startEntry();
+      return;
+    }
+    showConnectView(validateMessage(result));
+  } catch {
+    showConnectView("无法连接服务端，请检查服务器与端口");
+  }
 }
 
-$("login-form").addEventListener("submit", handleLogin);
+$("connect-form").addEventListener("submit", handleConnect);
 $("entry-form").addEventListener("submit", handleSubmit);
-$("captcha-image").addEventListener("click", () => void refreshCaptcha());
+$("open-connect").addEventListener("click", () => showConnectView(""));
 $("open-options").addEventListener("click", () => chrome.runtime.openOptionsPage());
-$("logout").addEventListener("click", async () => {
-  try {
-    await api("/auth/logout", { method: "POST" });
-  } catch {
-    // token 本地清除即可。
-  }
-  await setToken("");
-  state.user = null;
-  showView("login");
-  await loadPublicConfig();
-});
 $("company").addEventListener("input", (event) => {
   window.clearTimeout(suggestCompanies.timer);
   suggestCompanies.timer = window.setTimeout(() => void suggestCompanies(event.target.value), 250);

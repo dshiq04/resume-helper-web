@@ -299,3 +299,23 @@ select:focus {
   border-radius: 50%;
   background: #7fb88a;
 }
+
+.scope-pill {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.read-only-note {
+  margin: 0 0 10px;
+  padding: 8px 10px;
+  border: 1px solid rgba(185, 143, 54, 0.5);
+  border-radius: 6px;
+  background: rgba(185, 143, 54, 0.12);
+  color: #8a6a24;
+  font-size: 11px;
+  line-height: 1.6;
+}

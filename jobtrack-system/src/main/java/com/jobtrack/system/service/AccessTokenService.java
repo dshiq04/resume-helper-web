@@ -11,23 +11,31 @@ import com.jobtrack.system.entity.AccessTokenLog;
 import com.jobtrack.system.entity.SysUser;
 import com.jobtrack.system.mapper.AccessTokenLogMapper;
 import com.jobtrack.system.mapper.AccessTokenMapper;
+import com.jobtrack.system.config.RedisSettings;
 import com.jobtrack.system.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.BeanUtils;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Duration;
+import java.time.LocalDateTime;
 import java.util.Arrays;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
 /**
  * 授权码管理：用于浏览器扩展等外部调用方。
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class AccessTokenService {
@@ -38,9 +46,13 @@ public class AccessTokenService {
     private static final List<String> DEFAULT_RESOURCES =
             List.of("applications", "resumes", "statistics", "profile");
 
+    private static final String CACHE_PREFIX = "access-code:";
+
     private final AccessTokenMapper tokenMapper;
     private final AccessTokenLogMapper logMapper;
     private final SysUserMapper userMapper;
+    private final StringRedisTemplate redisTemplate;
+    private final RedisSettings redisSettings;
 
     public List<AccessTokenView> list(Long userId) {
         return tokenMapper.selectList(Wrappers.<AccessToken>lambdaQuery()
@@ -73,6 +85,7 @@ public class AccessTokenService {
         token.setExpiresOn(expiresOn);
         token.setCode("rt_" + UUID.randomUUID().toString().replace("-", ""));
         tokenMapper.insert(token);
+        cacheToken(token);
         return view(token);
     }
 
@@ -84,6 +97,7 @@ public class AccessTokenService {
         }
         // 逻辑删除：数据库保留记录，查询与校验都会自动排除。
         tokenMapper.deleteById(id);
+        evictToken(token.getCode());
     }
 
     @Transactional
@@ -97,6 +111,7 @@ public class AccessTokenService {
         update.setEnabled(enabled);
         tokenMapper.updateById(update);
         token.setEnabled(enabled);
+        cacheToken(token);
         return view(token);
     }
 
@@ -111,8 +126,7 @@ public class AccessTokenService {
             logUse(null, null, "invalid", code, ip, userAgent);
             return TokenValidationResponse.invalid("invalid");
         }
-        AccessToken token = tokenMapper.selectOne(Wrappers.<AccessToken>lambdaQuery()
-                .eq(AccessToken::getCode, code));
+        AccessToken token = loadToken(code);
         if (token == null) {
             logUse(null, null, "invalid", code, ip, userAgent);
             return TokenValidationResponse.invalid("invalid");
@@ -151,6 +165,35 @@ public class AccessTokenService {
         return response;
     }
 
+    /**
+     * 供 JWT 过滤器使用：授权码作为 Bearer 凭证访问 API。
+     * 只做身份解析与最近使用时间刷新，不写使用日志（日志由校验接口记录）。
+     */
+    public TokenAuth authenticate(String rawCode) {
+        String code = rawCode == null ? "" : rawCode.trim();
+        if (code.isEmpty()) {
+            return null;
+        }
+        AccessToken token = loadToken(code);
+        if (token == null
+                || Boolean.FALSE.equals(token.getEnabled())
+                || (token.getExpiresOn() != null && token.getExpiresOn().isBefore(LocalDate.now()))) {
+            return null;
+        }
+        SysUser user = userMapper.selectById(token.getUserId());
+        if (user == null || !Boolean.TRUE.equals(user.getEnabled())) {
+            return null;
+        }
+        AccessToken touch = new AccessToken();
+        touch.setId(token.getId());
+        touch.setLastUsedAt(LocalDateTime.now());
+        tokenMapper.updateById(touch);
+        return new TokenAuth(token, user);
+    }
+
+    public record TokenAuth(AccessToken token, SysUser user) {
+    }
+
     public List<AccessTokenLogView> logs(Long userId, int limit, Long tokenId, String result) {
         int size = Math.min(200, Math.max(1, limit));
         String normalizedResult = result == null ? "" : result.trim().toLowerCase(Locale.ROOT);
@@ -168,6 +211,115 @@ public class AccessTokenService {
                     return view;
                 })
                 .toList();
+    }
+
+    /**
+     * 生成 / 启动时把授权码写入 Redis Hash，校验与鉴权优先从 Redis 读取。
+     * Redis 未启用时自动退回数据库。
+     */
+    public void warmCache() {
+        if (!cacheEnabled()) {
+            return;
+        }
+        try {
+            List<AccessToken> tokens = tokenMapper.selectList(null);
+            tokens.forEach(this::cacheToken);
+            log.info("授权码缓存已同步: {} 条", tokens.size());
+        } catch (Exception exception) {
+            log.warn("授权码缓存同步失败: {}", exception.getMessage());
+        }
+    }
+
+    private AccessToken loadToken(String code) {
+        if (cacheEnabled()) {
+            AccessToken cached = readCache(code);
+            if (cached != null) {
+                return cached;
+            }
+            // 缓存未命中视为无效（启动时会全量同步数据库中的授权码）。
+            return null;
+        }
+        return tokenMapper.selectOne(Wrappers.<AccessToken>lambdaQuery()
+                .eq(AccessToken::getCode, code));
+    }
+
+    private boolean cacheEnabled() {
+        return redisSettings.isEnabled() && redisTemplate != null;
+    }
+
+    private String cacheKey(String code) {
+        return redisSettings.getKeyPrefix() + CACHE_PREFIX + code;
+    }
+
+    private void cacheToken(AccessToken token) {
+        if (!cacheEnabled() || token == null || token.getCode() == null) {
+            return;
+        }
+        try {
+            Map<String, String> fields = new LinkedHashMap<>();
+            fields.put("id", String.valueOf(token.getId()));
+            fields.put("tenantId", String.valueOf(token.getTenantId()));
+            fields.put("userId", String.valueOf(token.getUserId()));
+            fields.put("name", token.getName() == null ? "" : token.getName());
+            fields.put("scope", token.getScope() == null ? "" : token.getScope());
+            fields.put("resources", token.getResources() == null ? "" : token.getResources());
+            fields.put("expiresOn", token.getExpiresOn() == null ? "" : token.getExpiresOn().toString());
+            fields.put("enabled", Boolean.FALSE.equals(token.getEnabled()) ? "0" : "1");
+            String key = cacheKey(token.getCode());
+            redisTemplate.opsForHash().putAll(key, fields);
+            if (token.getExpiresOn() == null) {
+                redisTemplate.persist(key);
+            } else {
+                Duration ttl = Duration.between(LocalDateTime.now(),
+                        token.getExpiresOn().plusDays(1).atStartOfDay());
+                if (ttl.isNegative() || ttl.isZero()) {
+                    ttl = Duration.ofMinutes(1);
+                }
+                redisTemplate.expire(key, ttl);
+            }
+        } catch (Exception exception) {
+            log.warn("写入授权码缓存失败: {}", exception.getMessage());
+        }
+    }
+
+    private AccessToken readCache(String code) {
+        if (!cacheEnabled()) {
+            return null;
+        }
+        try {
+            Map<Object, Object> fields = redisTemplate.opsForHash().entries(cacheKey(code));
+            if (fields == null || fields.isEmpty()) {
+                return null;
+            }
+            AccessToken token = new AccessToken();
+            token.setId(Long.valueOf(String.valueOf(fields.get("id"))));
+            token.setTenantId(Long.valueOf(String.valueOf(fields.get("tenantId"))));
+            token.setUserId(Long.valueOf(String.valueOf(fields.get("userId"))));
+            token.setName(String.valueOf(fields.get("name")));
+            token.setScope(String.valueOf(fields.get("scope")));
+            token.setResources(String.valueOf(fields.get("resources")));
+            token.setCode(code);
+            String expiresOn = String.valueOf(fields.getOrDefault("expiresOn", ""));
+            if (!expiresOn.isBlank() && !"null".equals(expiresOn)) {
+                token.setExpiresOn(LocalDate.parse(expiresOn));
+            }
+            token.setEnabled(!"0".equals(String.valueOf(fields.get("enabled"))));
+            return token;
+        } catch (Exception exception) {
+            log.warn("读取授权码缓存失败: {}", exception.getMessage());
+            return null;
+        }
+    }
+
+    private void evictToken(String code) {
+        if (!cacheEnabled() || code == null) {
+            return;
+        }
+        try {
+            redisTemplate.delete(cacheKey(code));
+        } catch (Exception exception) {
+            log.warn("删除授权码缓存失败: {}", exception.getMessage());
+        }
     }
 
     private void logUse(AccessToken token, SysUser user, String result,

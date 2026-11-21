@@ -1,6 +1,7 @@
 package com.jobtrack.system.security;
 
 import com.jobtrack.common.context.TenantContext;
+import com.jobtrack.system.service.AccessTokenService;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -8,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
@@ -15,17 +17,28 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 解析 Authorization: Bearer &lt;token&gt;，校验在线会话，并把租户写入 ThreadLocal。
+ * 解析 Authorization: Bearer &lt;token&gt;，并把身份交给 Spring Security 授权。
+ *
+ * <p>支持两种凭证：</p>
+ * <ul>
+ *   <li>登录后的 JWT（网页端），授予全部 SCOPE 权限；</li>
+ *   <li>授权码 rt_xxx（浏览器扩展），只授予该授权码的 SCOPE 权限，
+ *       具体读/写限制由 SecurityConfig 的 authorizeHttpRequests 执行。</li>
+ * </ul>
  */
 @Component
 @RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    private static final String TOKEN_PREFIX = "rt_";
+
     private final JwtService jwtService;
     private final SessionService sessionService;
+    private final AccessTokenService accessTokenService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -33,25 +46,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             String token = resolveToken(request);
             if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-                try {
-                    AuthPrincipal principal = jwtService.parse(token);
-                    Duration ttl = Duration.ofHours(jwtService.ttlHours());
-                    SessionInfo session = sessionService.resolve(principal.sessionId(), ttl);
-                    if (session != null) {
-                        AuthPrincipal authenticated = new AuthPrincipal(
-                                session.getUserId(), session.getTenantId(), session.getUsername(),
-                                session.getDisplayName(), session.getRole(), principal.sessionId());
-                        UsernamePasswordAuthenticationToken authentication =
-                                new UsernamePasswordAuthenticationToken(
-                                        authenticated,
-                                        token,
-                                        List.of(new SimpleGrantedAuthority("ROLE_" + authenticated.role())));
-                        SecurityContextHolder.getContext().setAuthentication(authentication);
-                        TenantContext.set(authenticated.tenantId());
-                    }
-                } catch (JwtException | IllegalArgumentException exception) {
-                    SecurityContextHolder.clearContext();
-                    TenantContext.clear();
+                if (token.startsWith(TOKEN_PREFIX)) {
+                    authenticateAccessToken(token, request);
+                } else {
+                    authenticateJwt(token);
                 }
             }
             filterChain.doFilter(request, response);
@@ -59,6 +57,53 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 线程会被容器复用，请求结束必须清理，避免串租户。
             TenantContext.clear();
         }
+    }
+
+    private void authenticateJwt(String token) {
+        try {
+            AuthPrincipal principal = jwtService.parse(token);
+            Duration ttl = Duration.ofHours(jwtService.ttlHours());
+            SessionInfo session = sessionService.resolve(principal.sessionId(), ttl);
+            if (session != null) {
+                AuthPrincipal authenticated = new AuthPrincipal(
+                        session.getUserId(), session.getTenantId(), session.getUsername(),
+                        session.getDisplayName(), session.getRole(), principal.sessionId());
+                // 网页端登录用户拥有全部读写权限。
+                bind(authenticated, token, List.of(
+                        new SimpleGrantedAuthority("SCOPE_read"),
+                        new SimpleGrantedAuthority("SCOPE_write"),
+                        new SimpleGrantedAuthority("SCOPE_readwrite")));
+            }
+        } catch (JwtException | IllegalArgumentException exception) {
+            SecurityContextHolder.clearContext();
+            TenantContext.clear();
+        }
+    }
+
+    private void authenticateAccessToken(String token, HttpServletRequest request) {
+        // 校验接口本身用请求体中的 code，不需要把授权码当作登录态。
+        if (request.getRequestURI().startsWith("/api/tokens/validate")) {
+            return;
+        }
+        AccessTokenService.TokenAuth auth = accessTokenService.authenticate(token);
+        if (auth == null) {
+            return;
+        }
+        AuthPrincipal principal = new AuthPrincipal(
+                auth.user().getId(), auth.user().getTenantId(), auth.user().getUsername(),
+                auth.user().getDisplayName(), auth.user().getRole(),
+                "token:" + auth.token().getId());
+        bind(principal, token, List.of(
+                new SimpleGrantedAuthority("SCOPE_" + auth.token().getScope())));
+    }
+
+    private void bind(AuthPrincipal principal, String credentials, List<GrantedAuthority> scopes) {
+        List<GrantedAuthority> authorities = new ArrayList<>(scopes);
+        authorities.add(new SimpleGrantedAuthority("ROLE_" + principal.role()));
+        UsernamePasswordAuthenticationToken authentication =
+                new UsernamePasswordAuthenticationToken(principal, credentials, authorities);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        TenantContext.set(principal.tenantId());
     }
 
     private String resolveToken(HttpServletRequest request) {
