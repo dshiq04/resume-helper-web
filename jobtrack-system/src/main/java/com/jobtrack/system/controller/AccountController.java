@@ -23,6 +23,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -48,6 +49,11 @@ public class AccountController {
     @PutMapping("/profile")
     public UserProfileView saveProfile(@Valid @RequestBody UserProfileRequest request) {
         return accountService.saveProfile(SecurityUtils.current(), request);
+    }
+
+    @PostMapping("/avatar")
+    public UserProfileView uploadAvatar(@RequestParam("file") MultipartFile file) {
+        return accountService.uploadAvatar(SecurityUtils.current(), file);
     }
 
     @PutMapping("/username")

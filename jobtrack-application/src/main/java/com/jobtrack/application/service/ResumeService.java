@@ -12,14 +12,13 @@ import com.jobtrack.common.context.TenantContext;
 import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.common.util.JsonUtils;
 import com.jobtrack.system.config.AppProperties;
+import com.jobtrack.system.storage.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -47,6 +46,7 @@ public class ResumeService {
     private final ResumeMapper resumeMapper;
     private final FileCrypto fileCrypto;
     private final AppProperties appProperties;
+    private final ObjectStorageService objectStorage;
 
     public ResumeListResponse list(String search) {
         var query = Wrappers.<Resume>lambdaQuery();
@@ -111,15 +111,9 @@ public class ResumeService {
             throw BusinessException.badRequest("file_empty", "文件内容为空");
         }
 
-        Path directory = tenantDirectory();
-        String storedName = generateStoredName();
-        Path target = directory.resolve(storedName);
-        try {
-            Files.createDirectories(directory);
-            Files.write(target, fileCrypto.encrypt(content));
-        } catch (IOException exception) {
-            throw BusinessException.internal("storage_unavailable", "无法保存简历文件");
-        }
+        long tenantId = TenantContext.get() == null ? 0L : TenantContext.require();
+        String storedName = "resumes/" + tenantId + "/" + generateStoredName();
+        objectStorage.put(storedName, fileCrypto.encrypt(content), "application/octet-stream");
 
         Resume resume = new Resume();
         resume.setName(resumeName);
@@ -133,7 +127,7 @@ public class ResumeService {
         try {
             resumeMapper.insert(resume);
         } catch (RuntimeException exception) {
-            deleteQuietly(target);
+            objectStorage.delete(storedName);
             throw exception;
         }
         return view(resume);
@@ -166,7 +160,7 @@ public class ResumeService {
     public void delete(Long id) {
         Resume resume = entity(id);
         resumeMapper.deleteById(id);
-        deleteQuietly(tenantDirectory().resolve(resume.getStoredName()));
+        objectStorage.delete(resume.getStoredName());
     }
 
     public Resume entity(Long id) {
@@ -178,19 +172,11 @@ public class ResumeService {
     }
 
     public byte[] readFile(Resume resume) {
-        Path path = tenantDirectory().resolve(resume.getStoredName());
-        if (!Files.isRegularFile(path)) {
-            throw BusinessException.notFound("file_missing", "简历文件已丢失");
+        byte[] payload = objectStorage.get(resume.getStoredName());
+        if (Boolean.TRUE.equals(resume.getEncrypted())) {
+            return fileCrypto.decrypt(payload);
         }
-        try {
-            byte[] payload = Files.readAllBytes(path);
-            if (Boolean.TRUE.equals(resume.getEncrypted())) {
-                return fileCrypto.decrypt(payload);
-            }
-            return payload;
-        } catch (IOException exception) {
-            throw BusinessException.internal("file_unreadable", "无法读取简历文件");
-        }
+        return payload;
     }
 
     public String contentType(Resume resume) {
@@ -210,11 +196,6 @@ public class ResumeService {
         view.setCreatedAt(resume.getCreatedAt());
         view.setUpdatedAt(resume.getUpdatedAt());
         return view;
-    }
-
-    public Path tenantDirectory() {
-        long tenantId = TenantContext.get() == null ? 0L : TenantContext.require();
-        return appProperties.dataPath().resolve("resumes").resolve(String.valueOf(tenantId));
     }
 
     private List<String> parseStoredTags(String raw) {
@@ -293,13 +274,5 @@ public class ResumeService {
             return "";
         }
         return DomainConstants.normalize(fileName.substring(dot + 1));
-    }
-
-    private void deleteQuietly(Path path) {
-        try {
-            Files.deleteIfExists(path);
-        } catch (IOException ignored) {
-            // 文件清理失败不应影响数据库操作。
-        }
     }
 }

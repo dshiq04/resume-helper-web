@@ -46,6 +46,18 @@ public class AppProperties {
     public static class Storage {
         private String secret = "jobtrack-file-encryption-secret-change-me-0123456789";
         private int maxFileSizeMb = 50;
+        /** s3 / local */
+        private String type = "s3";
+        private String endpoint = "http://127.0.0.1:9000";
+        private String region = "us-east-1";
+        private String bucket = "resume-helper";
+        private String accessKey = "";
+        private String secretKey = "";
+        private boolean pathStyle = true;
+        /** 自动为存储桶设置匿名只读策略，便于头像直接通过 URL 展示。 */
+        private boolean publicRead = true;
+        /** 对外访问根路径，例如 http://127.0.0.1:9000/resume-helper */
+        private String publicBaseUrl = "http://127.0.0.1:9000/resume-helper";
     }
 
     @Data

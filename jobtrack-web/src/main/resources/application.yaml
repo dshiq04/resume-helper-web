@@ -22,6 +22,18 @@ spring:
   main:
     banner-mode: console
 
+app:
+  storage:
+    type: ${STORAGE_TYPE:s3}
+    endpoint: ${S3_ENDPOINT:http://127.0.0.1:9000}
+    region: ${S3_REGION:us-east-1}
+    bucket: ${S3_BUCKET:resume-helper}
+    access-key: ${S3_ACCESS_KEY:}
+    secret-key: ${S3_SECRET_KEY:}
+    path-style: ${S3_PATH_STYLE:true}
+    public-read: ${S3_PUBLIC_READ:true}
+    public-base-url: ${S3_PUBLIC_BASE_URL:http://127.0.0.1:9000/resume-helper}
+
 mybatis-plus:
   # 每个模块的 resources/mapper 下都有对应的 Mapper XML。
   mapper-locations: classpath*:/mapper/**/*.xml

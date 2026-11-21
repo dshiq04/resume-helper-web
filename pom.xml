@@ -27,6 +27,7 @@
         <mybatis-plus.version>3.5.18</mybatis-plus.version>
         <jjwt.version>0.13.0</jjwt.version>
         <easy-captcha.version>1.6.2</easy-captcha.version>
+        <aws.sdk.version>2.31.0</aws.sdk.version>
         <maven-compiler-plugin.version>3.14.1</maven-compiler-plugin.version>
         <maven-surefire-plugin.version>3.5.4</maven-surefire-plugin.version>
     </properties>

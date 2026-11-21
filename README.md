@@ -25,7 +25,7 @@
 ### 简历库
 
 - 支持 PDF、DOCX、PPTX、PNG、JPG、WEBP、Markdown，单文件最大 50 MB。
-- 简历名称、标签、置顶；文件使用 AES-256-GCM 加密落盘。
+- 简历名称、标签、置顶；文件使用 AES-256-GCM 加密后上传到 S3 兼容对象存储（MinIO / 阿里云 OSS / AWS S3），未配置密钥时回退到本地 `data/`。
 - 在线预览：PDF / 图片直接预览，DOCX 使用 mammoth 转换，Markdown 渲染，PPTX 提供下载。
 
 ### 数据库
@@ -219,6 +219,28 @@ Ant Design 的 `ConfigProvider` 与 dayjs locale 会随设置中的语言同步�
 主要配置项（以 dev 为例）：
 
 ```yaml
+app:
+  storage:
+    type: s3                       # s3 / local
+    endpoint: ${S3_ENDPOINT:http://127.0.0.1:9000}
+    region: ${S3_REGION:us-east-1}
+    bucket: ${S3_BUCKET:resume-helper}
+    access-key: ${S3_ACCESS_KEY:}
+    secret-key: ${S3_SECRET_KEY:}
+    path-style: ${S3_PATH_STYLE:true}
+    public-read: ${S3_PUBLIC_READ:true}
+    public-base-url: ${S3_PUBLIC_BASE_URL:http://127.0.0.1:9000/resume-helper}
+    secret: ${STORAGE_SECRET:...}  # 简历加密密钥
+```
+
+说明：
+
+- 简历文件会先用 `app.storage.secret` 派生的 AES-256-GCM 密钥加密，再上传到 `resumes/<租户>/...`。
+- 头像上传到 `avatars/<租户>/...`，数据库只保存对象 key，接口返回时用 `public-base-url + key` 拼成完整地址。
+- 配置了 `access-key` / `secret-key` 时使用 S3；未配置或连接失败会自动回退本地磁盘，不影响启动。
+- 启动时会自动创建 bucket，并在 `public-read: true` 时设置匿名只读策略，保证头像可以直接访问。
+
+```yaml
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
@@ -356,7 +378,7 @@ server {
 
 点击左下角头像或昵称进入「账户设置」（`/account/profile`、`/account/tokens` 二级路由）：
 
-- **个人资料**：头像（预留）、用户名、密码，以及基本信息 / 求职意向 / 教育背景 / 链接与简介等扩展资料，独立存放在 `user_profile` 表。
+- **个人资料**：头像上传、用户名、密码，以及基本信息 / 求职意向 / 教育背景 / 链接与简介等扩展资料，独立存放在 `user_profile` 表。
 - **授权码**：为浏览器扩展生成访问码，可选择权限类型（`read` / `write` / `readwrite`）和数据范围（投递、简历、统计、个人资料），支持有效期或长期有效、启用/停用与逻辑删除；页面下方展示最近 10 条使用记录，可按结果筛选。
 
 扩展或第三方工具可调用无需登录的校验接口：

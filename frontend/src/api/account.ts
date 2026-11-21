@@ -15,6 +15,11 @@ export const accountApi = {
   saveProfile(input: UserProfile) {
     return request<UserProfile>("/account/profile", { method: "PUT", data: input });
   },
+  uploadAvatar(file: File) {
+    const data = new FormData();
+    data.append("file", file);
+    return request<UserProfile>("/account/avatar", { method: "POST", data });
+  },
   changeUsername(username: string) {
     return request<User>("/account/username", { method: "PUT", data: { username } });
   },

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   App as AntdApp,
   Button,
@@ -33,6 +33,9 @@ export function AccountProfilePage() {
     confirmPassword: string;
   }>();
   const [savingProfile, setSavingProfile] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState("");
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarInput = useRef<HTMLInputElement>(null);
   const [savingUsername, setSavingUsername] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
 
@@ -40,6 +43,7 @@ export function AccountProfilePage() {
     void accountApi
       .profile()
       .then((profile) => {
+        setAvatarUrl(profile.avatarUrl || "");
         profileForm.setFieldsValue({
           ...profile,
           birthday: profile.birthday ? dayjs(profile.birthday) : undefined,
@@ -52,6 +56,24 @@ export function AccountProfilePage() {
   useEffect(() => {
     usernameForm.setFieldsValue({ username: user?.username ?? "" });
   }, [user?.username, usernameForm]);
+
+  const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    setUploadingAvatar(true);
+    try {
+      const profile = await accountApi.uploadAvatar(file);
+      setAvatarUrl(profile.avatarUrl || "");
+      message.success(t("settings.saved"));
+    } catch (error) {
+      message.error(errorMessage(error));
+    } finally {
+      setUploadingAvatar(false);
+    }
+  };
 
   const saveProfile = async (values: ProfileValues) => {
     setSavingProfile(true);
@@ -109,10 +131,21 @@ export function AccountProfilePage() {
     <div className="account-layout">
       <div className="account-top">
         <section className="setting-card account-avatar-card">
-          <div className="account-avatar">{initial}</div>
+          <div className="account-avatar">
+            {avatarUrl ? <img src={avatarUrl} alt={t("account.avatar")} /> : initial}
+          </div>
           <strong>{user?.displayName}</strong>
           <span className="account-handle">@{user?.username}</span>
-          <Button disabled>{t("account.avatarButton")}</Button>
+          <input
+            ref={avatarInput}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            hidden
+            onChange={(event) => void uploadAvatar(event)}
+          />
+          <Button loading={uploadingAvatar} onClick={() => avatarInput.current?.click()}>
+            {t("account.avatarButton")}
+          </Button>
           <p className="setting-hint">{t("account.avatarHint")}</p>
         </section>
 

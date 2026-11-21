@@ -15,13 +15,17 @@ import com.jobtrack.system.security.AuthPrincipal;
 import com.jobtrack.system.security.JwtService;
 import com.jobtrack.system.security.SessionInfo;
 import com.jobtrack.system.security.SessionService;
+import com.jobtrack.system.storage.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.Locale;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
@@ -38,6 +42,10 @@ public class AccountService {
     private final SysTenantMapper tenantMapper;
     private final SessionService sessionService;
     private final JwtService jwtService;
+    private final ObjectStorageService objectStorage;
+
+    private static final Set<String> AVATAR_TYPES = Set.of("png", "jpg", "jpeg", "webp", "gif");
+    private static final long AVATAR_MAX_BYTES = 5L * 1024 * 1024;
 
     public UserProfileView profile(AuthPrincipal principal) {
         UserProfile profile = profileMapper.selectOne(Wrappers.<UserProfile>lambdaQuery()
@@ -60,7 +68,10 @@ public class AccountService {
             profile.setTenantId(principal.tenantId());
             profile.setUserId(principal.id());
         }
+        // 头像通过独立接口上传，普通资料保存不能覆盖或清空它。
+        String avatarKey = profile.getAvatarUrl();
         BeanUtils.copyProperties(request, profile);
+        profile.setAvatarUrl(avatarKey);
         if (creating) {
             profileMapper.insert(profile);
         } else {
@@ -68,6 +79,61 @@ public class AccountService {
             profileMapper.updateById(profile);
         }
         return view(profile);
+    }
+
+    @Transactional
+    public UserProfileView uploadAvatar(AuthPrincipal principal, MultipartFile file) {
+        if (file == null || file.isEmpty()) {
+            throw BusinessException.badRequest("file_required", "请选择头像图片");
+        }
+        if (file.getSize() > AVATAR_MAX_BYTES) {
+            throw BusinessException.badRequest("file_too_large", "头像不能超过 5 MB");
+        }
+        String original = file.getOriginalFilename() == null ? "" : file.getOriginalFilename();
+        int dot = original.lastIndexOf('.');
+        String extension = dot < 0 ? "" : original.substring(dot + 1).toLowerCase(Locale.ROOT);
+        if (!AVATAR_TYPES.contains(extension)) {
+            throw BusinessException.badRequest("unsupported_file_type",
+                    "头像仅支持 PNG、JPG、JPEG、WEBP、GIF");
+        }
+        byte[] content;
+        try {
+            content = file.getBytes();
+        } catch (Exception exception) {
+            throw BusinessException.badRequest("file_unreadable", "无法读取头像文件");
+        }
+        String key = "avatars/" + principal.tenantId() + "/" + principal.id()
+                + "-" + System.currentTimeMillis() + "." + extension;
+        objectStorage.put(key, content, contentType(extension));
+
+        UserProfile profile = profileMapper.selectOne(Wrappers.<UserProfile>lambdaQuery()
+                .eq(UserProfile::getUserId, principal.id()));
+        String previous = profile == null ? null : profile.getAvatarUrl();
+        if (profile == null) {
+            profile = new UserProfile();
+            profile.setTenantId(principal.tenantId());
+            profile.setUserId(principal.id());
+            profile.setAvatarUrl(key);
+            profile.setUpdatedAt(LocalDateTime.now());
+            profileMapper.insert(profile);
+        } else {
+            profile.setAvatarUrl(key);
+            profile.setUpdatedAt(LocalDateTime.now());
+            profileMapper.updateById(profile);
+        }
+        if (previous != null && !previous.isBlank() && !previous.equals(key)) {
+            objectStorage.delete(previous);
+        }
+        return view(profile);
+    }
+
+    private String contentType(String extension) {
+        return switch (extension) {
+            case "png" -> "image/png";
+            case "gif" -> "image/gif";
+            case "webp" -> "image/webp";
+            default -> "image/jpeg";
+        };
     }
 
     @Transactional
@@ -105,6 +171,7 @@ public class AccountService {
     private UserProfileView view(UserProfile profile) {
         UserProfileView view = new UserProfileView();
         BeanUtils.copyProperties(profile, view);
+        view.setAvatarUrl(objectStorage.publicUrl(profile.getAvatarUrl()));
         return view;
     }
 
