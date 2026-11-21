@@ -1,17 +1,16 @@
 # 开发环境：本机 MySQL + 本机 Redis，前端由 Vite 开发服务器代理。
 # 数据库账号密码请按需修改（或使用环境变量 DB_* 覆盖）。
 server:
-  address: ${SERVER_ADDRESS:127.0.0.1}
-  port: ${SERVER_PORT:18080}
+  port: 18080
 
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:jobtrack}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-    username: ${DB_USERNAME:root}
-    password: ${DB_PASSWORD:}
+    url: jdbc:mysql://192.168.150.10:3306/jobtrack?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: tomori
     hikari:
-      maximum-pool-size: ${DB_MAX_POOL_SIZE:10}
+      maximum-pool-size: 10
       minimum-idle: 1
       connection-timeout: 10000
       validation-timeout: 3000
@@ -26,22 +25,29 @@ spring:
     init:
       schema-locations: classpath:schema-mysql.sql
       # schema-locations: classpath:schema-postgresql.sql
+  rabbitmq:
+    host: 192.168.150.10
+    port: 5672
+    username: resume-helper
+    password: tomori
+    virtual-host: /resume-helper
+    connection-timeout: 2s
   data:
     redis:
-      host: ${REDIS_HOST:127.0.0.1}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      database: ${REDIS_DATABASE:0}
+      host: 192.168.150.10
+      port: 6379
+      password: tomori
+      database: 1
       timeout: 2s
       connect-timeout: 2s
 
 # 应用级 Redis 开关：在线状态与验证码都依赖它。
 redis:
   enabled: true
-  host: ${REDIS_HOST:127.0.0.1}
-  port: ${REDIS_PORT:6379}
-  password: ${REDIS_PASSWORD:}
-  database: ${REDIS_DATABASE:0}
+  host: 192.168.150.10
+  port: 6379
+  password: tomori
+  database: 1
   key-prefix: "jobtrack:"
   timeout: 2s
 
@@ -69,9 +75,18 @@ app:
   storage:
     secret: ${STORAGE_SECRET:jobtrack-file-encryption-secret-change-me-0123456789}
     max-file-size-mb: 50
+    type: s3
+    endpoint: http://192.168.150.10:9000
+    region: us-east-1
+    bucket: resume-helper
+    access-key: FJcxHESr9gAjJxGw3s1Y
+    secret-key: H3pVVhaqQLuLRcDAcpDWz1tbX2qskujJRAWtbr8k
+    path-style: true
+    public-read: true
+    public-base-url: http://192.168.150.10:9000/resume-helper
   admin:
-    username: ${ADMIN_USERNAME:admin}
-    password: ${ADMIN_PASSWORD:123456}
+    username: admin
+    password: 123456
     display-name: 管理员
     tenant-name: 默认工作区
 
