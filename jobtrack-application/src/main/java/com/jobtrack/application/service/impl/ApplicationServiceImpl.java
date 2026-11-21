@@ -141,7 +141,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         record.setCompanyName(requireCompany(request.getCompanyName()));
         record.setLink(requireLink(request.getLink()));
         record.setPosition(trimToNull(request.getPosition()));
-        record.setStatus(statusOrDefault(request.getStatus(), DomainConstants.STATUS_SCREENING));
+        String status = normalizeFilter(request.getStatus());
+        requireStatus(status);
+        record.setStatus(status);
         record.setChannel(trimToNull(request.getChannel()));
         record.setCity(trimToNull(request.getCity()));
         record.setSalary(trimToNull(request.getSalary()));
@@ -157,7 +159,10 @@ public class ApplicationServiceImpl implements ApplicationService {
                 ? LocalDateTime.now() : request.getAppliedAt();
         record.setAppliedAt(appliedAt);
         Integer requestedYear = normalizeYear(request.getYear());
-        record.setApplyYear(requestedYear == null ? appliedAt.getYear() : requestedYear);
+        if (requestedYear == null) {
+            throw BusinessException.badRequest("year_required", "请选择年度");
+        }
+        record.setApplyYear(requestedYear);
         applicationMapper.insert(record);
 
         // 时间线始终从“待定”开始，再记录真实状态。
@@ -198,9 +203,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (request.getPosition() != null) {
             record.setPosition(trimToNull(request.getPosition()));
         }
-        if (request.getStatus() != null) {
-            record.setStatus(statusOrDefault(request.getStatus(), previousStatus));
-        }
+        String status = normalizeFilter(request.getStatus());
+        requireStatus(status);
+        record.setStatus(status);
         if (request.getChannel() != null) {
             record.setChannel(trimToNull(request.getChannel()));
         }
@@ -234,15 +239,14 @@ public class ApplicationServiceImpl implements ApplicationService {
         if (request.getPinned() != null) {
             record.setPinned(request.getPinned());
         }
-        if (request.getYear() != null) {
-            Integer requestedYear = normalizeYear(request.getYear());
-            if (requestedYear != null) {
-                record.setApplyYear(requestedYear);
-            }
+        Integer requestedYear = normalizeYear(request.getYear());
+        if (requestedYear == null) {
+            throw BusinessException.badRequest("year_required", "请选择年度");
         }
+        record.setApplyYear(requestedYear);
 
         applicationMapper.updateById(record);
-        if (request.getStatus() != null && !record.getStatus().equals(previousStatus)) {
+        if (!record.getStatus().equals(previousStatus)) {
             historyService.updateStatusChange(record.getId(), previousStatus, record.getStatus(),
                     LocalDateTime.now());
         }
@@ -257,9 +261,10 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Transactional
     public void delete(Long id) {
+        // 删除前确认记录存在，不存在时返回 500 并回滚。
         ApplicationRecord record = applicationMapper.selectById(id);
         if (record == null) {
-            throw BusinessException.notFound("not_found", "投递记录不存在");
+            throw BusinessException.internal("record_not_found", "记录不存在");
         }
         trashService.moveToTrash(record);
         applicationCache.invalidate();
@@ -455,7 +460,8 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     private void requireStatus(String value) {
         if (!DomainConstants.isValidStatus(value)) {
-            throw BusinessException.badRequest("invalid_status", "未知的投递状态");
+            throw BusinessException.badRequest("invalid_status",
+                    "投递状态不存在，请选择待定、初筛、笔试、面试、Offer 或淘汰");
         }
     }
 

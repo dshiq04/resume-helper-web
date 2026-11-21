@@ -31,6 +31,10 @@ public final class DomainConstants {
             STATUS_PENDING, STATUS_SCREENING, STATUS_WRITTEN,
             STATUS_INTERVIEW, STATUS_OFFER, STATUS_REJECTED);
 
+    /** 供 Spring Validation 使用的投递状态匹配表达式。 */
+    public static final String STATUS_PATTERN =
+            "(?i)^(pending|screening|written|interview|offer|rejected)$";
+
     /** 转化漏斗使用的正向阶段。 */
     public static final List<String> STAGE_ORDER = List.of(
             STATUS_SCREENING, STATUS_WRITTEN, STATUS_INTERVIEW, STATUS_OFFER);

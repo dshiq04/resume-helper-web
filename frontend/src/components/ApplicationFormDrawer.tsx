@@ -194,7 +194,11 @@ export function ApplicationFormDrawer({
           >
             <Select options={categoryOptions} />
           </Form.Item>
-          <Form.Item name="year" label={t("field.year")}>
+          <Form.Item
+            name="year"
+            label={t("field.year")}
+            rules={[{ required: true, message: t("form.yearRequired") }]}
+          >
             <Select options={years.map((year) => ({ value: year, label: String(year) }))} />
           </Form.Item>
         </div>
@@ -202,7 +206,11 @@ export function ApplicationFormDrawer({
           <Form.Item name="position" label={t("field.position")}>
             <Input placeholder={t("form.positionPlaceholder")} />
           </Form.Item>
-          <Form.Item name="status" label={t("field.status")}>
+          <Form.Item
+            name="status"
+            label={t("field.status")}
+            rules={[{ required: true, message: t("form.statusRequired") }]}
+          >
             <Select options={statusOptions} />
           </Form.Item>
         </div>

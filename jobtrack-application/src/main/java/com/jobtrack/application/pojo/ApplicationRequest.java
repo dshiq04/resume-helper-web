@@ -1,7 +1,10 @@
 package com.jobtrack.application.pojo;
 
 import com.jobtrack.common.constant.DomainConstants;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -26,12 +29,16 @@ public class ApplicationRequest {
     @Size(max = 2048, message = "投递链接不能超过 2048 个字符")
     private String link;
 
-    /** 所属年度，留空时使用当前年份。 */
+    @NotNull(message = "请选择年度")
+    @Min(value = 2000, message = "年度需在 2000-2100 之间")
+    @Max(value = 2100, message = "年度需在 2000-2100 之间")
     private Integer year;
 
     @Size(max = 255, message = "岗位名称不能超过 255 个字符")
     private String position;
 
+    @NotBlank(message = "请选择状态")
+    @Pattern(regexp = DomainConstants.STATUS_PATTERN, message = "投递状态不存在")
     private String status;
 
     @Size(max = 64, message = "投递渠道不能超过 64 个字符")
