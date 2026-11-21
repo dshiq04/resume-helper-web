@@ -1,5 +1,14 @@
 {
-  "java.autobuild.enabled": false,
-  "java.import.maven.enabled": false,
-  "java.configuration.updateBuildConfiguration": "disabled"
+  "java.jdt.ls.java.home": "D:\\OracleJDK\\jdk-21",
+  "java.configuration.runtimes": [
+    {
+      "name": "JavaSE-21",
+      "path": "D:\\OracleJDK\\jdk-21",
+      "default": true
+    }
+  ],
+  "java.import.maven.enabled": true,
+  "java.autobuild.enabled": true,
+  "java.configuration.updateBuildConfiguration": "automatic",
+  "maven.view": "hierarchical"
 }
