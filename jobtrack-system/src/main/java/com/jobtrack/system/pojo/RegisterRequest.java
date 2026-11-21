@@ -30,6 +30,11 @@ public class RegisterRequest {
     @Size(max = 8, message = "国家/地区号过长")
     private String countryCode;
 
+    /**
+     * 联系方式类型：phone 或 email。注册时手机号与邮箱二选一。
+     */
+    private String contactType;
+
     @Size(max = 24, message = "手机号过长")
     private String phone;
 

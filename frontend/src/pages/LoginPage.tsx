@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { App as AntdApp, Button, Checkbox, Form, Input, Select } from "antd";
+import { App as AntdApp, Button, Checkbox, Form, Input, Segmented, Select } from "antd";
 import {
   ArrowRightOutlined,
   MoonOutlined,
@@ -14,8 +14,9 @@ import { useAuth } from "../context/AuthContext";
 import { LANGUAGES, useI18n } from "../i18n";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { toggleTheme } from "../store/slices/uiSlice";
-import { COUNTRY_CODES } from "../utils/countryCodes";
+import { COUNTRY_CODES, joinPhone } from "../utils/countryCodes";
 import { errorMessage, isApiErrorCode } from "../utils/errors";
+import { EMAIL_PATTERN, FULL_PHONE_PATTERN, LOCAL_PHONE_PATTERN } from "../utils/validation";
 
 type Mode = "login" | "register";
 
@@ -25,6 +26,7 @@ interface AuthValues {
   displayName?: string;
   tenantName?: string;
   captchaCode?: string;
+  contactType?: "phone" | "email";
   countryCode?: string;
   phone?: string;
   email?: string;
@@ -44,6 +46,7 @@ export function LoginPage() {
   const [agreementOpen, setAgreementOpen] = useState(false);
   const [agreementAccepted, setAgreementAccepted] = useState(false);
   const [form] = Form.useForm<AuthValues>();
+  const contactType = Form.useWatch("contactType", form) ?? "phone";
 
   const loadCaptcha = useCallback(async () => {
     try {
@@ -100,9 +103,28 @@ export function LoginPage() {
       message.warning(t("auth.captchaPlaceholder"));
       return;
     }
-    if (mode === "register" && !values.phone?.trim() && !values.email?.trim()) {
-      message.warning(t("auth.contactRequired"));
-      return;
+    const registerContactType = values.contactType === "email" ? "email" : "phone";
+    if (mode === "register") {
+      if (registerContactType === "phone") {
+        if (!values.phone?.trim()) {
+          message.warning(t("settings.phoneRequired"));
+          return;
+        }
+        if (!FULL_PHONE_PATTERN.test(joinPhone(values.countryCode ?? "+86", values.phone))) {
+          message.error(t("settings.phoneInvalid"));
+          return;
+        }
+      } else {
+        const email = values.email?.trim() ?? "";
+        if (!email) {
+          message.warning(t("settings.emailRequired"));
+          return;
+        }
+        if (!EMAIL_PATTERN.test(email)) {
+          message.error(t("settings.emailInvalid"));
+          return;
+        }
+      }
     }
     if (!agreementAccepted) {
       message.warning(t("auth.agreementRequired"));
@@ -123,9 +145,10 @@ export function LoginPage() {
           password: values.password,
           displayName: values.displayName,
           tenantName: values.tenantName,
-          countryCode: values.countryCode,
-          phone: values.phone,
-          email: values.email,
+          contactType: registerContactType,
+          countryCode: registerContactType === "phone" ? values.countryCode : undefined,
+          phone: registerContactType === "phone" ? values.phone?.trim() : undefined,
+          email: registerContactType === "email" ? values.email?.trim() : undefined,
           agreementAccepted: true,
           captchaId: captcha?.captchaId,
           captchaCode: values.captchaCode,
@@ -241,36 +264,67 @@ export function LoginPage() {
 
             {mode === "register" && (
               <>
-                <div className="form-grid two">
-                  <Form.Item name="countryCode" label={t("auth.countryCode")} initialValue="+86">
-                    <Select
-                      size="large"
-                      showSearch
-                      optionFilterProp="label"
-                      options={COUNTRY_CODES}
-                    />
-                  </Form.Item>
-                  <Form.Item name="phone" label={t("auth.phone")}>
-                    <Input
-                      size="large"
-                      inputMode="tel"
-                      maxLength={24}
-                      placeholder={t("auth.phone")}
-                    />
-                  </Form.Item>
-                </div>
                 <Form.Item
-                  name="email"
-                  label={t("auth.email")}
-                  extra={t("auth.contactHint")}
+                  name="contactType"
+                  label={t("settings.contactMethod")}
+                  initialValue="phone"
                 >
-                  <Input
-                    size="large"
-                    autoComplete="email"
-                    maxLength={128}
-                    placeholder={t("auth.email")}
+                  <Segmented
+                    options={[
+                      { value: "phone", label: t("auth.phone") },
+                      { value: "email", label: t("auth.email") },
+                    ]}
                   />
                 </Form.Item>
+                {contactType === "phone" ? (
+                  <div className="form-grid two">
+                    <Form.Item
+                      name="countryCode"
+                      label={t("auth.countryCode")}
+                      initialValue="+86"
+                    >
+                      <Select
+                        size="large"
+                        showSearch
+                        optionFilterProp="label"
+                        options={COUNTRY_CODES}
+                      />
+                    </Form.Item>
+                    <Form.Item
+                      name="phone"
+                      label={t("auth.phone")}
+                      extra={t("auth.contactHint")}
+                      rules={[
+                        { required: true, message: t("settings.phoneRequired") },
+                        { pattern: LOCAL_PHONE_PATTERN, message: t("settings.phoneInvalid") },
+                      ]}
+                    >
+                      <Input
+                        size="large"
+                        inputMode="tel"
+                        maxLength={15}
+                        placeholder="13800138000"
+                      />
+                    </Form.Item>
+                  </div>
+                ) : (
+                  <Form.Item
+                    name="email"
+                    label={t("auth.email")}
+                    extra={t("auth.contactHint")}
+                    rules={[
+                      { required: true, message: t("settings.emailRequired") },
+                      { type: "email", message: t("settings.emailInvalid") },
+                    ]}
+                  >
+                    <Input
+                      size="large"
+                      autoComplete="email"
+                      maxLength={128}
+                      placeholder={t("auth.email")}
+                    />
+                  </Form.Item>
+                )}
                 <Form.Item name="displayName" label={t("auth.displayName")}>
                   <Input size="large" placeholder={t("auth.displayName")} />
                 </Form.Item>

@@ -23,6 +23,7 @@ export const authApi = {
     password: string;
     displayName?: string;
     tenantName?: string;
+    contactType?: "phone" | "email";
     countryCode?: string;
     phone?: string;
     email?: string;

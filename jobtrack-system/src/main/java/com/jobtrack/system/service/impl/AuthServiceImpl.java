@@ -74,10 +74,25 @@ public class AuthServiceImpl implements AuthService {
         if (!Boolean.TRUE.equals(request.getAgreementAccepted())) {
             throw BusinessException.badRequest("agreement_required", "请先阅读并同意用户协议");
         }
+        String contactType = clean(request.getContactType()).toLowerCase(Locale.ROOT);
         String phone = clean(request.getPhone());
         String email = clean(request.getEmail());
+        if ("phone".equals(contactType)) {
+            email = "";
+        } else if ("email".equals(contactType)) {
+            phone = "";
+        } else if (!contactType.isEmpty()) {
+            throw BusinessException.badRequest("invalid_contact_type", "不支持的联系方式类型");
+        }
         if (phone.isEmpty() && email.isEmpty()) {
-            throw BusinessException.badRequest("contact_required", "请填写手机号或邮箱");
+            throw BusinessException.badRequest("contact_required", "请选择手机号或邮箱其中一种");
+        }
+        if (!phone.isEmpty()
+                && !PHONE_PATTERN.matcher(phoneDigits(fullPhone(request.getCountryCode(), phone))).matches()) {
+            throw BusinessException.badRequest("invalid_phone", "请输入正确的手机号");
+        }
+        if (!email.isEmpty() && !EMAIL_PATTERN.matcher(email).matches()) {
+            throw BusinessException.badRequest("invalid_email", "请输入正确的邮箱地址");
         }
         String username = normalizeUsername(request.getUsername());
         if (!USERNAME_PATTERN.matcher(username).matches()) {

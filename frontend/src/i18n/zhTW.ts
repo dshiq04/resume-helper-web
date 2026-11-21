@@ -422,7 +422,7 @@ export const zhTW: Record<string, string> = {
   "auth.countryCode": "國家/地區",
   "auth.phone": "手機號",
   "auth.email": "電子郵件",
-  "auth.contactHint": "手機號或電子郵件至少填寫一項，用於找回或修改密碼。",
+  "auth.contactHint": "選擇手機號或電子郵件其中一種，用於找回或修改密碼。",
   "auth.contactRequired": "請填寫手機號或電子郵件",
   "auth.agreementPrefix": "我已閱讀並同意",
   "auth.agreementLink": "《使用者協議》",

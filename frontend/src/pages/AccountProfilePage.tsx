@@ -18,6 +18,11 @@ import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
 import { COUNTRY_CODES, joinPhone, splitPhone } from "../utils/countryCodes";
 import { errorMessage } from "../utils/errors";
+import {
+  EMAIL_PATTERN,
+  FULL_PHONE_PATTERN,
+  LOCAL_PHONE_PATTERN,
+} from "../utils/validation";
 
 interface ProfileValues extends Omit<UserProfile, "birthday" | "availableDate"> {
   birthday?: Dayjs;
@@ -41,11 +46,6 @@ interface PasswordValues {
   newPassword: string;
   confirmPassword: string;
 }
-
-/** 与服务端保持一致的基础格式校验。 */
-const EMAIL_PATTERN = /^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
-const LOCAL_PHONE_PATTERN = /^\d{5,15}$/;
-const FULL_PHONE_PATTERN = /^\+\d{6,15}$/;
 
 export function AccountProfilePage() {
   const { t } = useI18n();
