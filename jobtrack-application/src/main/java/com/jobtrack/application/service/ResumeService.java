@@ -33,16 +33,19 @@ import java.util.UUID;
 @RequiredArgsConstructor
 public class ResumeService {
 
-    public static final Map<String, String> SUPPORTED_TYPES = Map.of(
-            "pdf", "application/pdf",
-            "docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            "pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-            "png", "image/png",
-            "jpg", "image/jpeg",
-            "jpeg", "image/jpeg",
-            "webp", "image/webp",
-            "md", "text/markdown; charset=utf-8",
-            "markdown", "text/markdown; charset=utf-8");
+    public static final Map<String, String> SUPPORTED_TYPES = Map.ofEntries(
+            Map.entry("pdf", "application/pdf"),
+            Map.entry("docx", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"),
+            Map.entry("pptx", "application/vnd.openxmlformats-officedocument.presentationml.presentation"),
+            Map.entry("xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            Map.entry("html", "text/html; charset=utf-8"),
+            Map.entry("htm", "text/html; charset=utf-8"),
+            Map.entry("png", "image/png"),
+            Map.entry("jpg", "image/jpeg"),
+            Map.entry("jpeg", "image/jpeg"),
+            Map.entry("webp", "image/webp"),
+            Map.entry("md", "text/markdown; charset=utf-8"),
+            Map.entry("markdown", "text/markdown; charset=utf-8"));
 
     private final ResumeMapper resumeMapper;
     private final FileCrypto fileCrypto;

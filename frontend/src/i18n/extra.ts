@@ -402,7 +402,23 @@ export const ja: Record<string, string> = {
   "error.networkHint": "サービスが起動しているか確認して、再試行してください。",
   "error.unauthorized": "ログインの有効期限が切れました。再度ログインしてください。",
   "error.generic": "操作に失敗しました。後でもう一度お試しください。",
-  "error.notFound": "ページが見つかりません"
+  "error.notFound": "ページが見つかりません",
+  "auth.countryCode": "国/地域",
+  "auth.phone": "電話番号",
+  "auth.email": "メールアドレス",
+  "auth.contactHint": "電話番号またはメールアドレスを少なくとも 1 つ入力してください（復旧・パスワード変更に使用）。",
+  "auth.contactRequired": "電話番号またはメールアドレスを入力してください",
+  "auth.agreementPrefix": "以下を読み、同意します：",
+  "auth.agreementLink": "利用規約",
+  "auth.agreementRequired": "利用規約を読み、同意してください",
+  "account.contact": "連絡先",
+  "account.contactHint": "電話番号とメールアドレスはパスワード変更時の本人確認に使用します。少なくとも 1 つを最新に保ってください。",
+  "account.saveContact": "連絡先を保存",
+  "settings.contact": "電話番号またはメールアドレス",
+  "settings.contactHint": "本人確認に使用します。アカウントに保存された連絡先と一致する必要があります。",
+  "settings.contactPlaceholder": "電話番号またはメールアドレスを入力",
+  "agreement.title": "利用規約",
+  "agreement.disclaimer": "本プロジェクトはオープンソースです。登録またはログインにより本規約に同意したものとみなされます。本プロジェクトを違法行為や権利侵害に利用してはなりません。本プロジェクトの利用または導入に起因する問題、損失、法的責任は、導入組織および利用者が負担し、本プロジェクトおよび作者は一切の責任を負いません。"
 };
 
 export const ko: Record<string, string> = {
@@ -809,7 +825,23 @@ export const ko: Record<string, string> = {
   "error.networkHint": "서비스가 실행 중인지 확인한 뒤 다시 시도하세요.",
   "error.unauthorized": "로그인 세션이 만료되었습니다. 다시 로그인하세요.",
   "error.generic": "작업에 실패했습니다. 잠시 후 다시 시도하세요.",
-  "error.notFound": "페이지를 찾을 수 없습니다"
+  "error.notFound": "페이지를 찾을 수 없습니다",
+  "auth.countryCode": "국가/지역",
+  "auth.phone": "휴대전화번호",
+  "auth.email": "이메일",
+  "auth.contactHint": "휴대전화번호 또는 이메일을 하나 이상 입력하세요(계정 복구 및 비밀번호 변경에 사용).",
+  "auth.contactRequired": "휴대전화번호 또는 이메일을 입력하세요",
+  "auth.agreementPrefix": "다음을 읽고 동의합니다:",
+  "auth.agreementLink": "이용약관",
+  "auth.agreementRequired": "이용약관을 읽고 동의하세요",
+  "account.contact": "연락처",
+  "account.contactHint": "휴대전화번호와 이메일은 비밀번호 변경 시 본인 확인에 사용됩니다. 하나 이상 최신 상태로 유지하세요.",
+  "account.saveContact": "연락처 저장",
+  "settings.contact": "휴대전화번호 또는 이메일",
+  "settings.contactHint": "본인 확인에 사용되며 계정에 저장된 연락처와 일치해야 합니다.",
+  "settings.contactPlaceholder": "휴대전화번호 또는 이메일 입력",
+  "agreement.title": "이용약관",
+  "agreement.disclaimer": "본 프로젝트는 오픈소스입니다. 가입 또는 로그인하면 본 약관에 동의한 것으로 간주됩니다. 본 프로젝트를 불법 또는 권리 침해 행위에 사용해서는 안 됩니다. 본 프로젝트의 사용 또는 배포로 발생하는 모든 문제, 손실 또는 법적 책임은 배포 조직과 이용자가 부담하며, 본 프로젝트와 작성자는 어떠한 책임도 지지 않습니다."
 };
 
 export const ru: Record<string, string> = {
@@ -1216,5 +1248,21 @@ export const ru: Record<string, string> = {
   "error.networkHint": "Убедитесь, что сервис запущен, и повторите попытку.",
   "error.unauthorized": "Сессия истекла. Войдите снова.",
   "error.generic": "Что-то пошло не так. Попробуйте позже.",
-  "error.notFound": "Страница не найдена"
+  "error.notFound": "Страница не найдена",
+  "auth.countryCode": "Страна/регион",
+  "auth.phone": "Номер телефона",
+  "auth.email": "Эл. почта",
+  "auth.contactHint": "Укажите хотя бы номер телефона или эл. почту (для восстановления и смены пароля).",
+  "auth.contactRequired": "Введите номер телефона или эл. почту",
+  "auth.agreementPrefix": "Я прочитал(а) и согласен(на) с",
+  "auth.agreementLink": "Пользовательским соглашением",
+  "auth.agreementRequired": "Сначала прочитайте и примите Пользовательское соглашение",
+  "account.contact": "Контакты",
+  "account.contactHint": "Телефон и эл. почта используются для подтверждения личности при смене пароля. Оставьте хотя бы один актуальный контакт.",
+  "account.saveContact": "Сохранить контакты",
+  "settings.contact": "Телефон или эл. почта",
+  "settings.contactHint": "Используется для подтверждения личности; должен совпадать с контактом в учётной записи.",
+  "settings.contactPlaceholder": "Введите номер телефона или эл. почту",
+  "agreement.title": "Пользовательское соглашение",
+  "agreement.disclaimer": "Настоящий проект является открытым. Регистрация или вход означают согласие с настоящим соглашением. Запрещается использовать проект для любых незаконных действий или нарушения прав. Любые проблемы, убытки или юридическая ответственность, возникшие из-за использования или развёртывания проекта, несёт развернувшая организация и пользователь; проект и его автор ответственности не несут."
 };

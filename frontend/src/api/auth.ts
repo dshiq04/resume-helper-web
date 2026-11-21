@@ -23,6 +23,10 @@ export const authApi = {
     password: string;
     displayName?: string;
     tenantName?: string;
+    countryCode?: string;
+    phone?: string;
+    email?: string;
+    agreementAccepted?: boolean;
     captchaId?: string;
     captchaCode?: string;
   }) {
@@ -38,10 +42,10 @@ export const authApi = {
   updateProfile(displayName: string) {
     return request<User>("/auth/me", { method: "PUT", data: { displayName } });
   },
-  changePassword(currentPassword: string, newPassword: string) {
+  changePassword(currentPassword: string, newPassword: string, contact: string) {
     return request<{ changed: boolean }>("/auth/change-password", {
       method: "POST",
-      data: { currentPassword, newPassword },
+      data: { currentPassword, newPassword, contact },
     });
   },
   logout() {

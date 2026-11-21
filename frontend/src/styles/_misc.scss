@@ -100,3 +100,64 @@
 .ant-segmented {
   font-size: 11.5px;
 }
+
+/* ---------- User agreement ---------- */
+.agreement-modal .ant-modal-body {
+  padding-top: 8px;
+}
+.agreement-disclaimer {
+  margin-bottom: 16px;
+  padding: 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--danger) 42%, var(--line));
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--danger) 9%, var(--bg-elev));
+  color: var(--danger);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.8;
+  letter-spacing: 0.01em;
+}
+.agreement-body {
+  max-height: 62vh;
+  overflow: auto;
+  padding-right: 8px;
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.8;
+}
+.agreement-body h2 {
+  margin: 22px 0 10px;
+  color: var(--ink);
+  font-family: var(--serif);
+  font-size: 15px;
+  font-weight: 650;
+}
+.agreement-body h2:first-child {
+  margin-top: 0;
+}
+.agreement-body p,
+.agreement-body ul {
+  margin: 0 0 12px;
+}
+.agreement-body ul {
+  padding-left: 20px;
+}
+.agreement-body li {
+  margin-bottom: 6px;
+}
+.agreement-body strong {
+  color: var(--danger);
+}
+.agreement-link {
+  margin-left: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font-size: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.agreement-link:hover {
+  text-decoration: underline;
+}

@@ -61,6 +61,14 @@ public class AuthService {
     @Transactional
     public AuthResponse register(RegisterRequest request) {
         captchaService.verify(request.getCaptchaId(), request.getCaptchaCode());
+        if (!Boolean.TRUE.equals(request.getAgreementAccepted())) {
+            throw BusinessException.badRequest("agreement_required", "请先阅读并同意用户协议");
+        }
+        String phone = clean(request.getPhone());
+        String email = clean(request.getEmail());
+        if (phone.isEmpty() && email.isEmpty()) {
+            throw BusinessException.badRequest("contact_required", "请填写手机号或邮箱");
+        }
         String username = normalizeUsername(request.getUsername());
         if (!USERNAME_PATTERN.matcher(username).matches()) {
             throw BusinessException.badRequest("invalid_username",
@@ -91,9 +99,16 @@ public class AuthService {
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setDisplayName(clean(request.getDisplayName()).isEmpty()
                 ? username : clean(request.getDisplayName()));
-        user.setRole("ADMIN");
+        user.setRole("USER");
         user.setEnabled(true);
         userMapper.insert(user);
+
+        UserProfile profile = new UserProfile();
+        profile.setTenantId(tenant.getId());
+        profile.setUserId(user.getId());
+        profile.setPhone(phone.isEmpty() ? null : fullPhone(request.getCountryCode(), phone));
+        profile.setEmail(email.isEmpty() ? null : email);
+        profileMapper.insert(profile);
 
         return session(user, tenant);
     }
@@ -128,6 +143,28 @@ public class AuthService {
         }
         if (request.getCurrentPassword().equals(request.getNewPassword())) {
             throw BusinessException.badRequest("same_password", "新密码不能与当前密码相同");
+        }
+        UserProfile profile = profileMapper.selectByUserIdIgnoreTenant(principal.id());
+        String storedPhone = profile == null ? "" : clean(profile.getPhone());
+        String storedEmail = profile == null ? "" : clean(profile.getEmail());
+        if (storedPhone.isEmpty() && storedEmail.isEmpty()) {
+            throw BusinessException.badRequest("contact_not_set",
+                    "请先在账号与安全中设置手机号或邮箱");
+        }
+        String contact = clean(request.getContact());
+        if (contact.isEmpty()) {
+            throw BusinessException.badRequest("contact_required", "请输入手机号或邮箱");
+        }
+        boolean emailMatched = !storedEmail.isEmpty() && contact.equalsIgnoreCase(storedEmail);
+        String contactPhone = normalizePhone(contact);
+        String storedPhoneDigits = normalizePhone(storedPhone);
+        boolean phoneMatched = contactPhone.length() >= 7 && !storedPhoneDigits.isEmpty()
+                && (contactPhone.equals(storedPhoneDigits)
+                || storedPhoneDigits.endsWith(contactPhone)
+                || contactPhone.endsWith(storedPhoneDigits));
+        if (!emailMatched && !phoneMatched) {
+            throw BusinessException.unauthorized("contact_mismatch",
+                    "手机号或邮箱与账号不符");
         }
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userMapper.updateById(user);
@@ -177,5 +214,20 @@ public class AuthService {
 
     private String clean(String value) {
         return value == null ? "" : value.trim();
+    }
+
+    private String fullPhone(String countryCode, String phone) {
+        String code = clean(countryCode);
+        if (code.isEmpty()) {
+            return phone;
+        }
+        if (!code.startsWith("+")) {
+            code = "+" + code;
+        }
+        return code + phone.replaceAll("[\\s-]", "");
+    }
+
+    private String normalizePhone(String value) {
+        return value == null ? "" : value.replaceAll("[^0-9+]", "");
     }
 }

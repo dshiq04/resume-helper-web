@@ -3,6 +3,7 @@ package com.jobtrack.system.controller;
 import com.jobtrack.system.config.AppProperties;
 import com.jobtrack.system.database.DatabaseManager;
 import com.jobtrack.system.dto.DatabaseTestResult;
+import com.jobtrack.system.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -28,6 +29,7 @@ public class DatabaseController {
 
     @GetMapping
     public Map<String, Object> current() {
+        SecurityUtils.requireAdmin();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("settings", databaseManager.currentSettings());
         result.put("supportedTypes", List.of("mysql", "postgresql"));
@@ -40,6 +42,7 @@ public class DatabaseController {
 
     @GetMapping("/test")
     public DatabaseTestResult test() {
+        SecurityUtils.requireAdmin();
         return databaseManager.testCurrent();
     }
 

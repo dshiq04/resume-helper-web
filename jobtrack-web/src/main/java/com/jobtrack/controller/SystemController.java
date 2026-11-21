@@ -1,6 +1,7 @@
 package com.jobtrack.controller;
 
 import com.jobtrack.system.config.AppProperties;
+import com.jobtrack.system.security.SecurityUtils;
 import com.jobtrack.system.security.SessionService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
@@ -35,6 +36,7 @@ public class SystemController {
 
     @GetMapping("/system/info")
     public Map<String, Object> info() {
+        SecurityUtils.requireAdmin();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("version", appProperties.getVersion());
         result.put("javaVersion", System.getProperty("java.version"));

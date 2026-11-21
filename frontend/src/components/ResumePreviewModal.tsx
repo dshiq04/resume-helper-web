@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button, Modal, Spin } from "antd";
-import { FilePreviewEmbed } from "@eternalheart/react-file-preview";
-import "@eternalheart/react-file-preview/style.css";
+import { DocViewer } from "anyview";
+import "anyview/styles";
 import { resumeApi } from "../api/resumes";
 import type { Resume } from "../api/types";
 import { useI18n } from "../i18n";
@@ -16,32 +16,32 @@ export function ResumePreviewModal({
   resume: Resume | null;
   onClose: () => void;
 }) {
-  const { t, lang } = useI18n();
+  const { t } = useI18n();
   const themeMode = useAppSelector((state) => state.ui.themeMode);
   const [loading, setLoading] = useState(false);
-  const [files, setFiles] = useState<File[]>([]);
+  const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!resume) {
-      setFiles([]);
+      setFile(null);
       setError(null);
       return;
     }
     let cancelled = false;
     setLoading(true);
-    setFiles([]);
+    setFile(null);
     setError(null);
 
     void (async () => {
       try {
         const blob = await resumeApi.fetchFile(resume.id);
         if (cancelled) return;
-        setFiles([
+        setFile(
           new File([blob], resume.fileName, {
             type: blob.type || "application/octet-stream",
           }),
-        ]);
+        );
       } catch (exception) {
         if (!cancelled) setError(errorMessage(exception));
       } finally {
@@ -60,14 +60,12 @@ export function ResumePreviewModal({
     downloadBlob(blob, resume.fileName);
   };
 
-  const previewLocale = lang === "zh-CN" ? "zh-CN" : lang === "zh-TW" ? "zh-TW" : "en-US";
-
   return (
     <Modal
       open={!!resume}
       onCancel={onClose}
       title={resume?.name}
-      width={940}
+      width={1100}
       className="preview-modal"
       footer={
         <div className="modal-actions">
@@ -85,17 +83,9 @@ export function ResumePreviewModal({
         </div>
       ) : error ? (
         <div className="preview-error">{error}</div>
-      ) : files.length > 0 ? (
+      ) : file ? (
         <div className="preview-embed">
-          <FilePreviewEmbed
-            files={files}
-            currentIndex={0}
-            theme={themeMode}
-            locale={previewLocale}
-            showDownload={false}
-            showClose={false}
-            showNavigation={false}
-          />
+          <DocViewer source={{ kind: "file", file }} theme={themeMode} showToolbar showSidebar />
         </div>
       ) : null}
     </Modal>

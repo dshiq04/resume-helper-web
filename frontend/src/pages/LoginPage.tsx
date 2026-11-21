@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { App as AntdApp, Button, Form, Input, Select } from "antd";
+import { App as AntdApp, Button, Checkbox, Form, Input, Select } from "antd";
 import {
   ArrowRightOutlined,
   MoonOutlined,
@@ -9,13 +9,27 @@ import {
 import { authApi } from "../api/auth";
 import { configApi } from "../api/config";
 import type { CaptchaResponse, PublicConfig } from "../api/types";
+import { UserAgreementModal } from "../components/UserAgreementModal";
 import { useAuth } from "../context/AuthContext";
 import { LANGUAGES, useI18n } from "../i18n";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { toggleTheme } from "../store/slices/uiSlice";
+import { COUNTRY_CODES } from "../utils/countryCodes";
 import { errorMessage } from "../utils/errors";
 
 type Mode = "login" | "register";
+
+interface AuthValues {
+  username: string;
+  password: string;
+  displayName?: string;
+  tenantName?: string;
+  captchaCode?: string;
+  countryCode?: string;
+  phone?: string;
+  email?: string;
+  agreement?: boolean;
+}
 
 export function LoginPage() {
   const { t, lang, setLang } = useI18n();
@@ -27,7 +41,8 @@ export function LoginPage() {
   const [config, setConfig] = useState<PublicConfig | null>(null);
   const [captcha, setCaptcha] = useState<CaptchaResponse | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [form] = Form.useForm();
+  const [agreementOpen, setAgreementOpen] = useState(false);
+  const [form] = Form.useForm<AuthValues>();
 
   const loadCaptcha = useCallback(async () => {
     try {
@@ -60,9 +75,17 @@ export function LoginPage() {
     form.resetFields();
   }, [form, mode]);
 
-  const handleSubmit = async (values: Record<string, string>) => {
+  const handleSubmit = async (values: AuthValues) => {
     if (config?.captchaEnabled && !values.captchaCode) {
       message.warning(t("auth.captchaPlaceholder"));
+      return;
+    }
+    if (mode === "register" && !values.phone?.trim() && !values.email?.trim()) {
+      message.warning(t("auth.contactRequired"));
+      return;
+    }
+    if (!values.agreement) {
+      message.warning(t("auth.agreementRequired"));
       return;
     }
     setSubmitting(true);
@@ -80,6 +103,10 @@ export function LoginPage() {
           password: values.password,
           displayName: values.displayName,
           tenantName: values.tenantName,
+          countryCode: values.countryCode,
+          phone: values.phone,
+          email: values.email,
+          agreementAccepted: true,
           captchaId: captcha?.captchaId,
           captchaCode: values.captchaCode,
         });
@@ -189,6 +216,36 @@ export function LoginPage() {
 
             {mode === "register" && (
               <>
+                <div className="form-grid two">
+                  <Form.Item name="countryCode" label={t("auth.countryCode")} initialValue="+86">
+                    <Select
+                      size="large"
+                      showSearch
+                      optionFilterProp="label"
+                      options={COUNTRY_CODES}
+                    />
+                  </Form.Item>
+                  <Form.Item name="phone" label={t("auth.phone")}>
+                    <Input
+                      size="large"
+                      inputMode="tel"
+                      maxLength={24}
+                      placeholder={t("auth.phone")}
+                    />
+                  </Form.Item>
+                </div>
+                <Form.Item
+                  name="email"
+                  label={t("auth.email")}
+                  extra={t("auth.contactHint")}
+                >
+                  <Input
+                    size="large"
+                    autoComplete="email"
+                    maxLength={128}
+                    placeholder={t("auth.email")}
+                  />
+                </Form.Item>
                 <Form.Item name="displayName" label={t("auth.displayName")}>
                   <Input size="large" placeholder={t("auth.displayName")} />
                 </Form.Item>
@@ -222,6 +279,34 @@ export function LoginPage() {
               </Form.Item>
             )}
 
+            <Form.Item
+              name="agreement"
+              valuePropName="checked"
+              rules={[
+                {
+                  validator: (_, checked) =>
+                    checked
+                      ? Promise.resolve()
+                      : Promise.reject(new Error(t("auth.agreementRequired"))),
+                },
+              ]}
+            >
+              <Checkbox>
+                {t("auth.agreementPrefix")}
+                <button
+                  type="button"
+                  className="agreement-link"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    setAgreementOpen(true);
+                  }}
+                >
+                  {t("auth.agreementLink")}
+                </button>
+              </Checkbox>
+            </Form.Item>
+
             <Button
               type="primary"
               htmlType="submit"
@@ -239,6 +324,11 @@ export function LoginPage() {
           {mode === "register" && <p className="login-hint">{t("auth.workspaceHint")}</p>}
         </div>
       </section>
+
+      <UserAgreementModal
+        open={agreementOpen}
+        onClose={() => setAgreementOpen(false)}
+      />
     </div>
   );
 }

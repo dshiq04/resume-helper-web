@@ -46,6 +46,10 @@ export const registerUser = createAsyncThunk(
     password: string;
     displayName?: string;
     tenantName?: string;
+    countryCode?: string;
+    phone?: string;
+    email?: string;
+    agreementAccepted?: boolean;
     captchaId?: string;
     captchaCode?: string;
   }) => {

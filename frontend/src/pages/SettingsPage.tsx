@@ -31,6 +31,7 @@ interface ProfileValues {
 
 interface PasswordValues {
   currentPassword: string;
+  contact: string;
   newPassword: string;
   confirmPassword: string;
 }
@@ -52,8 +53,11 @@ export function SettingsPage() {
   const [dbInfo, setDbInfo] = useState<DatabaseInfo | null>(null);
   const [dbTesting, setDbTesting] = useState(false);
   const [dbMessage, setDbMessage] = useState<{ ok: boolean; text: string } | null>(null);
-  const [deviceId] = useState(getDeviceId);
+  const [deviceId] = useState(() =>
+    user?.role?.toUpperCase() === "ADMIN" ? getDeviceId() : "",
+  );
   const [clientInfo, setClientInfo] = useState<ClientInfo>({ platform: "desktop", system: "—" });
+  const isAdmin = user?.role?.toUpperCase() === "ADMIN";
 
   useEffect(() => {
     profileForm.setFieldsValue({ displayName: user?.displayName ?? "" });
@@ -67,13 +71,18 @@ export function SettingsPage() {
   }, [preferences]);
 
   useEffect(() => {
-    void systemApi.info().then(setSystemInfo).catch(() => setSystemInfo(null));
     void configApi.get().then(setConfig).catch(() => setConfig(null));
+    if (!isAdmin) {
+      setSystemInfo(null);
+      setDbInfo(null);
+      return;
+    }
+    void systemApi.info().then(setSystemInfo).catch(() => setSystemInfo(null));
     void databaseApi
       .info()
       .then(setDbInfo)
       .catch(() => setDbInfo(null));
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     let cancelled = false;
@@ -128,7 +137,11 @@ export function SettingsPage() {
       return;
     }
     try {
-      await authApi.changePassword(values.currentPassword, values.newPassword);
+      await authApi.changePassword(
+        values.currentPassword,
+        values.newPassword,
+        values.contact.trim(),
+      );
       message.success(t("settings.passwordChanged"));
       await logout();
     } catch (error) {
@@ -183,6 +196,14 @@ export function SettingsPage() {
           <Form form={passwordForm} layout="vertical" onFinish={changePassword} requiredMark={false}>
             <Form.Item name="currentPassword" label={t("settings.currentPassword")} rules={[{ required: true }]}>
               <Input.Password autoComplete="current-password" />
+            </Form.Item>
+            <Form.Item
+              name="contact"
+              label={t("settings.contact")}
+              extra={t("settings.contactHint")}
+              rules={[{ required: true, message: t("settings.contactPlaceholder") }]}
+            >
+              <Input placeholder={t("settings.contactPlaceholder")} />
             </Form.Item>
             <Form.Item
               name="newPassword"
@@ -248,52 +269,54 @@ export function SettingsPage() {
           </div>
         </section>
 
-        <section className="setting-card database-card">
-          <div className="setting-card-head">
-            <h2>{t("settings.databaseSwitch")}</h2>
-          </div>
-          <p className="setting-hint">{t("settings.databaseHint")}</p>
-          {dbInfo && (
-            <dl className="fact-list compact">
-              <div className="fact-row">
-                <dt>{t("settings.dbType")}</dt>
-                <dd>{dbInfo.settings.type}</dd>
-              </div>
-              <div className="fact-row">
-                <dt>{t("settings.dbCurrent")}</dt>
-                <dd className="break">{dbInfo.settings.url || "—"}</dd>
-              </div>
-              <div className="fact-row">
-                <dt>{t("settings.dbUser")}</dt>
-                <dd>{dbInfo.settings.username || "—"}</dd>
-              </div>
-              <div className="fact-row">
-                <dt>{t("settings.dbMaxPool")}</dt>
-                <dd>{dbInfo.settings.maxPoolSize}</dd>
-              </div>
-              <div className="fact-row">
-                <dt>{t("settings.activeProfile")}</dt>
-                <dd className="break">
-                  {dbInfo.profile} · {dbInfo.configFile}
-                </dd>
-              </div>
-            </dl>
-          )}
-          <div className="setting-actions">
-            <Button loading={dbTesting} onClick={() => void testDatabase()}>
-              {t("settings.testConnection")}
-            </Button>
-          </div>
-          {dbMessage && (
-            <Alert
-              style={{ marginTop: 12 }}
-              type={dbMessage.ok ? "success" : "error"}
-              showIcon
-              message={dbMessage.text}
-            />
-          )}
-          <p className="setting-hint" style={{ marginTop: 12 }}>{t("settings.dbConfigHint")}</p>
-        </section>
+        {isAdmin && (
+          <section className="setting-card database-card">
+            <div className="setting-card-head">
+              <h2>{t("settings.databaseSwitch")}</h2>
+            </div>
+            <p className="setting-hint">{t("settings.databaseHint")}</p>
+            {dbInfo && (
+              <dl className="fact-list compact">
+                <div className="fact-row">
+                  <dt>{t("settings.dbType")}</dt>
+                  <dd>{dbInfo.settings.type}</dd>
+                </div>
+                <div className="fact-row">
+                  <dt>{t("settings.dbCurrent")}</dt>
+                  <dd className="break">{dbInfo.settings.url || "—"}</dd>
+                </div>
+                <div className="fact-row">
+                  <dt>{t("settings.dbUser")}</dt>
+                  <dd>{dbInfo.settings.username || "—"}</dd>
+                </div>
+                <div className="fact-row">
+                  <dt>{t("settings.dbMaxPool")}</dt>
+                  <dd>{dbInfo.settings.maxPoolSize}</dd>
+                </div>
+                <div className="fact-row">
+                  <dt>{t("settings.activeProfile")}</dt>
+                  <dd className="break">
+                    {dbInfo.profile} · {dbInfo.configFile}
+                  </dd>
+                </div>
+              </dl>
+            )}
+            <div className="setting-actions">
+              <Button loading={dbTesting} onClick={() => void testDatabase()}>
+                {t("settings.testConnection")}
+              </Button>
+            </div>
+            {dbMessage && (
+              <Alert
+                style={{ marginTop: 12 }}
+                type={dbMessage.ok ? "success" : "error"}
+                showIcon
+                message={dbMessage.text}
+              />
+            )}
+            <p className="setting-hint" style={{ marginTop: 12 }}>{t("settings.dbConfigHint")}</p>
+          </section>
+        )}
 
         <section className="setting-card system-card about-card">
           <div className="about-head">
@@ -312,20 +335,24 @@ export function SettingsPage() {
           </div>
 
           <div className="about-meta">
-            <div className="about-device">
-              <span className="about-label">{t("settings.deviceId")}</span>
-              <code className="about-device-code">{deviceId}</code>
-              <Button
-                type="text"
-                size="small"
-                className="about-copy"
-                icon={<CopyOutlined />}
-                onClick={() => void copyDeviceId()}
-                title={t("settings.copy")}
-                aria-label={t("settings.copy")}
-              />
-            </div>
-            <p className="about-hint">{t("settings.deviceHint")}</p>
+            {isAdmin && (
+              <>
+                <div className="about-device">
+                  <span className="about-label">{t("settings.deviceId")}</span>
+                  <code className="about-device-code">{deviceId}</code>
+                  <Button
+                    type="text"
+                    size="small"
+                    className="about-copy"
+                    icon={<CopyOutlined />}
+                    onClick={() => void copyDeviceId()}
+                    title={t("settings.copy")}
+                    aria-label={t("settings.copy")}
+                  />
+                </div>
+                <p className="about-hint">{t("settings.deviceHint")}</p>
+              </>
+            )}
 
             <div className="about-platform">
               <div className="about-platform-row">

@@ -92,7 +92,7 @@ export function ResumeUploadModal({ open, editing, onClose, onSaved }: Props) {
         </Form.Item>
         {!editing && (
           <Upload.Dragger
-            accept=".pdf,.docx,.pptx,.png,.jpg,.jpeg,.webp,.md,.markdown"
+            accept=".pdf,.docx,.pptx,.xlsx,.html,.htm,.png,.jpg,.jpeg,.webp,.md,.markdown"
             maxCount={1}
             beforeUpload={(selected) => {
               setFile(selected);

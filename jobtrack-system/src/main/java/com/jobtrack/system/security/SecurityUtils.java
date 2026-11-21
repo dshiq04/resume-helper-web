@@ -29,4 +29,14 @@ public final class SecurityUtils {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         return authentication != null && authentication.getPrincipal() instanceof AuthPrincipal;
     }
+
+    public static boolean isAdmin() {
+        return authenticated() && "ADMIN".equalsIgnoreCase(current().role());
+    }
+
+    public static void requireAdmin() {
+        if (!isAdmin()) {
+            throw BusinessException.forbidden("forbidden", "需要管理员权限");
+        }
+    }
 }

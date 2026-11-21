@@ -13,4 +13,7 @@ public class ChangePasswordRequest {
     @NotBlank(message = "请输入新密码")
     @Size(min = 6, max = 64, message = "新密码长度需为 6-64 个字符")
     private String newPassword;
+
+    @Size(max = 160, message = "手机号或邮箱过长")
+    private String contact;
 }

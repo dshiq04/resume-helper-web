@@ -7,17 +7,6 @@
   gap: 14px;
   align-items: stretch;
 }
-.setting-card.system-card {
-  grid-column: 1 / -1;
-}
-.system-card .fact-list {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 0 30px;
-}
-.system-card .fact-row {
-  grid-template-columns: 120px minmax(0, 1fr);
-}
 .setting-card {
   min-width: 0;
 }

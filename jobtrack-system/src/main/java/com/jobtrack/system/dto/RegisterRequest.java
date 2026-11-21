@@ -26,4 +26,15 @@ public class RegisterRequest {
 
     @Size(max = 16)
     private String captchaCode;
+
+    @Size(max = 8, message = "国家/地区号过长")
+    private String countryCode;
+
+    @Size(max = 24, message = "手机号过长")
+    private String phone;
+
+    @Size(max = 128, message = "邮箱过长")
+    private String email;
+
+    private Boolean agreementAccepted;
 }

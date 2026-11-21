@@ -23,6 +23,10 @@ interface LoginInput {
 interface RegisterInput extends LoginInput {
   displayName?: string;
   tenantName?: string;
+  countryCode?: string;
+  phone?: string;
+  email?: string;
+  agreementAccepted?: boolean;
 }
 
 /**

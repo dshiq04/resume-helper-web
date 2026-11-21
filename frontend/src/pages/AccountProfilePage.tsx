@@ -14,6 +14,7 @@ import { authApi } from "../api/auth";
 import type { UserProfile } from "../api/types";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
+import { COUNTRY_CODES, joinPhone, splitPhone } from "../utils/countryCodes";
 import { errorMessage } from "../utils/errors";
 
 interface ProfileValues extends Omit<UserProfile, "birthday" | "availableDate"> {
@@ -21,18 +22,28 @@ interface ProfileValues extends Omit<UserProfile, "birthday" | "availableDate"> 
   availableDate?: Dayjs;
 }
 
+interface ContactValues {
+  countryCode: string;
+  phone: string;
+  email: string;
+}
+
 export function AccountProfilePage() {
   const { t } = useI18n();
   const { message } = AntdApp.useApp();
   const { user, refreshUser, logout } = useAuth();
   const [profileForm] = Form.useForm<ProfileValues>();
+  const [contactForm] = Form.useForm<ContactValues>();
   const [usernameForm] = Form.useForm<{ username: string }>();
   const [passwordForm] = Form.useForm<{
     currentPassword: string;
+    contact: string;
     newPassword: string;
     confirmPassword: string;
   }>();
   const [savingProfile, setSavingProfile] = useState(false);
+  const [savingContact, setSavingContact] = useState(false);
+  const [profileSnapshot, setProfileSnapshot] = useState<UserProfile | null>(null);
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInput = useRef<HTMLInputElement>(null);
@@ -44,6 +55,13 @@ export function AccountProfilePage() {
       .profile()
       .then((profile) => {
         setAvatarUrl(profile.avatarUrl || "");
+        setProfileSnapshot(profile);
+        const phone = splitPhone(profile.phone);
+        contactForm.setFieldsValue({
+          countryCode: phone.countryCode,
+          phone: phone.phone,
+          email: profile.email ?? "",
+        });
         profileForm.setFieldsValue({
           ...profile,
           birthday: profile.birthday ? dayjs(profile.birthday) : undefined,
@@ -51,7 +69,7 @@ export function AccountProfilePage() {
         });
       })
       .catch((error) => message.error(errorMessage(error)));
-  }, [message, profileForm]);
+  }, [message, profileForm, contactForm]);
 
   useEffect(() => {
     usernameForm.setFieldsValue({ username: user?.username ?? "" });
@@ -79,16 +97,48 @@ export function AccountProfilePage() {
   const saveProfile = async (values: ProfileValues) => {
     setSavingProfile(true);
     try {
-      await accountApi.saveProfile({
+      const saved = await accountApi.saveProfile({
+        ...(profileSnapshot ?? ({} as UserProfile)),
         ...(values as unknown as UserProfile),
+        phone: profileSnapshot?.phone ?? null,
+        email: profileSnapshot?.email ?? null,
         birthday: values.birthday ? values.birthday.format("YYYY-MM-DD") : null,
         availableDate: values.availableDate ? values.availableDate.format("YYYY-MM-DD") : null,
       });
+      setProfileSnapshot(saved);
       message.success(t("settings.saved"));
     } catch (error) {
       message.error(errorMessage(error));
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const saveContact = async (values: ContactValues) => {
+    if (!values.phone.trim() && !values.email.trim()) {
+      message.warning(t("auth.contactRequired"));
+      return;
+    }
+    setSavingContact(true);
+    try {
+      const phone = joinPhone(values.countryCode, values.phone);
+      const saved = await accountApi.saveProfile({
+        ...(profileSnapshot ?? ({} as UserProfile)),
+        phone: phone || null,
+        email: values.email.trim() || null,
+      });
+      setProfileSnapshot(saved);
+      const fallback = splitPhone(saved.phone);
+      contactForm.setFieldsValue({
+        countryCode: fallback.countryCode,
+        phone: fallback.phone,
+        email: saved.email ?? "",
+      });
+      message.success(t("settings.saved"));
+    } catch (error) {
+      message.error(errorMessage(error));
+    } finally {
+      setSavingContact(false);
     }
   };
 
@@ -107,6 +157,7 @@ export function AccountProfilePage() {
 
   const changePassword = async (values: {
     currentPassword: string;
+    contact: string;
     newPassword: string;
     confirmPassword: string;
   }) => {
@@ -116,7 +167,7 @@ export function AccountProfilePage() {
     }
     setSavingPassword(true);
     try {
-      await authApi.changePassword(values.currentPassword, values.newPassword);
+      await authApi.changePassword(values.currentPassword, values.newPassword, values.contact.trim());
       message.success(t("settings.passwordChanged"));
       await logout();
     } catch (error) {
@@ -154,6 +205,28 @@ export function AccountProfilePage() {
           <div className="setting-card-head">
             <h2>{t("account.security")}</h2>
           </div>
+
+          <div className="form-section-label">{t("account.contact")}</div>
+          <Form form={contactForm} layout="vertical" onFinish={saveContact} requiredMark={false}>
+            <div className="form-grid two">
+              <Form.Item name="countryCode" label={t("auth.countryCode")} initialValue="+86">
+                <Select showSearch optionFilterProp="label" options={COUNTRY_CODES} />
+              </Form.Item>
+              <Form.Item name="phone" label={t("auth.phone")}>
+                <Input inputMode="tel" maxLength={24} />
+              </Form.Item>
+            </div>
+            <Form.Item name="email" label={t("auth.email")}>
+              <Input autoComplete="email" maxLength={128} />
+            </Form.Item>
+            <p className="setting-hint">{t("account.contactHint")}</p>
+            <Button htmlType="submit" loading={savingContact}>
+              {t("account.saveContact")}
+            </Button>
+          </Form>
+
+          <div className="account-divider" />
+
           <Form form={usernameForm} layout="vertical" onFinish={saveUsername} requiredMark={false}>
             <Form.Item
               name="username"
@@ -183,6 +256,14 @@ export function AccountProfilePage() {
               rules={[{ required: true, message: t("settings.currentPassword") }]}
             >
               <Input.Password autoComplete="current-password" />
+            </Form.Item>
+            <Form.Item
+              name="contact"
+              label={t("settings.contact")}
+              extra={t("settings.contactHint")}
+              rules={[{ required: true, message: t("settings.contactPlaceholder") }]}
+            >
+              <Input autoComplete="username" placeholder={t("settings.contactPlaceholder")} />
             </Form.Item>
             <div className="form-grid two">
               <Form.Item
@@ -229,12 +310,6 @@ export function AccountProfilePage() {
             </Form.Item>
             <Form.Item name="birthday" label={t("account.birthday")}>
               <DatePicker style={{ width: "100%" }} />
-            </Form.Item>
-            <Form.Item name="phone" label={t("account.phone")}>
-              <Input maxLength={32} />
-            </Form.Item>
-            <Form.Item name="email" label={t("account.email")}>
-              <Input maxLength={128} />
             </Form.Item>
             <Form.Item name="location" label={t("account.city")}>
               <Input maxLength={64} />

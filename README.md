@@ -240,6 +240,7 @@ app:
 说明：
 
 - 简历文件会先用 `app.storage.secret` 派生的 AES-256-GCM 密钥加密，再上传到 `resumes/<租户>/...`。
+- 简历库支持 PDF、DOCX、PPTX、XLSX、Markdown、HTML 与常见图片格式；预览使用 `anyview` 在浏览器内原生渲染，可直接选中并复制文本。
 - 头像上传到 `avatars/<租户>/...`，数据库只保存对象 key，接口返回时用 `public-base-url + key` 拼成完整地址。
 - 配置了 `access-key` / `secret-key` 时使用 S3；未配置或连接失败会自动回退本地磁盘，不影响启动。
 - 启动时会自动创建 bucket，并在 `public-read: true` 时设置匿名只读策略，保证头像可以直接访问。
