@@ -5,6 +5,7 @@ import type {
   AccessTokenLogPage,
   User,
   UserProfile,
+  CancelStatus,
 } from "./types";
 
 /** 对应后端 AccountController。 */
@@ -46,5 +47,31 @@ export const accountApi = {
     if (params.name) search.set("name", params.name);
     if (params.result) search.set("result", params.result);
     return request<AccessTokenLogPage>(`/account/tokens/logs?${search.toString()}`);
+  },
+  /** 用户注销条件检查：投递已清除、简历库已删除、没有普通用户以外的权限。 */
+  cancelStatus() {
+    return request<CancelStatus>("/account/cancel/status");
+  },
+  /** 验证保留的手机号或邮箱与密码。 */
+  cancelVerify(input: { contactType?: string; contact: string; password: string }) {
+    return request<{ verified: boolean }>("/account/cancel/verify", {
+      method: "POST",
+      data: input,
+      handleUnauthorized: false,
+    });
+  },
+  /** 最终确认注销（需要验证码）。 */
+  cancelConfirm(input: {
+    captchaId?: string;
+    captchaCode: string;
+    contactType?: string;
+    contact: string;
+    password: string;
+  }) {
+    return request<{ cancelled: boolean }>("/account/cancel/confirm", {
+      method: "POST",
+      data: input,
+      handleUnauthorized: false,
+    });
   },
 };

@@ -258,3 +258,61 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* 用户注销 */
+.cancel-layout {
+  max-width: 880px;
+}
+
+.cancel-agreement-step {
+  margin-top: 20px;
+}
+
+.cancel-agreement-body {
+  max-height: 46vh;
+}
+
+.cancel-lead {
+  margin: 0 0 16px;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.cancel-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.cancel-conditions {
+  margin-top: 6px;
+}
+
+.cancel-condition {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--line);
+  font-size: 13px;
+
+  .is-pass {
+    color: var(--success, #52c41a);
+  }
+
+  .is-fail {
+    color: var(--danger, #ff4d4f);
+  }
+}
+
+.cancel-condition-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 10px 0 4px 26px;
+}
+
+.account-cancel-entry-card .account-tokens-head {
+  align-items: center;
+}

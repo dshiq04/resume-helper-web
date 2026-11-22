@@ -4,8 +4,10 @@ import com.jobtrack.application.service.ApplicationImportService;
 import com.jobtrack.application.service.ApplicationService;
 
 import com.jobtrack.application.pojo.ApplicationImportRow;
+import com.jobtrack.application.pojo.ApplicationRecord;
 import com.jobtrack.application.pojo.ApplicationRequest;
 import com.jobtrack.application.pojo.ImportResult;
+import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.common.exception.BusinessException;
 import lombok.RequiredArgsConstructor;
@@ -55,6 +57,7 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
             DateTimeFormatter.ofPattern("yyyy-M-d HH:mm:ss"));
 
     private final ApplicationService applicationService;
+    private final com.jobtrack.application.mapper.ApplicationRecordMapper applicationRecordMapper;
 
     public byte[] template() {
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
@@ -66,6 +69,49 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         } catch (Exception exception) {
             throw BusinessException.internal("template_failed", "生成导入模板失败");
         }
+    }
+
+    /**
+     * 按导入模板的列（年度/投递类型/公司/投递地址/时间）导出全部投递记录，
+     * 用户注销前可以用它把台账带走。
+     */
+    public byte[] exportAll() {
+        List<ApplicationRecord> records = applicationRecordMapper.selectList(
+                Wrappers.<ApplicationRecord>lambdaQuery()
+                        .orderByDesc(ApplicationRecord::getAppliedAt));
+        List<ApplicationImportRow> rows = new ArrayList<>();
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+        for (ApplicationRecord record : records) {
+            ApplicationImportRow row = new ApplicationImportRow();
+            row.setYear(record.getApplyYear());
+            row.setCategory(categoryLabel(record.getCategory()));
+            row.setCompany(record.getCompanyName());
+            row.setLink(record.getLink());
+            row.setTime(record.getAppliedAt() == null
+                    ? "" : record.getAppliedAt().format(timeFormatter));
+            rows.add(row);
+        }
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
+            FesodSheet.write(output, ApplicationImportRow.class)
+                    .registerWriteHandler(new TemplateSheetWriteHandler())
+                    .sheet("投递台账")
+                    .doWrite(rows);
+            return output.toByteArray();
+        } catch (Exception exception) {
+            throw BusinessException.internal("export_failed", "导出投递台账失败");
+        }
+    }
+
+    private String categoryLabel(String category) {
+        if (category == null) {
+            return "春招";
+        }
+        return switch (category.toLowerCase(Locale.ROOT)) {
+            case "autumn" -> "秋招";
+            case "internship" -> "实习";
+            case "social" -> "社招";
+            default -> "春招";
+        };
     }
 
     public ImportResult importFile(MultipartFile file) {

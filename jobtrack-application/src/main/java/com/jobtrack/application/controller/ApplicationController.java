@@ -74,6 +74,18 @@ public class ApplicationController {
         return applicationImportService.importFile(file);
     }
 
+    /** 按导入模板的列导出当前工作区的全部投递记录（注销账号前可用）。 */
+    @GetMapping("/applications/export")
+    public ResponseEntity<byte[]> exportApplications() {
+        byte[] content = applicationImportService.exportAll();
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION,
+                        "attachment; filename=\"resume-trail-applications.xlsx\"")
+                .contentType(MediaType.parseMediaType(
+                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+                .body(content);
+    }
+
     @GetMapping("/applications/years")
     public com.jobtrack.application.pojo.YearList years() {
         return applicationService.years();

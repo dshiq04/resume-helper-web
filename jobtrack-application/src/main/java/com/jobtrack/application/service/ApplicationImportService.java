@@ -11,4 +11,7 @@ public interface ApplicationImportService {
     byte[] template();
 
     ImportResult importFile(MultipartFile file);
+
+    /** 按导入模板的列格式导出当前工作区的全部投递记录。 */
+    byte[] exportAll();
 }

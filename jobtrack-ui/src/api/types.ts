@@ -103,6 +103,13 @@ export interface AccessTokenLogPage {
   pageSize: number;
 }
 
+export interface CancelStatus {
+  applications: number;
+  trash: number;
+  resumes: number;
+  elevatedPermission: boolean;
+}
+
 export interface AccessTokenInput {
   name?: string;
   scope: TokenScope;
