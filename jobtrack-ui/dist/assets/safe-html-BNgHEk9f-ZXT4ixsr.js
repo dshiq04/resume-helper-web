@@ -1,0 +1,1 @@
+function e(e){return e}var t=e(``);function n(e,t){let n=document.createElement(`template`);n.innerHTML=t,e.replaceChildren(n.content)}export{n,t as r,e as t};

@@ -84,7 +84,7 @@ resume-helper-web/
 │       ├── application-prod.yml # 生产环境：PostgreSQL
 │       ├── schema-mysql.sql    # MySQL 建表脚本
 │       └── schema-postgresql.sql # PostgreSQL 建表脚本
-├── frontend/                   # React + Ant Design + Redux Toolkit（产物在 dist/）
+├── jobtrack-ui/                   # React + Ant Design + Redux Toolkit（产物在 dist/）
 │   └── src/
 │       ├── api/                # 按后端 Controller 拆分的 axios 接口模块
 │       ├── store/              # Redux Toolkit：auth / ui / meta / tabs / applications
@@ -112,7 +112,7 @@ resume-helper-web/
 
 ### 前端样式（Sass）
 
-`frontend/src/styles/` 使用 Sass 并按模块拆分，由 `index.scss` 统一引入：
+`jobtrack-ui/src/styles/` 使用 Sass 并按模块拆分，由 `index.scss` 统一引入：
 
 | 文件 | 模块 |
 | --- | --- |
