@@ -15,6 +15,7 @@ import { LANGUAGES, useI18n } from "../i18n";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { toggleTheme } from "../store/slices/uiSlice";
 import { COUNTRY_CODES, joinPhone } from "../utils/countryCodes";
+import { getTimeZone } from "../utils/clientInfo";
 import { errorMessage, isApiErrorCode } from "../utils/errors";
 import { EMAIL_PATTERN, FULL_PHONE_PATTERN, LOCAL_PHONE_PATTERN } from "../utils/validation";
 
@@ -237,6 +238,8 @@ export function LoginPage() {
           phone: registerContactType === "phone" ? values.phone?.trim() : undefined,
           email: registerContactType === "email" ? values.email?.trim() : undefined,
           agreementAccepted: true,
+          agreementLanguage: lang,
+          agreementTimezone: getTimeZone(),
           captchaId: captcha?.captchaId,
           captchaCode: values.captchaCode,
         });

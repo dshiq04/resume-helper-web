@@ -231,6 +231,74 @@
   }
 }
 
+.admin-detail-activity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 10px 0 4px;
+  padding: 9px 12px;
+  border: 1px dashed var(--line);
+  border-radius: v.$radius-sm;
+  background: color-mix(in srgb, var(--bg-sunken) 55%, transparent);
+
+  > div {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  span {
+    color: var(--muted);
+    font-size: 10.5px;
+  }
+
+  strong {
+    color: var(--ink);
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+}
+
+.admin-agreement-body {
+  max-height: 58vh;
+}
+
+.admin-agreement-pdf-hint {
+  margin: 10px 0 0;
+}
+
+.admin-operation-user,
+.admin-operation-desc {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  strong {
+    font-size: 11.5px;
+    @include m.ellipsis;
+  }
+
+  span {
+    color: var(--muted);
+    font-size: 9.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.admin-op-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+.admin-user-operations {
+  .admin-toolbar {
+    margin-bottom: 10px;
+  }
+}
+
 .admin-detail-avatar-actions {
   display: flex;
   flex-direction: column;

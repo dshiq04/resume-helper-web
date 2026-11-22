@@ -12,6 +12,7 @@ import com.jobtrack.system.pojo.vo.AccessTokenVO;
 import com.jobtrack.system.pojo.vo.AdminUserDetailVO;
 import com.jobtrack.system.pojo.vo.AdminUserPageVO;
 import com.jobtrack.system.pojo.vo.AdminUserVO;
+import com.jobtrack.system.pojo.vo.UserAgreementVO;
 import com.jobtrack.system.pojo.vo.UserProfileVO;
 import com.jobtrack.system.security.SecurityUtils;
 import com.jobtrack.system.service.AdminService;
@@ -55,6 +56,12 @@ public class AdminUserController {
     @GetMapping("/{id}")
     public AdminUserDetailVO detail(@PathVariable Long id) {
         return adminService.detail(id);
+    }
+
+    /** 管理端查看用户协议签署记录与签署信息，用于展示与导出。 */
+    @GetMapping("/{id}/agreement")
+    public UserAgreementVO agreement(@PathVariable Long id) {
+        return adminService.userAgreement(id);
     }
 
     @PutMapping("/{id}")

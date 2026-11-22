@@ -251,6 +251,26 @@ export function AdminUsersPage() {
       ),
     },
     {
+      title: t("admin.lastOperation"),
+      dataIndex: "lastOperationAt",
+      width: 155,
+      render: (value: string | null) => (
+        <span className="admin-muted">
+          {value ? dayjs(value).format("YYYY-MM-DD HH:mm") : "—"}
+        </span>
+      ),
+    },
+    {
+      title: t("admin.lastLogin"),
+      dataIndex: "lastLoginAt",
+      width: 155,
+      render: (value: string | null) => (
+        <span className="admin-muted">
+          {value ? dayjs(value).format("YYYY-MM-DD HH:mm") : "—"}
+        </span>
+      ),
+    },
+    {
       title: t("field.createdAt"),
       dataIndex: "createdAt",
       width: 160,
@@ -313,7 +333,7 @@ export function AdminUsersPage() {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        scroll={{ x: 1200 }}
+        scroll={{ x: 1500 }}
         pagination={{
           current: page,
           pageSize,

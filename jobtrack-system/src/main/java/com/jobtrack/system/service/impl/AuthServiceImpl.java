@@ -5,6 +5,7 @@ import com.jobtrack.system.service.AuthService;
 import com.jobtrack.system.service.BanService;
 import com.jobtrack.system.service.CaptchaService;
 import com.jobtrack.system.service.AvatarService;
+import com.jobtrack.system.service.UserAgreementService;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.common.exception.BusinessException;
@@ -21,7 +22,6 @@ import com.jobtrack.system.pojo.po.SysTenant;
 import com.jobtrack.system.pojo.po.SysUser;
 import com.jobtrack.system.pojo.po.SysUserBan;
 import com.jobtrack.system.pojo.po.UserProfile;
-import com.jobtrack.system.mapper.UserAgreementMapper;
 import com.jobtrack.system.mapper.UserProfileMapper;
 
 import com.jobtrack.system.mapper.SysTenantMapper;
@@ -37,7 +37,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -63,7 +62,7 @@ public class AuthServiceImpl implements AuthService {
     private final SessionService sessionService;
     private final CaptchaService captchaService;
     private final UserProfileMapper profileMapper;
-    private final UserAgreementMapper agreementMapper;
+    private final UserAgreementService agreementService;
     private final AvatarService avatarService;
     private final PermissionService permissionService;
     private final BanService banService;
@@ -177,8 +176,10 @@ public class AuthServiceImpl implements AuthService {
         userMapper.insert(user);
         // 普通用户权限写入用户权限对应表。
         permissionService.grant(user.getId(), "USER");
-        // 注册成功即记录该用户已同意协议。
-        agreementMapper.insertIgnoreTenant(tenant.getId(), user.getId(), LocalDateTime.now());
+        // 注册成功即记录该用户已同意协议，并保留签署语言与时区。
+        agreementService.recordRegistration(tenant.getId(), user.getId(),
+                user.getDisplayName(), request.getAgreementLanguage(),
+                request.getAgreementTimezone());
 
         UserProfile profile = new UserProfile();
         profile.setTenantId(tenant.getId());

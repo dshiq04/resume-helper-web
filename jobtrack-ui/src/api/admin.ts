@@ -10,6 +10,8 @@ import type {
   OnlineUser,
   PermissionItem,
   ResumeList,
+  UserAgreementRecord,
+  UserOperationPage,
   UserProfile,
 } from "./types";
 
@@ -25,6 +27,32 @@ export const adminApi = {
   },
   user(id: number) {
     return request<AdminUserDetail>(`/admin/users/${id}`);
+  },
+  /** 用户协议签署记录：管理员查看状态并按签署语言导出。 */
+  userAgreement(id: number) {
+    return request<UserAgreementRecord>(`/admin/users/${id}/agreement`);
+  },
+  /** 用户操作记录：按用户、类型与时间范围分页查询。 */
+  operations(
+    params: {
+      userId?: number;
+      type?: string;
+      from?: string;
+      to?: string;
+      keyword?: string;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ) {
+    const search = new URLSearchParams();
+    search.set("page", String(params.page ?? 1));
+    search.set("pageSize", String(params.pageSize ?? 20));
+    if (params.userId) search.set("userId", String(params.userId));
+    if (params.type && params.type !== "ALL") search.set("type", params.type);
+    if (params.from) search.set("from", params.from);
+    if (params.to) search.set("to", params.to);
+    if (params.keyword) search.set("keyword", params.keyword);
+    return request<UserOperationPage>(`/admin/operations?${search.toString()}`);
   },
   updateUser(id: number, input: { username: string; displayName: string; tenantName: string }) {
     return request<AdminUser>(`/admin/users/${id}`, { method: "PUT", data: input });

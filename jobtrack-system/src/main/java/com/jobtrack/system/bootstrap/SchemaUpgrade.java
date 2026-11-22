@@ -41,6 +41,7 @@ public class SchemaUpgrade implements ApplicationRunner {
             createPermissionTables(connection, mysql);
             boolean banReady = createBanTable(connection, mysql);
             boolean banMigrated = banReady && migrateLegacyBans(connection, mysql);
+            createOperationLogTable(connection, mysql);
             Map<String, String> tokenColumns = new LinkedHashMap<>();
             tokenColumns.put("resources", "VARCHAR(200)");
             tokenColumns.put("enabled", mysql
@@ -62,6 +63,15 @@ public class SchemaUpgrade implements ApplicationRunner {
             }
             // 用户名唯一索引 → 普通索引（唯一性改为逻辑判断，注销后可重新注册）。
             demoteUsernameUniqueIndex(connection, mysql);
+            // 用户协议签署记录：补充签署语言、签署人、地点、时区与来源 IP。
+            Map<String, String> agreementColumns = new LinkedHashMap<>();
+            agreementColumns.put("language", "VARCHAR(16) NOT NULL DEFAULT 'zh-CN'");
+            agreementColumns.put("signer_name", "VARCHAR(128)");
+            agreementColumns.put("location", "VARCHAR(255)");
+            agreementColumns.put("timezone", "VARCHAR(64)");
+            agreementColumns.put("signed_ip", "VARCHAR(64)");
+            agreementColumns.forEach((column, type) ->
+                    ensureColumn(connection, "user_agreement", column, type));
         } catch (Exception exception) {
             log.warn("结构升级检查失败: {}", exception.getMessage());
         }
@@ -192,6 +202,62 @@ public class SchemaUpgrade implements ApplicationRunner {
         } catch (Exception exception) {
             log.warn("创建封禁记录表失败: {}", exception.getMessage());
             return false;
+        }
+    }
+
+    /** 用户操作记录表：AOP 捕获并经 RabbitMQ 异步写入。 */
+    private void createOperationLogTable(Connection connection, boolean mysql) {
+        String sql;
+        if (mysql) {
+            sql = "CREATE TABLE IF NOT EXISTS user_operation_log ("
+                    + "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,"
+                    + "tenant_id BIGINT UNSIGNED NOT NULL,"
+                    + "user_id BIGINT UNSIGNED NOT NULL,"
+                    + "username VARCHAR(64) NULL,"
+                    + "display_name VARCHAR(64) NULL,"
+                    + "operation_type VARCHAR(32) NOT NULL,"
+                    + "action VARCHAR(32) NULL,"
+                    + "description VARCHAR(255) NULL,"
+                    + "method VARCHAR(16) NULL,"
+                    + "path VARCHAR(255) NULL,"
+                    + "ip VARCHAR(64) NULL,"
+                    + "user_agent VARCHAR(255) NULL,"
+                    + "created_at DATETIME NOT NULL,"
+                    + "PRIMARY KEY (id),"
+                    + "KEY idx_user_operation_user_time (user_id, created_at),"
+                    + "KEY idx_user_operation_type_time (operation_type, created_at),"
+                    + "KEY idx_user_operation_tenant (tenant_id)"
+                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+        } else {
+            sql = "CREATE TABLE IF NOT EXISTS user_operation_log ("
+                    + "id BIGSERIAL PRIMARY KEY,"
+                    + "tenant_id BIGINT NOT NULL,"
+                    + "user_id BIGINT NOT NULL,"
+                    + "username VARCHAR(64),"
+                    + "display_name VARCHAR(64),"
+                    + "operation_type VARCHAR(32) NOT NULL,"
+                    + "action VARCHAR(32),"
+                    + "description VARCHAR(255),"
+                    + "method VARCHAR(16),"
+                    + "path VARCHAR(255),"
+                    + "ip VARCHAR(64),"
+                    + "user_agent VARCHAR(255),"
+                    + "created_at TIMESTAMP NOT NULL"
+                    + ")";
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(sql);
+            if (!mysql) {
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_user_operation_user_time "
+                        + "ON user_operation_log (user_id, created_at)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_user_operation_type_time "
+                        + "ON user_operation_log (operation_type, created_at)");
+                statement.execute("CREATE INDEX IF NOT EXISTS idx_user_operation_tenant "
+                        + "ON user_operation_log (tenant_id)");
+            }
+            log.info("用户操作记录表检查完成（user_operation_log）");
+        } catch (Exception exception) {
+            log.warn("创建用户操作记录表失败: {}", exception.getMessage());
         }
     }
 

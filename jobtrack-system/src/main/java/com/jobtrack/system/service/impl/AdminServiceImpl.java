@@ -26,6 +26,8 @@ import com.jobtrack.system.pojo.vo.AdminUserPageVO;
 import com.jobtrack.system.pojo.vo.AdminUserVO;
 import com.jobtrack.system.pojo.vo.OnlineUserVO;
 import com.jobtrack.system.pojo.vo.PermissionVO;
+import com.jobtrack.system.pojo.vo.UserAgreementVO;
+import com.jobtrack.system.pojo.vo.UserActivityVO;
 import com.jobtrack.system.pojo.vo.UserProfileVO;
 import com.jobtrack.system.security.SessionInfo;
 import com.jobtrack.system.security.SessionService;
@@ -36,6 +38,8 @@ import com.jobtrack.system.service.BanService;
 import com.jobtrack.system.service.CacheService;
 import com.jobtrack.system.service.ContactService;
 import com.jobtrack.system.service.PermissionService;
+import com.jobtrack.system.service.UserAgreementService;
+import com.jobtrack.system.service.UserOperationLogService;
 import com.jobtrack.system.storage.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -86,6 +90,8 @@ public class AdminServiceImpl implements AdminService {
     private final PasswordEncoder passwordEncoder;
     private final ContactService contactService;
     private final AvatarService avatarService;
+    private final UserAgreementService agreementService;
+    private final UserOperationLogService operationLogService;
     private final ObjectStorageService objectStorage;
     private final AsyncTaskPublisher publisher;
     private final CacheService cacheService;
@@ -131,8 +137,10 @@ public class AdminServiceImpl implements AdminService {
 
         Map<Long, String> tenantNames = tenantNames();
         Map<Long, Integer> online = onlineCounts();
+        Map<Long, UserActivityVO> activity = operationLogService.lastActivity(
+                result.getRecords().stream().map(SysUser::getId).toList());
         List<AdminUserVO> items = result.getRecords().stream()
-                .map(user -> view(user, tenantNames, online))
+                .map(user -> view(user, tenantNames, online, activity))
                 .toList();
         return new AdminUserPageVO(items, result.getTotal(), current, size);
     }
@@ -141,6 +149,11 @@ public class AdminServiceImpl implements AdminService {
         SysUser user = requireUser(userId);
         UserProfile profile = profileMapper.selectByUserIdIgnoreTenant(userId);
         return new AdminUserDetailVO(view(user, tenantNames(), onlineCounts()), profileView(profile, userId));
+    }
+
+    public UserAgreementVO userAgreement(Long userId) {
+        requireUser(userId);
+        return agreementService.find(userId);
     }
 
     @Transactional
@@ -572,6 +585,12 @@ public class AdminServiceImpl implements AdminService {
 
     private AdminUserVO view(SysUser user, Map<Long, String> tenantNames,
                              Map<Long, Integer> online) {
+        return view(user, tenantNames, online, null);
+    }
+
+    private AdminUserVO view(SysUser user, Map<Long, String> tenantNames,
+                             Map<Long, Integer> online,
+                             Map<Long, UserActivityVO> activity) {
         List<String> permissions = permissionService.permissionsOf(user.getId());
         UserProfile profile = profileMapper.selectByUserIdIgnoreTenant(user.getId());
         // 封禁状态、时间与原因统一从封禁记录表读取。
@@ -597,6 +616,11 @@ public class AdminServiceImpl implements AdminService {
         view.setBanReason(ban == null ? null : ban.getReason());
         view.setCreatedAt(user.getCreatedAt());
         view.setUpdatedAt(user.getUpdatedAt());
+        UserActivityVO last = activity == null
+                ? operationLogService.activityOf(user.getId())
+                : activity.get(user.getId());
+        view.setLastOperationAt(last == null ? null : last.getLastOperationAt());
+        view.setLastLoginAt(last == null ? null : last.getLastLoginAt());
         return view;
     }
 

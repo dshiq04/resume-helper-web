@@ -121,9 +121,33 @@ CREATE TABLE IF NOT EXISTS user_agreement (
     tenant_id BIGINT NOT NULL,
     user_id BIGINT NOT NULL,
     accepted_at TIMESTAMP NOT NULL,
+    language VARCHAR(16) NOT NULL DEFAULT 'zh-CN',
+    signer_name VARCHAR(128),
+    location VARCHAR(255),
+    timezone VARCHAR(64),
+    signed_ip VARCHAR(64),
     CONSTRAINT uk_user_agreement_user UNIQUE (user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_user_agreement_tenant ON user_agreement (tenant_id);
+
+CREATE TABLE IF NOT EXISTS user_operation_log (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    username VARCHAR(64),
+    display_name VARCHAR(64),
+    operation_type VARCHAR(32) NOT NULL,
+    action VARCHAR(32),
+    description VARCHAR(255),
+    method VARCHAR(16),
+    path VARCHAR(255),
+    ip VARCHAR(64),
+    user_agent VARCHAR(255),
+    created_at TIMESTAMP NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_user_operation_user_time ON user_operation_log (user_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_user_operation_type_time ON user_operation_log (operation_type, created_at);
+CREATE INDEX IF NOT EXISTS idx_user_operation_tenant ON user_operation_log (tenant_id);
 
 -- 默认工作区与管理员账号（密码 123456 的 BCrypt 哈希）
 INSERT INTO sys_tenant (code, name, created_at)

@@ -83,6 +83,23 @@ public class AsyncTaskPublisher {
         }
     }
 
+    /**
+     * 发布用户操作记录。返回 false 表示发送失败，调用方应同步落库。
+     */
+    public boolean publishUserOperation(UserOperationMessage message) {
+        if (message == null || message.userId() == null || !enabled() || !available) {
+            return false;
+        }
+        try {
+            rabbitTemplate.convertAndSend("", MessagingQueues.USER_OPERATION,
+                    JsonUtils.toJson(message));
+            return true;
+        } catch (Exception exception) {
+            degrade(exception);
+            return false;
+        }
+    }
+
     private boolean enabled() {
         return appProperties.getRabbit().isEnabled();
     }

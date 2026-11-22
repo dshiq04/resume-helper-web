@@ -55,6 +55,14 @@ public class RegisterDTO {
     @AssertTrue(message = "请先阅读并同意用户协议")
     private Boolean agreementAccepted;
 
+    /** 注册时界面语言，用于记录用户协议的签署语言。 */
+    @Pattern(regexp = "^$|zh-CN|zh-TW|en|ja|ko|ru", message = "不支持的签署语言")
+    private String agreementLanguage;
+
+    /** 注册时浏览器时区，作为签署地点的兜底信息。 */
+    @Size(max = 64)
+    private String agreementTimezone;
+
     @AssertTrue(message = "两次输入的密码不一致")
     public boolean isPasswordConfirmed() {
         return password != null && password.equals(confirmPassword);

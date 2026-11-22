@@ -29,6 +29,8 @@ interface RegisterInput extends LoginInput {
   phone?: string;
   email?: string;
   agreementAccepted?: boolean;
+  agreementLanguage?: string;
+  agreementTimezone?: string;
 }
 
 /**

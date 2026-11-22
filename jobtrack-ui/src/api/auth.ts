@@ -1,5 +1,11 @@
 import { request } from "./client";
-import type { AuthResponse, CaptchaResponse, OnlineStatus, User } from "./types";
+import type {
+  AuthResponse,
+  CaptchaResponse,
+  OnlineStatus,
+  User,
+  UserAgreementRecord,
+} from "./types";
 
 /** 对应后端 AuthController。 */
 export const authApi = {
@@ -29,6 +35,8 @@ export const authApi = {
     phone?: string;
     email?: string;
     agreementAccepted?: boolean;
+    agreementLanguage?: string;
+    agreementTimezone?: string;
     captchaId?: string;
     captchaCode?: string;
   }) {
@@ -40,6 +48,22 @@ export const authApi = {
   },
   me() {
     return request<User>("/auth/me");
+  },
+  /** 当前账号的用户协议签署状态，用于登录后判断是否弹出补签。 */
+  agreement() {
+    return request<UserAgreementRecord>("/auth/agreement");
+  },
+  /** 登录后补签用户协议，同时上传签署语言、时区、地点等信息。 */
+  acceptAgreement(input: {
+    language?: string;
+    location?: string;
+    timezone?: string;
+    locale?: string;
+  }) {
+    return request<UserAgreementRecord>("/auth/agreement", {
+      method: "POST",
+      data: input,
+    });
   },
   updateProfile(displayName: string) {
     return request<User>("/auth/me", { method: "PUT", data: { displayName } });

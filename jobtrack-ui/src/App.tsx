@@ -3,6 +3,7 @@ import { App as AntdApp, Spin, Watermark } from "antd";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { useI18n } from "./i18n";
+import { AgreementGate } from "./components/AgreementGate";
 import { AppLayout } from "./layouts/AppLayout";
 import { ApplicationDetailPage } from "./pages/ApplicationDetailPage";
 import { AccountPage } from "./pages/AccountPage";
@@ -17,6 +18,7 @@ import { SettingsPage } from "./pages/SettingsPage";
 import { StatisticsPage } from "./pages/StatisticsPage";
 import { TrashPage } from "./pages/TrashPage";
 import { AdminOnlinePage } from "./pages/admin/AdminOnlinePage";
+import { AdminOperationsPage } from "./pages/admin/AdminOperationsPage";
 import { AdminPage } from "./pages/admin/AdminPage";
 import { AdminPermissionsPage } from "./pages/admin/AdminPermissionsPage";
 import { AdminUserDetailPage } from "./pages/admin/AdminUserDetailPage";
@@ -178,6 +180,14 @@ function AppShell() {
             )}
           />
           <Route
+            path="operations"
+            element={(
+              <AdminRoute permission="ADMIN_USERS">
+                <AdminOperationsPage />
+              </AdminRoute>
+            )}
+          />
+          <Route
             path="permissions"
             element={(
               <AdminRoute permission="ADMIN_PERMISSIONS">
@@ -209,9 +219,13 @@ function AppShell() {
       style={{ minHeight: "100vh" }}
     >
       {body}
+      {user && <AgreementGate />}
     </Watermark>
   ) : (
-    <>{body}</>
+    <>
+      {body}
+      {user && <AgreementGate />}
+    </>
   );
 }
 

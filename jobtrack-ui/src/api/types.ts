@@ -56,6 +56,10 @@ export interface AdminUser {
   banReason?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
+  /** 最后一次操作时间。 */
+  lastOperationAt?: string | null;
+  /** 最后一次成功登录时间。 */
+  lastLoginAt?: string | null;
 }
 
 export interface AdminUserPage {
@@ -68,6 +72,58 @@ export interface AdminUserPage {
 export interface AdminUserDetail {
   user: AdminUser;
   profile: UserProfile;
+}
+
+/** 用户协议签署记录。signed=false 表示尚未签署。 */
+export interface UserAgreementRecord {
+  signed: boolean;
+  userId: number;
+  username?: string;
+  displayName?: string;
+  tenantName?: string;
+  acceptedAt?: string | null;
+  /** 签署时界面语言：zh-CN / zh-TW / en / ja / ko / ru。 */
+  language?: string | null;
+  signerName?: string | null;
+  location?: string | null;
+  timezone?: string | null;
+  signedIp?: string | null;
+}
+
+export type OperationType =
+  | "LOGIN"
+  | "LOGOUT"
+  | "REGISTER"
+  | "AGREEMENT"
+  | "PROFILE"
+  | "SECURITY"
+  | "APPLICATION"
+  | "RESUME"
+  | "TOKEN"
+  | "ACCOUNT"
+  | "ADMIN"
+  | "OTHER";
+
+export interface UserOperationLog {
+  id: number;
+  userId: number;
+  username?: string | null;
+  displayName?: string | null;
+  operationType: OperationType | string;
+  action?: string | null;
+  description?: string | null;
+  method?: string | null;
+  path?: string | null;
+  ip?: string | null;
+  userAgent?: string | null;
+  createdAt: string;
+}
+
+export interface UserOperationPage {
+  items: UserOperationLog[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
 export interface PermissionItem {

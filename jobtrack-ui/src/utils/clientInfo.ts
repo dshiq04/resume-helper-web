@@ -71,8 +71,7 @@ function androidVersion(userAgent: string): string {
   return match ? ` ${match[1]}` : "";
 }
 
-/**
- * 当前客户端系统信息。优先使用 User-Agent Client Hints，
+/** 当前客户端系统信息。优先使用 User-Agent Client Hints，
  * 老旧浏览器则回退到 userAgent / platform 解析。
  */
 export async function getClientInfo(): Promise<ClientInfo> {
@@ -114,6 +113,20 @@ export async function getClientInfo(): Promise<ClientInfo> {
     return { platform, system: distro ? `Linux (${distro})` : "Linux" };
   }
   return { platform, system: uaPlatform || "未知系统" };
+}
+
+/** 当前浏览器时区，签署记录与导出协议时使用。 */
+export function getTimeZone(): string {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || "";
+  } catch {
+    return "";
+  }
+}
+
+/** 当前浏览器语言标识，用于服务端在缺少签署语言时兜底。 */
+export function getLocale(): string {
+  return navigator.language || "";
 }
 
 /** 复制文本，兼容非安全上下文（如通过局域网 HTTP 访问）。 */

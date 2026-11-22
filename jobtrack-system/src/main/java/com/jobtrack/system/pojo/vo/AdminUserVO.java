@@ -29,4 +29,8 @@ public class AdminUserVO {
     private String banReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    /** 最后一次操作时间（来自 user_operation_log）。 */
+    private LocalDateTime lastOperationAt;
+    /** 最后一次成功登录时间。 */
+    private LocalDateTime lastLoginAt;
 }

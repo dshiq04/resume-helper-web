@@ -128,9 +128,34 @@ CREATE TABLE IF NOT EXISTS user_agreement (
     tenant_id BIGINT UNSIGNED NOT NULL,
     user_id BIGINT UNSIGNED NOT NULL,
     accepted_at DATETIME NOT NULL,
+    language VARCHAR(16) NOT NULL DEFAULT 'zh-CN',
+    signer_name VARCHAR(128) NULL,
+    location VARCHAR(255) NULL,
+    timezone VARCHAR(64) NULL,
+    signed_ip VARCHAR(64) NULL,
     PRIMARY KEY (id),
     UNIQUE KEY uk_user_agreement_user (user_id),
     KEY idx_user_agreement_tenant (tenant_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS user_operation_log (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    tenant_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    username VARCHAR(64) NULL,
+    display_name VARCHAR(64) NULL,
+    operation_type VARCHAR(32) NOT NULL,
+    action VARCHAR(32) NULL,
+    description VARCHAR(255) NULL,
+    method VARCHAR(16) NULL,
+    path VARCHAR(255) NULL,
+    ip VARCHAR(64) NULL,
+    user_agent VARCHAR(255) NULL,
+    created_at DATETIME NOT NULL,
+    PRIMARY KEY (id),
+    KEY idx_user_operation_user_time (user_id, created_at),
+    KEY idx_user_operation_type_time (operation_type, created_at),
+    KEY idx_user_operation_tenant (tenant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 默认工作区与管理员账号（密码 123456 的 BCrypt 哈希）

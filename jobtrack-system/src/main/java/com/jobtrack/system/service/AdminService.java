@@ -13,6 +13,7 @@ import com.jobtrack.system.pojo.vo.AdminUserPageVO;
 import com.jobtrack.system.pojo.vo.AdminUserVO;
 import com.jobtrack.system.pojo.vo.OnlineUserVO;
 import com.jobtrack.system.pojo.vo.PermissionVO;
+import com.jobtrack.system.pojo.vo.UserAgreementVO;
 import com.jobtrack.system.pojo.vo.UserProfileVO;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -26,6 +27,8 @@ public interface AdminService {
     AdminUserPageVO listUsers(String search, String status, int page, int pageSize);
 
     AdminUserDetailVO detail(Long userId);
+
+    UserAgreementVO userAgreement(Long userId);
 
     AdminUserVO updateUser(Long userId, AdminUserUpdateDTO request);
 

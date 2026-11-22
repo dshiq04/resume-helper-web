@@ -51,6 +51,7 @@ public class RabbitConfig {
                 rabbitAdmin.declareQueue(new Queue(MessagingQueues.TOKEN_LOG, true));
                 rabbitAdmin.declareQueue(new Queue(MessagingQueues.TOKEN_INVALIDATE, true));
                 rabbitAdmin.declareQueue(new Queue(MessagingQueues.USER_BAN, true));
+                rabbitAdmin.declareQueue(new Queue(MessagingQueues.USER_OPERATION, true));
                 log.info("RabbitMQ 队列已声明");
             } catch (Exception exception) {
                 log.warn("RabbitMQ 队列声明失败（Broker 不可用时会自动降级）: {}", exception.getMessage());
@@ -76,6 +77,11 @@ public class RabbitConfig {
     @Bean
     public Queue userBanQueue() {
         return new Queue(MessagingQueues.USER_BAN, true);
+    }
+
+    @Bean
+    public Queue userOperationQueue() {
+        return new Queue(MessagingQueues.USER_OPERATION, true);
     }
 
     @Bean

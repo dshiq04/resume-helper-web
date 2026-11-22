@@ -7,6 +7,7 @@ public final class MessagingQueues {
     public static final String TOKEN_LOG = "jobtrack.token.log";
     public static final String TOKEN_INVALIDATE = "jobtrack.token.invalidate";
     public static final String USER_BAN = "jobtrack.user.ban";
+    public static final String USER_OPERATION = "jobtrack.user.operation";
 
     private MessagingQueues() {
     }

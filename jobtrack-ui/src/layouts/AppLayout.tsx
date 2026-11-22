@@ -28,6 +28,7 @@ import {
   TeamOutlined,
   UserSwitchOutlined,
   AuditOutlined,
+  HistoryOutlined,
 } from "@ant-design/icons";
 import { App as AntdApp, Breadcrumb, Drawer, Menu as AntdMenu, type MenuProps } from "antd";
 import dayjs from "dayjs";
@@ -76,6 +77,7 @@ const PATH_KEYS: Record<string, string> = {
   "/account/tokens": "account.tokensTab",
   "/admin": "admin.title",
   "/admin/users": "admin.users",
+  "/admin/operations": "admin.operations",
   "/admin/online": "admin.online",
   "/admin/permissions": "admin.permissions",
 };
@@ -96,6 +98,7 @@ const PATH_CRUMB: Record<string, { group?: string; key: string }> = {
   "/account/tokens": { group: "nav.account", key: "account.tokensTab" },
   "/admin": { group: "admin.group", key: "admin.title" },
   "/admin/users": { group: "admin.group", key: "admin.users" },
+  "/admin/operations": { group: "admin.group", key: "admin.operations" },
   "/admin/online": { group: "admin.group", key: "admin.online" },
   "/admin/permissions": { group: "admin.group", key: "admin.permissions" },
 };
@@ -227,7 +230,10 @@ export function AppLayout() {
             label: t("admin.group"),
             children: [
               ...(canManageUsers(user)
-                ? [{ key: "/admin/users", icon: <UserSwitchOutlined />, label: t("admin.users") }]
+                ? [
+                    { key: "/admin/users", icon: <UserSwitchOutlined />, label: t("admin.users") },
+                    { key: "/admin/operations", icon: <HistoryOutlined />, label: t("admin.operations") },
+                  ]
                 : []),
               ...(canViewOnline(user)
                 ? [{ key: "/admin/online", icon: <TeamOutlined />, label: t("admin.online") }]
@@ -249,7 +255,7 @@ export function AppLayout() {
     }
     const known = ["/", "/spring", "/autumn", "/internship", "/social",
       "/resumes", "/statistics", "/trash", "/settings",
-      "/admin/users", "/admin/online", "/admin/permissions"];
+      "/admin/users", "/admin/operations", "/admin/online", "/admin/permissions"];
     return known.includes(path) ? [path] : [];
   }, [location.pathname]);
 

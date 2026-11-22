@@ -24,6 +24,8 @@ import { useI18n } from "../../i18n";
 import { COUNTRY_CODES, joinPhone, splitPhone } from "../../utils/countryCodes";
 import { errorMessage } from "../../utils/errors";
 import { AdminUserApplicationsPanel } from "./AdminUserApplicationsPanel";
+import { AdminUserAgreementPanel } from "./AdminUserAgreementPanel";
+import { AdminUserOperationsPanel } from "./AdminUserOperationsPanel";
 import { AdminUserResumesPanel } from "./AdminUserResumesPanel";
 import { AdminUserTokensPanel } from "./AdminUserTokensPanel";
 
@@ -271,6 +273,25 @@ export function AdminUserDetailPage() {
               {t("admin.changeAvatar")}
             </Button>
             <p className="setting-hint">{t("admin.avatarHint")}</p>
+          </div>
+        </div>
+
+        <div className="admin-detail-activity">
+          <div>
+            <span>{t("admin.lastOperation")}</span>
+            <strong>
+              {user.lastOperationAt
+                ? dayjs(user.lastOperationAt).format("YYYY-MM-DD HH:mm")
+                : "—"}
+            </strong>
+          </div>
+          <div>
+            <span>{t("admin.lastLogin")}</span>
+            <strong>
+              {user.lastLoginAt
+                ? dayjs(user.lastLoginAt).format("YYYY-MM-DD HH:mm")
+                : "—"}
+            </strong>
           </div>
         </div>
 
@@ -537,6 +558,16 @@ export function AdminUserDetailPage() {
               children: <AdminUserResumesPanel userId={user.id} />,
             },
             { key: "security", label: t("admin.tabSecurity"), children: securityTab },
+            {
+              key: "agreement",
+              label: t("admin.tabAgreement"),
+              children: <AdminUserAgreementPanel userId={user.id} />,
+            },
+            {
+              key: "operations",
+              label: t("admin.tabOperations"),
+              children: <AdminUserOperationsPanel userId={user.id} />,
+            },
           ]}
         />
       ) : (
