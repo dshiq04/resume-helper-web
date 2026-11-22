@@ -69,16 +69,16 @@ public class AuthServiceImpl implements AuthService {
     public AuthVO login(LoginDTO request) {
         captchaService.verify(request.getCaptchaId(), request.getCaptchaCode());
         String username = normalizeUsername(request.getUsername());
+        // 查询用户时直接排除已注销账号：注销账号视同不存在（返回用户名或密码错误）。
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
-                .eq(SysUser::getUsername, username));
+                .eq(SysUser::getUsername, username)
+                .and(w -> w.isNull(SysUser::getStatus)
+                        .or().ne(SysUser::getStatus, "CANCELLED")));
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw BusinessException.unauthorized("invalid_credentials", INVALID_CREDENTIALS_MESSAGE);
         }
         if (!Boolean.TRUE.equals(user.getEnabled())) {
             throw BusinessException.forbidden("account_disabled", "该账号已被停用");
-        }
-        if (user.getStatus() != null && "CANCELLED".equalsIgnoreCase(user.getStatus())) {
-            throw BusinessException.forbidden("account_cancelled", "该账号已注销");
         }
         return session(user);
     }
