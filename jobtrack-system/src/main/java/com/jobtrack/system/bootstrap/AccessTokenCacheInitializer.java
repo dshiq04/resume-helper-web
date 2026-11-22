@@ -4,12 +4,14 @@ import com.jobtrack.system.service.AccessTokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
  * 启动时把数据库中的授权码同步到 Redis Hash，保证升级后旧授权码可继续使用。
  */
 @Component
+@Order(30)
 @RequiredArgsConstructor
 public class AccessTokenCacheInitializer implements ApplicationRunner {
 

@@ -28,6 +28,11 @@ public class PermissionServiceImpl implements PermissionService {
         return codes == null ? List.of() : codes;
     }
 
+    public List<SysPermission> listPermissions() {
+        return permissionMapper.selectList(Wrappers.<SysPermission>lambdaQuery()
+                .orderByAsc(SysPermission::getId));
+    }
+
     @Transactional
     public void grant(Long userId, String code) {
         SysPermission permission = permissionMapper.selectByCodeIgnoreTenant(code);
@@ -41,6 +46,17 @@ public class PermissionServiceImpl implements PermissionService {
         relation.setUserId(userId);
         relation.setPermissionId(permission.getId());
         userPermissionMapper.insert(relation);
+    }
+
+    @Transactional
+    public void revoke(Long userId, String code) {
+        SysPermission permission = permissionMapper.selectByCodeIgnoreTenant(code);
+        if (permission == null) {
+            throw BusinessException.notFound("permission_missing", "权限不存在: " + code);
+        }
+        userPermissionMapper.delete(Wrappers.<SysUserPermission>lambdaQuery()
+                .eq(SysUserPermission::getUserId, userId)
+                .eq(SysUserPermission::getPermissionId, permission.getId()));
     }
 
     public boolean has(Long userId, String code) {

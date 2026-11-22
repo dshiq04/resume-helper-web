@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS sys_user (
     display_name VARCHAR(128),
     role VARCHAR(32) NOT NULL DEFAULT 'USER',
     status VARCHAR(16) NOT NULL DEFAULT 'NORMAL',
+    ban_type VARCHAR(16),
+    ban_until TIMESTAMP,
+    banned_at TIMESTAMP,
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP,
     updated_at TIMESTAMP

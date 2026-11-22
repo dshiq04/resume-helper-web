@@ -1,5 +1,7 @@
 package com.jobtrack.system.service;
 
+import com.jobtrack.system.pojo.po.SysPermission;
+
 import java.util.List;
 
 /**
@@ -8,11 +10,20 @@ import java.util.List;
  */
 public interface PermissionService {
 
+    /** 管理员控制台权限编码：拥有它才能访问 /api/admin/**。 */
+    String ADMIN_CONSOLE = "ADMIN_CONSOLE";
+
     /** 用户拥有的全部权限编码，如 [USER] 或 [USER, ADMIN]。 */
     List<String> permissionsOf(Long userId);
 
+    /** 权限字典中的全部权限。 */
+    List<SysPermission> listPermissions();
+
     /** 授予用户一个权限（幂等）。 */
     void grant(Long userId, String code);
+
+    /** 收回用户的一个权限（幂等）。 */
+    void revoke(Long userId, String code);
 
     /** 用户是否拥有指定权限。 */
     boolean has(Long userId, String code);
@@ -20,9 +31,10 @@ public interface PermissionService {
     /** 用户是否拥有普通用户以外的权限。 */
     boolean hasElevated(Long userId);
 
-    /** 根据权限列表推导角色：拥有 ADMIN 权限则为 ADMIN，否则 USER。 */
+    /** 根据权限列表推导角色：拥有管理员或管理员控制台权限则为 ADMIN，否则 USER。 */
     static String roleOf(List<String> permissions) {
-        if (permissions != null && permissions.stream().anyMatch("ADMIN"::equalsIgnoreCase)) {
+        if (permissions != null && permissions.stream().anyMatch(code ->
+                "ADMIN".equalsIgnoreCase(code) || ADMIN_CONSOLE.equalsIgnoreCase(code))) {
             return "ADMIN";
         }
         return "USER";

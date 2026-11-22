@@ -77,6 +77,10 @@ public class SecurityConfig {
                                 "/api/health",
                                 "/api/config")
                         .permitAll()
+                        // 管理员接口：必须拥有管理员角色或独立的管理员控制台权限。
+                        // 授权码不会获得 ROLE_*，因此扩展授权码无法访问这里。
+                        .requestMatchers("/api/admin/**")
+                        .hasAnyRole("ADMIN", "ADMIN_CONSOLE")
                         // 授权码权限由 SCOPE_* 权限控制：读接口需要 read/readwrite，
                         // 写接口需要 write/readwrite；JWT 登录用户拥有全部 SCOPE。
                         .requestMatchers(HttpMethod.GET, "/api/**")

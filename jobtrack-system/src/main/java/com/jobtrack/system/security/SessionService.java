@@ -5,11 +5,15 @@ import com.jobtrack.system.config.RedisSettings;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.Cursor;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
@@ -140,6 +144,48 @@ public class SessionService {
         memory.entrySet().removeIf(entry -> userId.equals(entry.getValue().info.getUserId()));
     }
 
+    /**
+     * 列出所有在线会话，供管理员「在线用户」页使用。
+     * 该方法不按租户过滤，管理员可以看到全部工作区的会话。
+     */
+    public List<OnlineSession> listSessions() {
+        List<OnlineSession> result = new ArrayList<>();
+        if (useRedis()) {
+            String prefix = redisSettings.getKeyPrefix() + "session:";
+            try (Cursor<String> cursor = redisTemplate.scan(ScanOptions.scanOptions()
+                    .match(prefix + "*").count(500).build())) {
+                while (cursor.hasNext()) {
+                    String key = cursor.next();
+                    String value = redisTemplate.opsForValue().get(key);
+                    if (value == null || value.isBlank()) {
+                        continue;
+                    }
+                    try {
+                        SessionInfo info = JsonUtils.fromJson(value, SessionInfo.class);
+                        Long ttl = redisTemplate.getExpire(key);
+                        result.add(new OnlineSession(key.substring(prefix.length()), info,
+                                ttl == null ? 0 : Math.max(0, ttl)));
+                    } catch (IllegalArgumentException exception) {
+                        redisTemplate.delete(key);
+                    }
+                }
+                return result;
+            } catch (Exception exception) {
+                disableRedis(exception);
+            }
+        }
+        Instant now = Instant.now();
+        memory.forEach((sid, session) -> {
+            if (session.expiresAt.isAfter(now)) {
+                result.add(new OnlineSession(sid, session.info,
+                        Duration.between(now, session.expiresAt).toSeconds()));
+            } else {
+                memory.remove(sid);
+            }
+        });
+        return result;
+    }
+
     public long countOnline(Long tenantId) {
         if (tenantId == null) {
             return 0;
@@ -228,6 +274,10 @@ public class SessionService {
 
     private String tenantKey(Long tenantId) {
         return redisSettings.getKeyPrefix() + "tenant:" + tenantId + ":online";
+    }
+
+    /** 在线会话快照，剩余有效时间仅用于展示。 */
+    public record OnlineSession(String sessionId, SessionInfo info, long expiresInSeconds) {
     }
 
     private static final class MemorySession {

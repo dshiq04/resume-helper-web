@@ -16,6 +16,9 @@ public interface AccessTokenService {
 
     List<AccessTokenVO> list(Long userId);
 
+    /** 删除指定用户授权码在 Redis 中的缓存，用于级联删除用户。 */
+    void evictUserCache(Long userId);
+
     AccessTokenVO create(Long tenantId, Long userId, AccessTokenCreateDTO request);
 
     void delete(Long userId, Long id);

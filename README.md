@@ -405,8 +405,21 @@ Content-Type: application/json
 
 返回 `valid`、`reason`（invalid / expired / disabled）、`scope`、`resources`、`expiresOn` 以及账号的 `username`、`displayName`。每次调用（含失败）都会记录使用日志，并刷新授权码的最近使用时间。
 
-- 校验失败时返回对应状态码：`401` 不存在 / 已删除，`403` 已停用或账号异常，`410` 已过期。
+- 校验失败时返回对应状态码：`401` 不存在 / 已删除，`403` 已停用、账号异常或账号封禁，`410` 已过期。
 - 授权码生成、启用/停用、删除时会同步写入 Redis Hash（`jobtrack:access-code:<code>`），校验与接口鉴权优先从 Redis 读取；缓存未命中视为无效，启动时会全量同步数据库中的授权码。
+
+---
+
+## 管理员控制台
+
+拥有 `ADMIN` 或独立权限 `ADMIN_CONSOLE` 的账号，侧边栏会出现「管理员」菜单（`/admin`），接口统一位于 `/api/admin/**` 并由 Spring Security 校验权限：
+
+- **用户管理**：跨工作区查看所有用户，支持搜索、修改用户名/显示名称/工作区、编辑个人资料与联系方式、重置密码、修改为正常/注销/封禁（永久或暂时）、删除用户。删除会级联清理该用户的投递、时间线、回收站、简历文件、授权码、使用日志、个人资料与工作区。
+- **在线用户**：查看所有租户的在线会话并踢出，踢出会注销登录令牌并删除 Redis 中的在线状态与令牌信息。
+- **权限授权**：查看权限字典，把权限授予已存在的成员或收回；权限变更后目标用户需要重新登录。
+- 管理员重置密码无需验证原密码，但会立即让该用户所有设备下线。
+- 封禁状态同时写入数据库与 Redis 封禁集合（`jobtrack:ban:users`，通过 RabbitMQ 队列 `jobtrack.user.ban` 同步）。登录、JWT 令牌校验与授权码校验都会拒绝封禁用户并返回明确的解封提示。
+- 修改手机号/邮箱时会校验其他未注销账号是否已占用，占用时禁止修改。
 
 ---
 
@@ -456,6 +469,16 @@ Content-Type: application/json
 | `DELETE` | `/api/account/tokens/{id}` | 逻辑删除授权码（数据库保留） |
 | `GET` | `/api/account/tokens/logs?page=1&pageSize=10&name=&result=` | 授权码使用日志（分页，可按名称与结果过滤） |
 | `POST` | `/api/tokens/validate` | 校验授权码（无需登录） |
+| `GET` | `/api/admin/users` | 管理员：跨工作区用户列表 |
+| `GET/PUT/DELETE` | `/api/admin/users/{id}` | 管理员：用户详情 / 修改 / 级联删除 |
+| `PUT` | `/api/admin/users/{id}/status` | 管理员：正常 / 注销 / 封禁（永久或暂时） |
+| `POST` | `/api/admin/users/{id}/password` | 管理员：免验证重置密码并注销全部会话 |
+| `GET/POST` | `/api/admin/users/{id}/tokens` | 管理员：查看 / 生成指定用户的授权码 |
+| `GET` | `/api/admin/online` | 管理员：在线用户列表 |
+| `POST` | `/api/admin/online/{userId}/kick` | 管理员：踢出在线用户 |
+| `GET` | `/api/admin/permissions` | 管理员：权限字典 |
+| `POST` | `/api/admin/users/{id}/permissions` | 管理员：授予权限 |
+| `DELETE` | `/api/admin/users/{id}/permissions/{code}` | 管理员：收回权限 |
 
 除健康检查、公共配置与登录/注册/验证码外，`/api/**` 都需要：
 

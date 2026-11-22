@@ -1,6 +1,7 @@
 package com.jobtrack.system.pojo.po;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -33,8 +34,19 @@ public class SysUser {
 
     private String role;
 
-    /** 账号状态：NORMAL 正常 / CANCELLED 已注销。 */
+    /** 账号状态：NORMAL 正常 / CANCELLED 已注销 / BANNED 已封禁。 */
     private String status;
+
+    /** 封禁类型：PERMANENT 永久 / TEMPORARY 暂时；仅 status=BANNED 时有值。 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private String banType;
+
+    /** 暂时封禁的到期时间；永久封禁为空。 */
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDateTime banUntil;
+
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
+    private LocalDateTime bannedAt;
 
     private Boolean enabled;
 

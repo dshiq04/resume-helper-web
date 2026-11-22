@@ -20,6 +20,7 @@ import dayjsZhTw from "dayjs/locale/zh-tw";
 import dayjsJa from "dayjs/locale/ja";
 import dayjsKo from "dayjs/locale/ko";
 import dayjsRu from "dayjs/locale/ru";
+import { adminEn, adminZh } from "./i18n/admin";
 import { ja, ko, ru } from "./i18n/extra";
 import { zhTW } from "./i18n/zhTW";
 
@@ -1043,12 +1044,12 @@ const en: Record<string, string> = {
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = {
-  "zh-CN": zh,
-  "zh-TW": zhTW,
-  en,
-  ja,
-  ko,
-  ru,
+  "zh-CN": { ...zh, ...adminZh },
+  "zh-TW": { ...zhTW, ...adminZh },
+  en: { ...en, ...adminEn },
+  ja: { ...ja, ...adminZh },
+  ko: { ...ko, ...adminZh },
+  ru: { ...ru, ...adminZh },
 };
 
 /** Vite 8 对部分 CommonJS 语言包会多包一层 default，这里统一解包。 */

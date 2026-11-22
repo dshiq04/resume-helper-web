@@ -21,10 +21,13 @@ import {
   MoonOutlined,
   ProfileOutlined,
   SettingOutlined,
+  SafetyCertificateOutlined,
   SolutionOutlined,
   StarOutlined,
   SunOutlined,
   TeamOutlined,
+  UserSwitchOutlined,
+  AuditOutlined,
 } from "@ant-design/icons";
 import { App as AntdApp, Breadcrumb, Drawer, Menu as AntdMenu, type MenuProps } from "antd";
 import dayjs from "dayjs";
@@ -42,6 +45,7 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { loadOnline } from "../store/slices/metaSlice";
 import { closeTab, syncRoute } from "../store/slices/tabsSlice";
 import { setSidebarCollapsed, toggleTheme } from "../store/slices/uiSlice";
+import { isAdminUser } from "../utils/permissions";
 
 function withCount(label: string, count?: number) {
   return (
@@ -65,6 +69,10 @@ const PATH_KEYS: Record<string, string> = {
   "/account": "account.title",
   "/account/profile": "account.profileTab",
   "/account/tokens": "account.tokensTab",
+  "/admin": "admin.title",
+  "/admin/users": "admin.users",
+  "/admin/online": "admin.online",
+  "/admin/permissions": "admin.permissions",
 };
 
 /** 面包屑层级：group 为一级菜单，key 为当前页对应的二级菜单 / 顶级菜单。 */
@@ -81,6 +89,10 @@ const PATH_CRUMB: Record<string, { group?: string; key: string }> = {
   "/account": { group: "nav.account", key: "account.title" },
   "/account/profile": { group: "nav.account", key: "account.profileTab" },
   "/account/tokens": { group: "nav.account", key: "account.tokensTab" },
+  "/admin": { group: "admin.group", key: "admin.title" },
+  "/admin/users": { group: "admin.group", key: "admin.users" },
+  "/admin/online": { group: "admin.group", key: "admin.online" },
+  "/admin/permissions": { group: "admin.group", key: "admin.permissions" },
 };
 
 function tabForPath(path: string): PageTab | null {
@@ -135,10 +147,12 @@ export function AppLayout() {
     const path = location.pathname;
     const group = path === "/resumes"
       ? "group:resumes"
-      : (path === "/" || ["/spring", "/autumn", "/internship", "/social"].includes(path)
-        || path.startsWith("/applications/"))
-        ? "group:applications"
-        : null;
+      : path.startsWith("/admin/")
+        ? "group:admin"
+        : (path === "/" || ["/spring", "/autumn", "/internship", "/social"].includes(path)
+          || path.startsWith("/applications/"))
+          ? "group:applications"
+          : null;
     if (group) {
       setOpenKeys((current) => (current.includes(group) ? current : [...current, group]));
     }
@@ -198,14 +212,27 @@ export function AppLayout() {
       { key: "/statistics", icon: <BarChartOutlined />, label: t("nav.statistics") },
       { key: "/trash", icon: <DeleteOutlined />, label: t("nav.trash") },
       { key: "/settings", icon: <SettingOutlined />, label: t("nav.settings") },
+      ...(isAdminUser(user)
+        ? [{
+            key: "group:admin",
+            icon: <SafetyCertificateOutlined />,
+            label: t("admin.group"),
+            children: [
+              { key: "/admin/users", icon: <UserSwitchOutlined />, label: t("admin.users") },
+              { key: "/admin/online", icon: <TeamOutlined />, label: t("admin.online") },
+              { key: "/admin/permissions", icon: <AuditOutlined />, label: t("admin.permissions") },
+            ],
+          }]
+        : []),
     ],
-    [stats, t],
+    [stats, t, user],
   );
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;
     const known = ["/", "/spring", "/autumn", "/internship", "/social",
-      "/resumes", "/statistics", "/trash", "/settings"];
+      "/resumes", "/statistics", "/trash", "/settings",
+      "/admin/users", "/admin/online", "/admin/permissions"];
     return known.includes(path) ? [path] : [];
   }, [location.pathname]);
 

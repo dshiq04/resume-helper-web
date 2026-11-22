@@ -84,11 +84,13 @@ async function validate(silent = false) {
     if (!response.ok || !data || !data.valid) {
       if (!silent) {
         const reason = data && data.reason;
-        const message = response.status === 410 || reason === "expired"
-          ? "授权码已过期"
-          : response.status === 403 || reason === "disabled"
-            ? "授权码已停用或账号状态异常"
-            : "授权码无效或已被删除";
+        const message = reason === "banned"
+          ? (data.message || "该账号已被封禁")
+          : response.status === 410 || reason === "expired"
+            ? "授权码已过期"
+            : response.status === 403 || reason === "disabled"
+              ? "授权码已停用或账号状态异常"
+              : "授权码无效或已被删除";
         showError(message);
         setStatus(message, false);
       }

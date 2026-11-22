@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, type ReactNode } from "react";
 import { App as AntdApp, Spin, Watermark } from "antd";
 import { Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
@@ -16,8 +16,19 @@ import { ResumesPage } from "./pages/ResumesPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { StatisticsPage } from "./pages/StatisticsPage";
 import { TrashPage } from "./pages/TrashPage";
+import { AdminOnlinePage } from "./pages/admin/AdminOnlinePage";
+import { AdminPage } from "./pages/admin/AdminPage";
+import { AdminPermissionsPage } from "./pages/admin/AdminPermissionsPage";
+import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
 import { loadPreferences, refreshStats } from "./store/slices/metaSlice";
+import { isAdminUser } from "./utils/permissions";
+
+/** 管理员路由守卫：没有管理员控制台权限时不会渲染任何管理员页面。 */
+function AdminRoute({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  return isAdminUser(user) ? <>{children}</> : <Navigate to="/" replace />;
+}
 
 function AppShell() {
   const { user, loading, logout } = useAuth();
@@ -113,6 +124,19 @@ function AppShell() {
           <Route path="profile" element={<AccountProfilePage />} />
           <Route path="tokens" element={<AccountTokensPage />} />
           <Route path="cancel" element={<AccountCancelEntryPage />} />
+        </Route>
+        <Route
+          path="admin"
+          element={(
+            <AdminRoute>
+              <AdminPage />
+            </AdminRoute>
+          )}
+        >
+          <Route index element={<Navigate to="users" replace />} />
+          <Route path="users" element={<AdminUsersPage />} />
+          <Route path="online" element={<AdminOnlinePage />} />
+          <Route path="permissions" element={<AdminPermissionsPage />} />
         </Route>
         <Route path="applications/:id" element={<ApplicationDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

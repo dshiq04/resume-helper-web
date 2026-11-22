@@ -23,10 +23,67 @@ export interface User {
   username: string;
   displayName: string;
   role: string;
-  /** 账号状态：NORMAL 正常 / CANCELLED 已注销。 */
+  /** 账号状态：NORMAL 正常 / CANCELLED 已注销 / BANNED 已封禁。 */
   status?: string;
   tenantName: string;
   avatarUrl?: string | null;
+  /** 用户权限编码，如 USER / ADMIN / ADMIN_CONSOLE。 */
+  permissions?: string[];
+  enabled?: boolean;
+  banType?: string | null;
+  banUntil?: string | null;
+  bannedAt?: string | null;
+  createdAt?: string | null;
+}
+
+export interface AdminUser {
+  id: number;
+  tenantId: number;
+  username: string;
+  displayName: string;
+  role: string;
+  status: string;
+  enabled: boolean;
+  tenantName: string;
+  avatarUrl?: string | null;
+  permissions: string[];
+  online: boolean;
+  onlineSessions: number;
+  banType?: string | null;
+  banUntil?: string | null;
+  bannedAt?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+}
+
+export interface AdminUserPage {
+  items: AdminUser[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface AdminUserDetail {
+  user: AdminUser;
+  profile: UserProfile;
+}
+
+export interface PermissionItem {
+  id: number;
+  code: string;
+  name: string;
+  description?: string | null;
+}
+
+export interface OnlineUser {
+  userId: number;
+  tenantId: number;
+  username: string;
+  displayName: string;
+  tenantName: string;
+  avatarUrl?: string | null;
+  sessions: number;
+  remainingSeconds: number[];
 }
 
 export interface ImportResult {
@@ -90,7 +147,7 @@ export interface AccessTokenLog {
   codePrefix?: string | null;
   scope?: TokenScope | null;
   resources: TokenResource[];
-  result: "valid" | "invalid" | "expired" | "disabled";
+  result: "valid" | "invalid" | "expired" | "disabled" | "banned";
   ip?: string | null;
   userAgent?: string | null;
   createdAt?: string | null;

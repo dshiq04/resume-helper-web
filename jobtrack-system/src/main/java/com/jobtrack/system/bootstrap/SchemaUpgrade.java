@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
@@ -23,6 +24,7 @@ import java.util.Map;
  */
 @Slf4j
 @Component
+@Order(0)
 @RequiredArgsConstructor
 public class SchemaUpgrade implements ApplicationRunner {
 
@@ -42,10 +44,15 @@ public class SchemaUpgrade implements ApplicationRunner {
                     ? "TINYINT(1) NOT NULL DEFAULT 0" : "BOOLEAN NOT NULL DEFAULT FALSE");
             tokenColumns.forEach((column, type) -> ensureColumn(connection, "access_token", column, type));
             ensureColumn(connection, "access_token_log", "resources", "VARCHAR(200)");
-            // 用户状态：NORMAL 正常 / CANCELLED 已注销，默认正常。
+            // 用户状态：NORMAL 正常 / CANCELLED 已注销 / BANNED 已封禁，默认正常。
             ensureColumn(connection, "sys_user", "status",
                     mysql ? "VARCHAR(16) NOT NULL DEFAULT 'NORMAL'"
                           : "VARCHAR(16) NOT NULL DEFAULT 'NORMAL'");
+            ensureColumn(connection, "sys_user", "ban_type", "VARCHAR(16) NULL");
+            ensureColumn(connection, "sys_user", "ban_until",
+                    mysql ? "DATETIME NULL" : "TIMESTAMP NULL");
+            ensureColumn(connection, "sys_user", "banned_at",
+                    mysql ? "DATETIME NULL" : "TIMESTAMP NULL");
             // 用户名唯一索引 → 普通索引（唯一性改为逻辑判断，注销后可重新注册）。
             demoteUsernameUniqueIndex(connection, mysql);
         } catch (Exception exception) {
@@ -102,11 +109,23 @@ public class SchemaUpgrade implements ApplicationRunner {
             statement.execute("INSERT INTO sys_permission (code, name, description) "
                     + "SELECT 'ADMIN', '管理员', '管理员权限'" + fromDual + " WHERE NOT EXISTS "
                     + "(SELECT 1 FROM sys_permission WHERE code = 'ADMIN')");
+            // 独立的管理员控制台权限：只有持有它（或 ADMIN）才能访问 /api/admin/**。
+            statement.execute("INSERT INTO sys_permission (code, name, description) "
+                    + "SELECT 'ADMIN_CONSOLE', '管理员控制台', '访问管理员菜单与 /api/admin/** 接口'"
+                    + fromDual + " WHERE NOT EXISTS "
+                    + "(SELECT 1 FROM sys_permission WHERE code = 'ADMIN_CONSOLE')");
             // 历史数据迁移：把 sys_user.role 复制到用户权限对应表（只补缺，不重复）。
             statement.execute("INSERT INTO sys_user_permission (user_id, permission_id) "
                     + "SELECT u.id, p.id FROM sys_user u "
                     + "JOIN sys_permission p ON p.code = u.role "
                     + "WHERE NOT EXISTS (SELECT 1 FROM sys_user_permission up "
+                    + "WHERE up.user_id = u.id AND up.permission_id = p.id)");
+            // 已有 admin 角色自动获得独立的管理员控制台权限。
+            statement.execute("INSERT INTO sys_user_permission (user_id, permission_id) "
+                    + "SELECT u.id, p.id FROM sys_user u "
+                    + "JOIN sys_permission p ON p.code = 'ADMIN_CONSOLE' "
+                    + "WHERE UPPER(u.role) = 'ADMIN' AND NOT EXISTS "
+                    + "(SELECT 1 FROM sys_user_permission up "
                     + "WHERE up.user_id = u.id AND up.permission_id = p.id)");
             log.info("权限表检查完成（sys_permission / sys_user_permission）");
         } catch (Exception exception) {

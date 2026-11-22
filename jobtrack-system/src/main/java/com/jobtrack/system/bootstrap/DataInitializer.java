@@ -11,6 +11,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
+import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
  */
 @Slf4j
 @Component
+@Order(10)
 @RequiredArgsConstructor
 public class DataInitializer implements ApplicationRunner {
 
@@ -51,18 +53,39 @@ public class DataInitializer implements ApplicationRunner {
                 .eq(SysUser::getUsername, username)
                 .and(w -> w.isNull(SysUser::getStatus)
                         .or().ne(SysUser::getStatus, "CANCELLED")));
+        // 权限字典：普通用户、管理员，以及独立的管理员控制台权限。
+        permissionService.ensurePermission("USER", "普通用户", "默认权限");
+        permissionService.ensurePermission("ADMIN", "管理员", "管理员权限");
+        permissionService.ensurePermission(PermissionService.ADMIN_CONSOLE,
+                "管理员控制台", "访问管理员菜单与 /api/admin/** 接口");
+
+        SysUser adminUser;
         if (existing == null || existing == 0) {
-            SysUser user = new SysUser();
-            user.setTenantId(tenant.getId());
-            user.setUsername(username);
-            user.setPasswordHash(passwordEncoder.encode(admin.getPassword()));
-            user.setDisplayName(admin.getDisplayName());
-            user.setRole("ADMIN");
-            user.setEnabled(true);
-            userMapper.insert(user);
-            // 管理员权限写入用户权限对应表。
-            permissionService.grant(user.getId(), "ADMIN");
+            adminUser = new SysUser();
+            adminUser.setTenantId(tenant.getId());
+            adminUser.setUsername(username);
+            adminUser.setPasswordHash(passwordEncoder.encode(admin.getPassword()));
+            adminUser.setDisplayName(admin.getDisplayName());
+            adminUser.setRole("ADMIN");
+            adminUser.setEnabled(true);
+            userMapper.insert(adminUser);
             log.info("已创建默认账号: {} / {}", username, admin.getPassword());
+        } else {
+            adminUser = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
+                    .eq(SysUser::getUsername, username)
+                    .and(w -> w.isNull(SysUser::getStatus)
+                            .or().ne(SysUser::getStatus, "CANCELLED"))
+                    .orderByAsc(SysUser::getId)
+                    .last("LIMIT 1"));
+        }
+        // 无论账号是否刚创建，都确保 admin 拥有 ADMIN 与独立的管理员控制台权限。
+        if (adminUser != null) {
+            permissionService.grant(adminUser.getId(), "ADMIN");
+            permissionService.grant(adminUser.getId(), PermissionService.ADMIN_CONSOLE);
+            if (!"ADMIN".equalsIgnoreCase(adminUser.getRole())) {
+                adminUser.setRole("ADMIN");
+                userMapper.updateById(adminUser);
+            }
         }
     }
 }

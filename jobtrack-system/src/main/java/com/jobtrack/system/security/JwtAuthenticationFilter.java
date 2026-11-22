@@ -2,6 +2,7 @@ package com.jobtrack.system.security;
 
 import com.jobtrack.common.context.TenantContext;
 import com.jobtrack.system.service.AccessTokenService;
+import com.jobtrack.system.service.BanService;
 import com.jobtrack.system.service.PermissionService;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
@@ -9,6 +10,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
@@ -30,6 +33,9 @@ import java.util.List;
  *   <li>授权码 rt_xxx（浏览器扩展），只授予该授权码的 SCOPE 权限，
  *       具体读/写限制由 SecurityConfig 的 authorizeHttpRequests 执行。</li>
  * </ul>
+ *
+ * <p>封禁集合中的用户在 JWT 与授权码两种凭证下都会立即被拒绝，
+ * 并返回明确的封禁提示，而不是笼统的“未登录”。</p>
  */
 @Component
 @RequiredArgsConstructor
@@ -40,6 +46,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final JwtService jwtService;
     private final SessionService sessionService;
     private final AccessTokenService accessTokenService;
+    private final BanService banService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -48,9 +55,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String token = resolveToken(request);
             if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 if (token.startsWith(TOKEN_PREFIX)) {
-                    authenticateAccessToken(token, request);
-                } else {
-                    authenticateJwt(token);
+                    if (!authenticateAccessToken(token, request, response)) {
+                        return;
+                    }
+                } else if (!authenticateJwt(token, response)) {
+                    return;
                 }
             }
             filterChain.doFilter(request, response);
@@ -60,7 +69,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
     }
 
-    private void authenticateJwt(String token) {
+    private boolean authenticateJwt(String token, HttpServletResponse response) throws IOException {
         try {
             AuthPrincipal principal = jwtService.parse(token);
             Duration ttl = Duration.ofHours(jwtService.ttlHours());
@@ -68,6 +77,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             // 由 RestAuthenticationEntryPoint 返回 401「用户未登录」。
             SessionInfo session = sessionService.resolve(principal.sessionId(), ttl);
             if (session != null) {
+                if (banService.isBanned(session.getUserId())) {
+                    String message = banService.message(session.getUserId());
+                    writeBanned(response, message == null ? "该账号已被封禁" : message);
+                    return false;
+                }
                 // 将 Redis 中的权限与用户名整合进 Spring Security 上下文。
                 List<String> permissions = session.getPermissions() == null
                         ? List.of() : session.getPermissions();
@@ -92,38 +106,59 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         permissions.isEmpty() ? principal.role()
                                 : PermissionService.roleOf(permissions),
                         principal.sessionId());
-                bind(authenticated, token, authorities);
+                bind(authenticated, token, authorities, true);
             }
+            return true;
         } catch (JwtException | IllegalArgumentException exception) {
             SecurityContextHolder.clearContext();
             TenantContext.clear();
+            return true;
         }
     }
 
-    private void authenticateAccessToken(String token, HttpServletRequest request) {
+    private boolean authenticateAccessToken(String token, HttpServletRequest request,
+                                            HttpServletResponse response) throws IOException {
         // 校验接口本身用请求体中的 code，不需要把授权码当作登录态。
         if (request.getRequestURI().startsWith("/api/tokens/validate")) {
-            return;
+            return true;
         }
         AccessTokenService.TokenAuth auth = accessTokenService.authenticate(token);
         if (auth == null) {
-            return;
+            return true;
+        }
+        if (banService.isBanned(auth.user())) {
+            String message = banService.message(auth.user());
+            writeBanned(response, message == null ? "该账号已被封禁" : message);
+            return false;
         }
         AuthPrincipal principal = new AuthPrincipal(
                 auth.user().getId(), auth.user().getTenantId(), auth.user().getUsername(),
                 auth.user().getDisplayName(), auth.user().getRole(),
                 "token:" + auth.token().getId());
+        // 授权码只授予 SCOPE_*，不授予 ROLE_*：避免扩展授权码访问管理员接口。
         bind(principal, token, List.of(
-                new SimpleGrantedAuthority("SCOPE_" + auth.token().getScope())));
+                new SimpleGrantedAuthority("SCOPE_" + auth.token().getScope())), false);
+        return true;
     }
 
-    private void bind(AuthPrincipal principal, String credentials, List<GrantedAuthority> scopes) {
+    private void bind(AuthPrincipal principal, String credentials,
+                      List<GrantedAuthority> scopes, boolean addRole) {
         List<GrantedAuthority> authorities = new ArrayList<>(scopes);
-        authorities.add(new SimpleGrantedAuthority("ROLE_" + principal.role()));
+        if (addRole) {
+            authorities.add(new SimpleGrantedAuthority("ROLE_" + principal.role()));
+        }
         UsernamePasswordAuthenticationToken authentication =
                 new UsernamePasswordAuthenticationToken(principal, credentials, authorities);
         SecurityContextHolder.getContext().setAuthentication(authentication);
         TenantContext.set(principal.tenantId());
+    }
+
+    private void writeBanned(HttpServletResponse response, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        String safe = message == null ? "该账号已被封禁" : message.replace("\"", "'");
+        response.getWriter().write("{\"error\":\"" + safe + "\",\"code\":\"account_banned\"}");
     }
 
     private String resolveToken(HttpServletRequest request) {

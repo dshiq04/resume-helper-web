@@ -2,6 +2,7 @@ package com.jobtrack.system.service.impl;
 
 import com.jobtrack.system.service.AccessTokenService;
 import com.jobtrack.system.service.AccessTokenLogWriter;
+import com.jobtrack.system.service.BanService;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
@@ -62,6 +63,7 @@ public class AccessTokenServiceImpl implements AccessTokenService {
     private final RedisSettings redisSettings;
     private final AsyncTaskPublisher publisher;
     private final AccessTokenLogWriter logWriter;
+    private final BanService banService;
 
     public List<AccessTokenVO> list(Long userId) {
         return tokenMapper.selectList(Wrappers.<AccessToken>lambdaQuery()
@@ -70,6 +72,19 @@ public class AccessTokenServiceImpl implements AccessTokenService {
                 .stream()
                 .map(this::view)
                 .toList();
+    }
+
+    public void evictUserCache(Long userId) {
+        if (userId == null || !cacheEnabled()) {
+            return;
+        }
+        try {
+            tokenMapper.selectList(Wrappers.<AccessToken>lambdaQuery()
+                            .eq(AccessToken::getUserId, userId))
+                    .forEach(token -> evictToken(token.getCode()));
+        } catch (Exception exception) {
+            log.warn("清理用户授权码缓存失败: {}", exception.getMessage());
+        }
     }
 
     @Transactional
@@ -155,9 +170,15 @@ public class AccessTokenServiceImpl implements AccessTokenService {
             return TokenValidationVO.invalid("disabled");
         }
         SysUser user = userMapper.selectById(token.getUserId());
-        if (user == null || !Boolean.TRUE.equals(user.getEnabled())) {
+        if (user == null || !Boolean.TRUE.equals(user.getEnabled())
+                || "CANCELLED".equalsIgnoreCase(user.getStatus())) {
             logUse(token, null, "disabled", code, ip, userAgent);
-            return TokenValidationVO.invalid("disabled");
+            return TokenValidationVO.invalid("disabled", "该账号已停用");
+        }
+        // 封禁之后授权码立即失效：校验时检查 Redis 封禁集合与数据库状态。
+        if (banService.isBanned(user)) {
+            logUse(token, null, "banned", code, ip, userAgent);
+            return TokenValidationVO.invalid("banned", banService.message(user));
         }
 
         logUse(token, user, "valid", code, ip, userAgent);
@@ -190,9 +211,11 @@ public class AccessTokenServiceImpl implements AccessTokenService {
             return null;
         }
         SysUser user = userMapper.selectById(token.getUserId());
-        if (user == null || !Boolean.TRUE.equals(user.getEnabled())) {
+        if (user == null || !Boolean.TRUE.equals(user.getEnabled())
+                || "CANCELLED".equalsIgnoreCase(user.getStatus())) {
             return null;
         }
+        // 封禁用户仍返回身份信息，由 JWT 过滤器给出明确的封禁提示。
         AccessToken touch = new AccessToken();
         touch.setId(token.getId());
         touch.setLastUsedAt(LocalDateTime.now());

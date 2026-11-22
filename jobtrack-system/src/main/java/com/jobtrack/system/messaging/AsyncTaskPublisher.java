@@ -66,6 +66,23 @@ public class AsyncTaskPublisher {
         }
     }
 
+    /**
+     * 发布封禁状态变更消息。返回 false 表示发送失败，调用方应同步更新封禁集合。
+     */
+    public boolean publishUserBan(UserBanMessage message) {
+        if (message == null || message.getUserId() == null || !enabled() || !available) {
+            return false;
+        }
+        try {
+            rabbitTemplate.convertAndSend("", MessagingQueues.USER_BAN,
+                    JsonUtils.toJson(message));
+            return true;
+        } catch (Exception exception) {
+            degrade(exception);
+            return false;
+        }
+    }
+
     private boolean enabled() {
         return appProperties.getRabbit().isEnabled();
     }

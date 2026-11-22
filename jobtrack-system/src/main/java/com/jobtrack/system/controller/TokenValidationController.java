@@ -34,7 +34,7 @@ public class TokenValidationController {
         }
         int status = switch (String.valueOf(response.getReason())) {
             case "expired" -> 410;
-            case "disabled" -> 403;
+            case "disabled", "banned" -> 403;
             default -> 401;
         };
         return ResponseEntity.status(status).body(response);

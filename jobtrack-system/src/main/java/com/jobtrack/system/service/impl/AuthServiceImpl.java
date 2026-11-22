@@ -2,6 +2,7 @@ package com.jobtrack.system.service.impl;
 
 import com.jobtrack.system.service.PermissionService;
 import com.jobtrack.system.service.AuthService;
+import com.jobtrack.system.service.BanService;
 import com.jobtrack.system.service.CaptchaService;
 import com.jobtrack.system.service.AvatarService;
 
@@ -64,6 +65,7 @@ public class AuthServiceImpl implements AuthService {
     private final UserAgreementMapper agreementMapper;
     private final AvatarService avatarService;
     private final PermissionService permissionService;
+    private final BanService banService;
     private final AsyncTaskPublisher publisher;
 
     public AuthVO login(LoginDTO request) {
@@ -82,6 +84,18 @@ public class AuthServiceImpl implements AuthService {
         }
         if (!Boolean.TRUE.equals(user.getEnabled())) {
             throw BusinessException.forbidden("account_disabled", "该账号已被停用");
+        }
+        // 封禁集合优先：永久封禁或暂时封禁未到期时，登录直接拒绝并提示解封时间。
+        if (banService.isBanned(user)) {
+            throw BusinessException.forbidden("account_banned", banService.message(user));
+        }
+        // 暂时封禁已到期：顺手把数据库状态恢复为正常，避免列表一直显示已封禁。
+        if ("BANNED".equalsIgnoreCase(user.getStatus())) {
+            user.setStatus("NORMAL");
+            user.setBanType(null);
+            user.setBanUntil(null);
+            user.setBannedAt(null);
+            userMapper.updateById(user);
         }
         return session(user);
     }
@@ -305,6 +319,9 @@ public class AuthServiceImpl implements AuthService {
         if (user == null) {
             throw BusinessException.badRequest("user_not_found", "用户名不存在");
         }
+        if (banService.isBanned(user)) {
+            throw BusinessException.forbidden("account_banned", banService.message(user));
+        }
         return user;
     }
 
@@ -391,10 +408,12 @@ public class AuthServiceImpl implements AuthService {
         UserProfile profile = profileMapper.selectByUserIdIgnoreTenant(user.getId());
         String avatarUrl = profile == null ? null
                 : avatarService.url(user.getId(), profile.getAvatarUrl());
+        List<String> permissions = permissionService.permissionsOf(user.getId());
         return new UserVO(user.getId(), user.getTenantId(), user.getUsername(),
-                user.getDisplayName(), user.getRole(), statusOf(user),
-                tenant == null ? "" : tenant.getName(),
-                avatarUrl);
+                user.getDisplayName(), PermissionService.roleOf(permissions), statusOf(user),
+                tenant == null ? "" : tenant.getName(), avatarUrl,
+                permissions, user.getEnabled(), user.getBanType(), user.getBanUntil(),
+                user.getBannedAt(), user.getCreatedAt());
     }
 
     /** 空状态按正常处理，兼容历史数据。 */

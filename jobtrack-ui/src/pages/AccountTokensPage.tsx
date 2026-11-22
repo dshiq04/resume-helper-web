@@ -49,6 +49,7 @@ const LOG_COLORS: Record<AccessTokenLog["result"], string> = {
   invalid: "red",
   expired: "orange",
   disabled: "default",
+  banned: "red",
 };
 
 const ALL_RESOURCES: TokenResource[] = ["applications", "resumes", "statistics", "profile"];
@@ -119,6 +120,7 @@ export function AccountTokensPage() {
     if (result === "valid") return t("tokens.logValid");
     if (result === "expired") return t("tokens.logExpired");
     if (result === "disabled") return t("tokens.logDisabled");
+    if (result === "banned") return t("admin.logBanned");
     return t("tokens.logInvalid");
   };
 
@@ -416,6 +418,7 @@ export function AccountTokensPage() {
                 { value: "invalid", label: t("tokens.logInvalid") },
                 { value: "expired", label: t("tokens.logExpired") },
                 { value: "disabled", label: t("tokens.logDisabled") },
+                { value: "banned", label: t("admin.logBanned") },
               ]}
             />
             <Button icon={<ReloadOutlined />} onClick={() => loadLogs(logPage)}>

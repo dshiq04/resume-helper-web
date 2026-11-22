@@ -103,6 +103,9 @@ async function validateCode(code) {
 }
 
 function validateMessage(result) {
+  if (result.data && result.data.reason === "banned") {
+    return result.data.message || "该账号已被封禁";
+  }
   if (result.status === 410 || (result.data && result.data.reason === "expired")) {
     return "授权码已过期，请重新生成";
   }
