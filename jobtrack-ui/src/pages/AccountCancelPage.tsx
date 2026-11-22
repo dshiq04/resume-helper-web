@@ -197,12 +197,24 @@ export function AccountCancelPage() {
   );
 
   return (
-    <div className="account-layout cancel-layout">
-      <section className="setting-card account-cancel-card">
-        <div className="setting-card-head">
-          <h2>{t("account.cancelTitle")}</h2>
+    <div className="cancel-standalone">
+      <header className="cancel-header">
+        <div className="login-brand">
+          <img className="brand-logo is-large" src="/logo.svg" alt="ResumeTrail" />
+          <div>
+            <strong>{t("app.name")}</strong>
+            <span>RESUMETRAIL</span>
+          </div>
         </div>
-        <Steps
+        <h1 className="cancel-title">{t("account.cancelPageTitle")}</h1>
+        <span />
+      </header>
+      <main className="cancel-main">
+        <section className="setting-card account-cancel-card">
+          <div className="setting-card-head">
+            <h2>{t("account.cancelTitle")}</h2>
+          </div>
+          <Steps
           size="small"
           current={step}
           items={[
@@ -416,6 +428,7 @@ export function AccountCancelPage() {
           </div>
         )}
       </section>
+      </main>
     </div>
   );
 }

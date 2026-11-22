@@ -316,3 +316,47 @@
 .account-cancel-entry-card .account-tokens-head {
   align-items: center;
 }
+
+/* 申请注销：独立整页（脱离控制台外壳），上下结构：顶部菜单 + 居中步骤 */
+.cancel-standalone {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+}
+
+.cancel-header {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 14px 28px;
+  background: var(--bg-elev);
+  border-bottom: 1px solid var(--line);
+
+  .cancel-title {
+    margin: 0;
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 18px;
+    font-weight: 650;
+    text-align: center;
+  }
+}
+
+.cancel-main {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px 24px 48px;
+  overflow: auto;
+
+  .account-layout {
+    width: 100%;
+    max-width: 880px;
+  }
+
+  .cancel-agreement-body {
+    max-height: 56vh;
+  }
+}

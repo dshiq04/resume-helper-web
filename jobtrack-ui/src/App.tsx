@@ -93,6 +93,9 @@ function AppShell() {
     <LoginPage />
   ) : location.pathname === "/login" || location.pathname === "/register" ? (
     <Navigate to="/" replace />
+  ) : location.pathname === "/account/cancel/flow" ? (
+    // 申请注销：独立整页（自带顶部菜单），脱离控制台外壳。
+    <AccountCancelPage />
   ) : (
     <Routes>
       <Route element={<AppLayout />}>
@@ -111,8 +114,6 @@ function AppShell() {
           <Route path="tokens" element={<AccountTokensPage />} />
           <Route path="cancel" element={<AccountCancelEntryPage />} />
         </Route>
-        {/* 申请注销：独立整页流程，不显示账户设置的页签外壳。 */}
-        <Route path="account/cancel/flow" element={<AccountCancelPage />} />
         <Route path="applications/:id" element={<ApplicationDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
