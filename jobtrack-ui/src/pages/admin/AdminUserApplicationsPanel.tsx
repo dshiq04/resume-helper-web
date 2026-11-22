@@ -1,9 +1,22 @@
 import { useEffect, useState } from "react";
-import { App as AntdApp, Descriptions, Input, Select, Table, Tag, Typography } from "antd";
+import {
+  App as AntdApp,
+  Button,
+  Descriptions,
+  Input,
+  Popconfirm,
+  Select,
+  Table,
+  Tag,
+  Tooltip,
+  Typography,
+} from "antd";
 import type { ColumnsType } from "antd/es/table";
+import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
 import { adminApi } from "../../api/admin";
 import type { Application, Category, Status } from "../../api/types";
+import { ApplicationFormDrawer } from "../../components/ApplicationFormDrawer";
 import { useI18n } from "../../i18n";
 import { errorMessage } from "../../utils/errors";
 
@@ -28,6 +41,9 @@ export function AdminUserApplicationsPanel({ userId }: { userId: number }) {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [status, setStatus] = useState("all");
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Application | null>(null);
+  const [expandedKeys, setExpandedKeys] = useState<number[]>([]);
 
   const load = (nextPage = page, nextSize = pageSize) => {
     setLoading(true);
@@ -53,6 +69,35 @@ export function AdminUserApplicationsPanel({ userId }: { userId: number }) {
     load(1);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId, search, category, status]);
+
+  const openCreate = () => {
+    setEditing(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (record: Application) => {
+    setEditing(record);
+    setFormOpen(true);
+  };
+
+  const remove = async (record: Application) => {
+    try {
+      await adminApi.deleteApplication(userId, record.id);
+      setExpandedKeys((keys) => keys.filter((key) => key !== record.id));
+      message.success(t("admin.applicationDeleted"));
+      load(1);
+    } catch (error) {
+      message.error(errorMessage(error));
+    }
+  };
+
+  const toggleExpanded = (record: Application) => {
+    setExpandedKeys((keys) => (
+      keys.includes(record.id)
+        ? keys.filter((key) => key !== record.id)
+        : [...keys, record.id]
+    ));
+  };
 
   const columns: ColumnsType<Application> = [
     {
@@ -109,10 +154,51 @@ export function AdminUserApplicationsPanel({ userId }: { userId: number }) {
       width: 130,
       render: (value: string) => (value ? dayjs(value).format("YYYY-MM-DD") : "—"),
     },
+    {
+      title: t("admin.actions"),
+      key: "actions",
+      width: 126,
+      align: "right",
+      fixed: "right",
+      render: (_, record) => (
+        <div className="row-actions">
+          <Tooltip title={t("common.view")}>
+            <button
+              type="button"
+              className="ghost-icon tiny"
+              onClick={() => toggleExpanded(record)}
+            >
+              <EyeOutlined />
+            </button>
+          </Tooltip>
+          <Tooltip title={t("common.edit")}>
+            <button
+              type="button"
+              className="ghost-icon tiny"
+              onClick={() => openEdit(record)}
+            >
+              <EditOutlined />
+            </button>
+          </Tooltip>
+          <Tooltip title={t("common.delete")}>
+            <Popconfirm
+              title={t("admin.deleteApplicationConfirm", { name: record.companyName })}
+              onConfirm={() => void remove(record)}
+              okText={t("common.confirm")}
+              cancelText={t("common.cancel")}
+            >
+              <button type="button" className="ghost-icon tiny danger">
+                <DeleteOutlined />
+              </button>
+            </Popconfirm>
+          </Tooltip>
+        </div>
+      ),
+    },
   ];
 
   return (
-    <section className="admin-detail-card">
+    <section className="admin-detail-card admin-card">
       <div className="admin-toolbar">
         <div className="admin-toolbar-left">
           <Input.Search
@@ -140,7 +226,11 @@ export function AdminUserApplicationsPanel({ userId }: { userId: number }) {
             ]}
           />
         </div>
-        <span className="admin-muted">{total} {t("common.items")}</span>
+        <div className="admin-toolbar-right">
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+            {t("admin.addApplication")}
+          </Button>
+        </div>
       </div>
       <Table<Application>
         rowKey="id"
@@ -148,8 +238,10 @@ export function AdminUserApplicationsPanel({ userId }: { userId: number }) {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        scroll={{ x: 980 }}
+        scroll={{ x: 1130 }}
         expandable={{
+          expandedRowKeys: expandedKeys,
+          onExpandedRowsChange: (keys) => setExpandedKeys(keys as number[]),
           expandedRowRender: (record) => (
             <Descriptions size="small" column={3} bordered>
               <Descriptions.Item label={t("field.salary")}>
@@ -190,6 +282,15 @@ export function AdminUserApplicationsPanel({ userId }: { userId: number }) {
           onChange: (nextPage, nextSize) => load(nextPage, nextSize),
         }}
         locale={{ emptyText: t("admin.noApplications") }}
+      />
+
+      <ApplicationFormDrawer
+        open={formOpen}
+        editing={editing}
+        userId={userId}
+        defaultCategory={category !== "all" ? (category as Category) : undefined}
+        onClose={() => setFormOpen(false)}
+        onSaved={() => load(1)}
       />
     </section>
   );

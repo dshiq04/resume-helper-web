@@ -11,6 +11,7 @@ import {
   Select,
 } from "antd";
 import dayjs, { type Dayjs } from "dayjs";
+import { adminApi } from "../api/admin";
 import { applicationApi } from "../api/applications";
 import { configApi } from "../api/config";
 import type { Application, ApplicationInput, Category, PublicConfig, Status } from "../api/types";
@@ -25,6 +26,8 @@ interface Props {
   open: boolean;
   editing: Application | null;
   defaultCategory?: Category;
+  /** 管理员代指定用户编辑时传入用户 ID，请求会走管理员接口。 */
+  userId?: number;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -53,6 +56,7 @@ export function ApplicationFormDrawer({
   open,
   editing,
   defaultCategory,
+  userId,
   onClose,
   onSaved,
 }: Props) {
@@ -138,12 +142,20 @@ export function ApplicationFormDrawer({
     };
     try {
       if (editing) {
-        await applicationApi.update(editing.id, input);
+        if (userId) {
+          await adminApi.updateApplication(userId, editing.id, input);
+        } else {
+          await applicationApi.update(editing.id, input);
+        }
+      } else if (userId) {
+        await adminApi.createApplication(userId, input);
       } else {
         await applicationApi.create(input);
       }
       message.success(t("settings.saved"));
-      notifyDataChanged();
+      if (!userId) {
+        notifyDataChanged();
+      }
       onSaved();
       onClose();
     } catch (error) {
@@ -175,7 +187,7 @@ export function ApplicationFormDrawer({
           label={t("field.company")}
           rules={[{ required: true, whitespace: true, message: t("form.companyRequired") }]}
         >
-          <CompanyAutoComplete placeholder={t("form.companyPlaceholder")} />
+          <CompanyAutoComplete placeholder={t("form.companyPlaceholder")} userId={userId} />
         </Form.Item>
         <Form.Item
           name="link"

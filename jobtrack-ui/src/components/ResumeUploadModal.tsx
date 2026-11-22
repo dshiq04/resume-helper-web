@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { App as AntdApp, Button, Form, Input, Modal, Select, Upload } from "antd";
 import { InboxOutlined } from "@ant-design/icons";
+import { adminApi } from "../api/admin";
 import { resumeApi } from "../api/resumes";
 import type { Resume } from "../api/types";
 import { useI18n } from "../i18n";
@@ -10,6 +11,8 @@ import { formatSize } from "../utils/format";
 interface Props {
   open: boolean;
   editing: Resume | null;
+  /** 管理员代指定用户上传/编辑时传入用户 ID，请求会走管理员接口。 */
+  userId?: number;
   onClose: () => void;
   onSaved: () => void;
 }
@@ -26,7 +29,7 @@ function fileExtension(fileName: string): string {
   return dot < 0 ? "" : fileName.slice(dot + 1).toLowerCase();
 }
 
-export function ResumeUploadModal({ open, editing, onClose, onSaved }: Props) {
+export function ResumeUploadModal({ open, editing, userId, onClose, onSaved }: Props) {
   const { t } = useI18n();
   const { message } = AntdApp.useApp();
   const [form] = Form.useForm<Values>();
@@ -70,7 +73,13 @@ export function ResumeUploadModal({ open, editing, onClose, onSaved }: Props) {
     setSaving(true);
     try {
       if (editing) {
-        await resumeApi.update(editing.id, { name, tags: values.tags });
+        if (userId) {
+          await adminApi.updateResume(userId, editing.id, { name, tags: values.tags });
+        } else {
+          await resumeApi.update(editing.id, { name, tags: values.tags });
+        }
+      } else if (userId) {
+        await adminApi.createResume(userId, name, values.tags ?? [], file as File);
       } else {
         await resumeApi.create(name, values.tags ?? [], file as File);
       }

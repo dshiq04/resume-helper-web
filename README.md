@@ -421,7 +421,7 @@ Content-Type: application/json
 
 侧边栏只渲染当前账号拥有权限的子菜单，接口位于 `/api/admin/**`，由 Spring Security 按子功能分别校验：
 
-- **用户管理**：跨工作区查看所有用户，支持搜索、修改用户名/显示名称/工作区、编辑个人资料与联系方式、重置密码、修改为正常/注销/封禁（永久或暂时，可填写原因）、删除用户。点击用户进入独立详情页，顶部菜单包含个人资料、授权码、投递内容、简历库内容、账号安全、用户协议与操作记录。列表与详情展示最后一次操作时间与最后一次登录时间。删除会级联清理该用户的投递、时间线、回收站、简历文件、授权码、使用日志、封禁记录、个人资料与工作区。
+- **用户管理**：跨工作区查看所有用户，支持搜索、修改用户名/显示名称/工作区、编辑个人资料与联系方式、重置密码、修改为正常/注销/封禁（永久或暂时，可填写原因）、删除用户。点击用户进入独立详情页，顶部菜单包含个人资料、授权码、投递内容、简历库内容、账号安全、用户协议与操作记录。列表与详情展示最后一次操作时间与最后一次登录时间。管理员可在用户详情中代该用户新增、修改、删除投递记录与简历文件，行为与普通用户一致。删除会级联清理该用户的投递、时间线、回收站、简历文件、授权码、使用日志、封禁记录、个人资料与工作区。
 - **用户操作记录**：由 Spring AOP 捕获登录、注册、退出及各类写操作，操作消息通过 RabbitMQ 队列 `jobtrack.user.operation` 异步写入 `user_operation_log`。支持按用户、操作类型与时间范围筛选。
 - **用户协议**：注册时记录签署语言、时间与账号信息；历史用户下次登录会弹出不可关闭的签署确认框，确认后上传签署语言、时区、地点与来源 IP。管理员可按签署语言查看协议正文，并导出 HTML 存档或打印为 PDF，导出文件末尾包含签署用户、用户 ID、签署时间、地点与导出时间。
 - **在线用户**：查看所有租户的在线会话并踢出，踢出会注销登录令牌并删除 Redis 中的在线状态与令牌信息。
@@ -487,8 +487,11 @@ Content-Type: application/json
 | `PUT` | `/api/admin/users/{id}/status` | 管理员：正常 / 注销 / 封禁（永久或暂时） |
 | `POST` | `/api/admin/users/{id}/password` | 管理员：免验证重置密码并注销全部会话 |
 | `GET/POST` | `/api/admin/users/{id}/tokens` | 管理员：查看 / 生成指定用户的授权码 |
-| `GET` | `/api/admin/users/{id}/applications` | 管理员：查看指定用户的投递内容 |
-| `GET` | `/api/admin/users/{id}/resumes` | 管理员：查看指定用户的简历库 |
+| `GET/POST` | `/api/admin/users/{id}/applications` | 管理员：查看 / 代指定用户新增投递 |
+| `PUT/DELETE` | `/api/admin/users/{id}/applications/{applicationId}` | 管理员：代指定用户修改 / 删除投递 |
+| `GET` | `/api/admin/users/{id}/applications/companies?search=` | 管理员：指定用户历史公司名补全 |
+| `GET/POST` | `/api/admin/users/{id}/resumes` | 管理员：查看 / 代指定用户上传简历 |
+| `PUT/DELETE` | `/api/admin/users/{id}/resumes/{resumeId}` | 管理员：代指定用户修改 / 删除简历 |
 | `GET` | `/api/admin/users/{id}/resumes/{resumeId}/file` | 管理员：下载指定用户的简历文件 |
 | `GET` | `/api/admin/online` | 管理员：在线用户列表 |
 | `POST` | `/api/admin/online/{userId}/kick` | 管理员：踢出在线用户 |

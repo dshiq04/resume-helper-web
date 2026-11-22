@@ -1,11 +1,17 @@
 import { useEffect, useState } from "react";
-import { App as AntdApp, Button, Input, Table, Tag } from "antd";
+import { App as AntdApp, Button, Input, Popconfirm, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
-import { DownloadOutlined } from "@ant-design/icons";
+import {
+  DeleteOutlined,
+  DownloadOutlined,
+  EditOutlined,
+  PlusOutlined,
+} from "@ant-design/icons";
 import dayjs from "dayjs";
 import { adminApi } from "../../api/admin";
 import { downloadBlob } from "../../api/client";
 import type { Resume } from "../../api/types";
+import { ResumeUploadModal } from "../../components/ResumeUploadModal";
 import { useI18n } from "../../i18n";
 import { errorMessage } from "../../utils/errors";
 
@@ -23,6 +29,8 @@ export function AdminUserResumesPanel({ userId }: { userId: number }) {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [downloading, setDownloading] = useState<number | null>(null);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<Resume | null>(null);
 
   const load = (keyword = search) => {
     setLoading(true);
@@ -47,6 +55,26 @@ export function AdminUserResumesPanel({ userId }: { userId: number }) {
       message.error(errorMessage(error));
     } finally {
       setDownloading(null);
+    }
+  };
+
+  const openUpload = () => {
+    setEditing(null);
+    setFormOpen(true);
+  };
+
+  const openEdit = (record: Resume) => {
+    setEditing(record);
+    setFormOpen(true);
+  };
+
+  const remove = async (record: Resume) => {
+    try {
+      await adminApi.deleteResume(userId, record.id);
+      message.success(t("admin.resumeDeleted"));
+      load();
+    } catch (error) {
+      message.error(errorMessage(error));
     }
   };
 
@@ -95,23 +123,48 @@ export function AdminUserResumesPanel({ userId }: { userId: number }) {
     {
       title: t("admin.actions"),
       key: "actions",
-      width: 100,
+      width: 126,
       align: "right",
       render: (_, record) => (
-        <Button
-          size="small"
-          icon={<DownloadOutlined />}
-          loading={downloading === record.id}
-          onClick={() => void download(record)}
-        >
-          {t("common.download")}
-        </Button>
+        <div className="row-actions">
+          <Tooltip title={t("common.download")}>
+            <button
+              type="button"
+              className="ghost-icon tiny"
+              disabled={downloading === record.id}
+              onClick={() => void download(record)}
+            >
+              <DownloadOutlined />
+            </button>
+          </Tooltip>
+          <Tooltip title={t("common.edit")}>
+            <button
+              type="button"
+              className="ghost-icon tiny"
+              onClick={() => openEdit(record)}
+            >
+              <EditOutlined />
+            </button>
+          </Tooltip>
+          <Tooltip title={t("common.delete")}>
+            <Popconfirm
+              title={t("admin.deleteResumeConfirm", { name: record.name })}
+              onConfirm={() => void remove(record)}
+              okText={t("common.confirm")}
+              cancelText={t("common.cancel")}
+            >
+              <button type="button" className="ghost-icon tiny danger">
+                <DeleteOutlined />
+              </button>
+            </Popconfirm>
+          </Tooltip>
+        </div>
       ),
     },
   ];
 
   return (
-    <section className="admin-detail-card">
+    <section className="admin-detail-card admin-card">
       <div className="admin-toolbar">
         <Input.Search
           allowClear
@@ -122,7 +175,11 @@ export function AdminUserResumesPanel({ userId }: { userId: number }) {
             load(value);
           }}
         />
-        <span className="admin-muted">{rows.length} {t("common.items")}</span>
+        <div className="admin-toolbar-right">
+          <Button type="primary" icon={<PlusOutlined />} onClick={openUpload}>
+            {t("resume.upload")}
+          </Button>
+        </div>
       </div>
       <Table<Resume>
         rowKey="id"
@@ -131,8 +188,16 @@ export function AdminUserResumesPanel({ userId }: { userId: number }) {
         columns={columns}
         dataSource={rows}
         pagination={false}
-        scroll={{ x: 860 }}
+        scroll={{ x: 1000 }}
         locale={{ emptyText: t("admin.noResumes") }}
+      />
+
+      <ResumeUploadModal
+        open={formOpen}
+        editing={editing}
+        userId={userId}
+        onClose={() => setFormOpen(false)}
+        onSaved={() => load()}
       />
     </section>
   );

@@ -6,9 +6,14 @@ import type {
   AdminUser,
   AdminUserDetail,
   AdminUserPage,
+  Application,
+  ApplicationInput,
   ApplicationList,
+  ApplicationUpdate,
+  DeleteResult,
   OnlineUser,
   PermissionItem,
+  Resume,
   ResumeList,
   UserAgreementRecord,
   UserOperationPage,
@@ -146,11 +151,56 @@ export const adminApi = {
     if (params.year) search.set("year", String(params.year));
     return request<ApplicationList>(`/admin/users/${id}/applications?${search.toString()}`);
   },
+  createApplication(id: number, input: ApplicationInput) {
+    return request<Application>(`/admin/users/${id}/applications`, {
+      method: "POST",
+      data: input,
+    });
+  },
+  updateApplication(id: number, applicationId: number, input: ApplicationUpdate) {
+    return request<Application>(`/admin/users/${id}/applications/${applicationId}`, {
+      method: "PUT",
+      data: input,
+    });
+  },
+  deleteApplication(id: number, applicationId: number) {
+    return request<DeleteResult>(`/admin/users/${id}/applications/${applicationId}`, {
+      method: "DELETE",
+    });
+  },
+  applicationCompanies(id: number, search?: string) {
+    const query = new URLSearchParams();
+    if (search) query.set("search", search);
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return request<{ items: string[] }>(`/admin/users/${id}/applications/companies${suffix}`);
+  },
   resumes(id: number, search?: string) {
     const query = new URLSearchParams();
     if (search) query.set("search", search);
     const suffix = query.toString() ? `?${query.toString()}` : "";
     return request<ResumeList>(`/admin/users/${id}/resumes${suffix}`);
+  },
+  createResume(id: number, name: string, tags: string[], file: File) {
+    const data = new FormData();
+    data.append("name", name);
+    data.append("tags", JSON.stringify(tags));
+    data.append("file", file);
+    return request<Resume>(`/admin/users/${id}/resumes`, {
+      method: "POST",
+      data,
+      timeout: 120_000,
+    });
+  },
+  updateResume(id: number, resumeId: number, input: { name?: string; tags?: string[]; pinned?: boolean }) {
+    return request<Resume>(`/admin/users/${id}/resumes/${resumeId}`, {
+      method: "PUT",
+      data: input,
+    });
+  },
+  deleteResume(id: number, resumeId: number) {
+    return request<DeleteResult>(`/admin/users/${id}/resumes/${resumeId}`, {
+      method: "DELETE",
+    });
   },
   resumeFile(id: number, resumeId: number) {
     return request<Blob>(`/admin/users/${id}/resumes/${resumeId}/file`, {
