@@ -1,0 +1,428 @@
+// 管理员控制台：用户管理、在线用户与权限授权
+@use "variables" as v;
+@use "mixins" as m;
+
+.admin-card {
+  .admin-toolbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 14px;
+    margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+
+  .admin-toolbar-left,
+  .admin-toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .admin-total {
+    font-size: 10.5px;
+  }
+
+  .admin-section-title {
+    margin: 0 0 4px;
+    font-family: var(--serif);
+    font-size: 16px;
+    font-weight: 600;
+  }
+
+  .ant-table {
+    font-size: 11.5px;
+  }
+}
+
+.admin-muted {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.admin-user-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-user-avatar {
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+
+.admin-user-link {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  strong {
+    color: var(--ink);
+    font-size: 12px;
+    @include m.ellipsis;
+  }
+
+  span {
+    color: var(--muted);
+    font-size: 10px;
+    @include m.ellipsis;
+  }
+
+  &:not(.is-static):hover strong {
+    color: var(--accent-ink);
+    text-decoration: underline;
+  }
+
+  &.is-static {
+    cursor: default;
+  }
+}
+
+.admin-permission-tags {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+
+  .ant-tag {
+    margin: 0;
+    font-size: 9.5px;
+    line-height: 16px;
+  }
+}
+
+.admin-permission-tag {
+  margin: 0;
+  cursor: pointer;
+  font-size: 9.5px;
+}
+
+.admin-online {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10.5px;
+
+  &.is-online {
+    color: #2f8f46;
+  }
+
+  .online-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+  }
+}
+
+.admin-ban-types {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+
+  .ant-radio-wrapper {
+    align-items: flex-start;
+    padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: v.$radius-sm;
+    background: var(--bg-sunken);
+
+    strong {
+      display: block;
+      margin-bottom: 2px;
+      font-size: 12px;
+    }
+
+    span:not(.ant-radio) {
+      color: var(--muted);
+      font-size: 10.5px;
+      line-height: 1.6;
+    }
+  }
+}
+
+.admin-ban-reason {
+  margin-bottom: 36px !important;
+}
+
+.admin-detail-page {
+  .page-head {
+    margin-bottom: 12px;
+  }
+}
+
+.admin-detail-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-drawer-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-drawer-loading {
+  display: grid;
+  place-items: center;
+  min-height: 260px;
+}
+
+.admin-detail-tabs {
+  .ant-tabs-nav {
+    margin-bottom: 14px;
+  }
+
+  .ant-tabs-tab {
+    padding: 9px 14px;
+    font-size: 12px;
+  }
+}
+
+.admin-detail-sections,
+.admin-token-panel,
+.admin-permissions-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.admin-detail-card {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: v.$radius-sm;
+  background: var(--bg-elev);
+
+  > .form-section-label:first-child {
+    margin-top: 0;
+  }
+
+  .setting-hint {
+    margin: 4px 0 10px;
+  }
+}
+
+.admin-detail-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 4px;
+
+  > div:not(.admin-detail-avatar-actions) {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    flex: 1;
+    min-width: 0;
+
+    strong {
+      font-size: 15px;
+    }
+
+    span {
+      color: var(--muted);
+      font-size: 10.5px;
+    }
+  }
+}
+
+.admin-detail-activity {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 28px;
+  margin: 10px 0 4px;
+  padding: 9px 12px;
+  border: 1px dashed var(--line);
+  border-radius: v.$radius-sm;
+  background: color-mix(in srgb, var(--bg-sunken) 55%, transparent);
+
+  > div {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  span {
+    color: var(--muted);
+    font-size: 10.5px;
+  }
+
+  strong {
+    color: var(--ink);
+    font-size: 11.5px;
+    font-weight: 600;
+  }
+}
+
+.admin-agreement-body {
+  max-height: 58vh;
+}
+
+.admin-agreement-pdf-hint {
+  margin: 10px 0 0;
+}
+
+.admin-operation-user,
+.admin-operation-desc {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  strong {
+    font-size: 11.5px;
+    @include m.ellipsis;
+  }
+
+  span {
+    color: var(--muted);
+    font-size: 9.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+
+.admin-op-time {
+  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+}
+
+/* 固定列需要不透明背景，避免横向滚动时表头文字透出重叠。 */
+.admin-card,
+.admin-detail-card {
+  .ant-table-cell-fix-right {
+    background: var(--bg-elev);
+  }
+
+  .ant-table-thead > tr > th.ant-table-cell-fix-right {
+    background: var(--bg-elev);
+    z-index: 3;
+  }
+}
+
+.admin-user-operations {
+  .admin-toolbar {
+    margin-bottom: 10px;
+  }
+}
+
+.admin-detail-avatar-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+
+  .setting-hint {
+    margin: 2px 0 0;
+    text-align: right;
+  }
+}
+
+.admin-tokens-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+
+  h2 {
+    margin: 0 0 4px;
+    font-family: var(--serif);
+    font-size: 15px;
+    font-weight: 600;
+  }
+
+  .setting-hint {
+    margin: 0;
+  }
+}
+
+.admin-grant-form {
+  row-gap: 10px;
+
+  .ant-form-item {
+    margin-bottom: 8px;
+  }
+}
+
+.admin-password-form {
+  max-width: 420px;
+}
+
+.admin-app-company,
+.admin-resume-name {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+
+  strong {
+    font-size: 11.5px;
+    @include m.ellipsis;
+  }
+
+  a,
+  span {
+    color: var(--muted);
+    font-size: 9.5px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  a:hover {
+    color: var(--accent-ink);
+  }
+}
+
+.admin-resume-name.is-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover strong {
+    color: var(--accent-ink);
+    text-decoration: underline;
+  }
+}
+
+.admin-app-company .admin-app-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover strong {
+    color: var(--accent-ink);
+    text-decoration: underline;
+  }
+}
+
+@media (max-width: 760px) {
+  .admin-detail-head {
+    flex-wrap: wrap;
+  }
+
+  .admin-detail-avatar-actions {
+    align-items: flex-start;
+  }
+
+  .admin-detail-tabs .ant-tabs-nav {
+    margin-bottom: 10px;
+  }
+}

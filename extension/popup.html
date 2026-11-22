@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>履途 ResumeTrail · 快速录入</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="popup-head">
+      <div class="head-title">
+        <img class="head-logo" src="icon32.png" alt="ResumeTrail" />
+        <strong>快速录入</strong>
+      </div>
+      <div class="head-actions">
+        <button id="open-options" class="icon-button" title="设置" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 15.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Z" />
+            <path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.7 1.7 0 0 0-1.87-.34 1.7 1.7 0 0 0-1 1.55V21a2 2 0 1 1-4 0v-.09a1.7 1.7 0 0 0-1.11-1.55 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-1.55-1H3a2 2 0 1 1 0-4h.09A1.7 1.7 0 0 0 4.6 8.9a1.7 1.7 0 0 0-.34-1.87l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.7 1.7 0 0 0 8.96 4.6a1.7 1.7 0 0 0 1-1.55V3a2 2 0 1 1 4 0v.09a1.7 1.7 0 0 0 1 1.55 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.7 1.7 0 0 0-.34 1.87V9a1.7 1.7 0 0 0 1.55 1H21a2 2 0 1 1 0 4h-.09a1.7 1.7 0 0 0-1.51 1Z" />
+          </svg>
+        </button>
+        <button id="close-popup" class="icon-button" title="关闭" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M6 6l12 12M18 6 6 18" />
+          </svg>
+        </button>
+      </div>
+    </header>
+
+    <main class="popup-body">
+      <section id="connect-view" class="view" hidden>
+        <p class="lead">填写服务器、端口与授权码，校验通过后才能录入投递。</p>
+        <form id="connect-form" class="form">
+          <div class="grid-2">
+            <label>
+              <span>服务器</span>
+              <input id="server-host" placeholder="http://127.0.0.1" autocomplete="off" />
+            </label>
+            <label>
+              <span>端口</span>
+              <input id="server-port" type="number" min="1" max="65535" placeholder="18080" />
+            </label>
+          </div>
+          <label>
+            <span>授权码</span>
+            <input id="access-code" placeholder="rt_..." autocomplete="off" />
+          </label>
+          <button id="connect-submit" class="primary block" type="submit">保存并校验</button>
+        </form>
+        <p id="connect-error" class="error" hidden></p>
+        <p class="foot-note">
+          授权码在网页端「账户设置 → 授权码」生成；录入请使用读写授权码。
+        </p>
+      </section>
+
+      <section id="entry-view" class="view" hidden>
+        <div class="account-line">
+          <span id="account-name">—</span>
+          <span id="account-scope" class="scope-pill" hidden></span>
+          <button id="open-connect" class="link-button" type="button">设置</button>
+        </div>
+        <p id="read-only-note" class="read-only-note" hidden>
+          当前授权码为只读权限，只能查询，无法录入。请改用读写授权码。
+        </p>
+
+        <form id="entry-form" class="quick-form">
+          <label class="field">
+            <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 21V5.5A1.5 1.5 0 0 1 5.5 4h7A1.5 1.5 0 0 1 14 5.5V21" />
+              <path d="M14 10h4.5A1.5 1.5 0 0 1 20 11.5V21" />
+              <path d="M2 21h20M7.5 8h3M7.5 12h3M7.5 16h3M16.5 14h1M16.5 18h1" />
+            </svg>
+            <input id="company" list="company-options" placeholder="例如：字节跳动" autocomplete="off" />
+            <datalist id="company-options"></datalist>
+          </label>
+
+          <label class="field">
+            <svg class="field-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M10.5 13.5a4 4 0 0 0 5.66 0l2.12-2.12a4 4 0 1 0-5.66-5.66l-1.2 1.2" />
+              <path d="M13.5 10.5a4 4 0 0 0-5.66 0L5.72 12.6a4 4 0 1 0 5.66 5.66l1.2-1.2" />
+            </svg>
+            <input id="link" placeholder="https://careers.example.com/job/123" />
+          </label>
+
+          <div class="quick-foot">
+            <div id="category-pills" class="category-pills">
+              <button type="button" data-value="spring">春招</button>
+              <button type="button" data-value="autumn">秋招</button>
+              <button type="button" data-value="internship">实习</button>
+              <button type="button" data-value="social">社招</button>
+            </div>
+            <div class="quick-actions">
+              <button id="clear" class="ghost" type="button">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M7 21h10M5 15l6-6 6 6-3 3H8l-3-3ZM12 9l4-4 4 4-4 4" />
+                </svg>
+                清空
+              </button>
+              <button id="submit" class="primary" type="submit">
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="m5 12 5 5L20 7" />
+                </svg>
+                加入
+              </button>
+            </div>
+          </div>
+        </form>
+
+        <div id="toast" class="toast" hidden></div>
+        <p class="foot-note">提交后窗口保持打开，方便连续录入。</p>
+      </section>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

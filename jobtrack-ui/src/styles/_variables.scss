@@ -1,0 +1,24 @@
+// 设计变量：只放 Sass 常量；颜色仍通过 CSS 变量暴露，以支持运行时明暗主题切换。
+
+// 尺寸
+$sidebar-width: 232px;
+$sidebar-collapsed: 76px;
+$radius-xs: 4px;
+$radius-sm: 8px;
+$radius-md: 10px;
+$radius-lg: 14px;
+$radius-pill: 999px;
+
+// 动效
+$ease: 180ms ease;
+$ease-fast: 120ms ease;
+
+// 字体
+$font-serif: "Iowan Old Style", "Palatino Linotype", "Songti SC", "Noto Serif SC", Georgia, serif;
+$font-sans: "Inter", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+
+// 响应式断点
+$bp-xl: 1180px;
+$bp-lg: 900px;
+$bp-md: 767px;
+$bp-sm: 620px;

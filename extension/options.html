@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <title>履途 ResumeTrail · 扩展设置</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body class="options-page">
+    <header class="popup-head">
+      <div class="brand">
+        <img class="brand-logo" src="logo.svg" alt="ResumeTrail" />
+        <div>
+          <strong>履途 ResumeTrail</strong>
+          <em>RESUMETRAIL</em>
+        </div>
+      </div>
+    </header>
+
+    <main class="popup-body">
+      <section class="options-card">
+        <h2>服务连接</h2>
+        <form id="connect-form" class="form">
+          <div class="grid-2">
+            <label>
+              <span>服务器</span>
+              <input id="server-host" placeholder="http://127.0.0.1" autocomplete="off" />
+            </label>
+            <label>
+              <span>端口</span>
+              <input id="server-port" type="number" min="1" max="65535" placeholder="18080" />
+            </label>
+          </div>
+          <label>
+            <span>授权码</span>
+            <input id="access-code" placeholder="rt_..." autocomplete="off" />
+          </label>
+          <button id="save" class="primary" type="submit">保存并校验</button>
+        </form>
+        <p id="connect-error" class="error" hidden></p>
+        <p id="status" class="status-line"><span class="dot"></span>未检测</p>
+        <button id="clear" class="link-button" type="button">清除授权码</button>
+      </section>
+
+      <section class="options-card">
+        <h2>授权码说明</h2>
+        <p class="foot-note">
+          在网页端「账户设置 → 授权码」生成。授权码支持只读 / 只写 / 读写三种类型：
+          只读可用于查询，录入投递需要读写权限；只写权限无法读取数据，扩展不会接受。
+        </p>
+        <p class="foot-note">
+          每次校验会检查授权码是否存在、是否在有效期、账号是否存在且状态正常，未通过时禁止录入。
+        </p>
+      </section>
+
+      <section class="options-card">
+        <h2>使用方式</h2>
+        <p class="foot-note">
+          点击浏览器工具栏中的扩展图标，或按 Alt+Shift+J 打开快速录入。也可以在招聘页右键选择
+          “加入投递台账”。公司名称和投递链接是仅有的必填项。
+        </p>
+        <p class="foot-note">
+          网页端：<a id="open-web" href="#" target="_blank">打开履途 ResumeTrail</a>
+        </p>
+      </section>
+    </main>
+    <script src="options.js"></script>
+  </body>
+</html>
