@@ -107,6 +107,8 @@ export interface CancelStatus {
   applications: number;
   trash: number;
   resumes: number;
+  /** 未删除的授权码数量。 */
+  tokens: number;
   elevatedPermission: boolean;
 }
 

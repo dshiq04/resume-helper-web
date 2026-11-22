@@ -480,6 +480,8 @@ export const zhTW: Record<string, string> = {
   "account.cancelCondApplications": "投遞已清除（剩餘 {count} 條，含回收站）",
   "account.cancelCondResumes": "履歷庫已刪除（剩餘 {count} 份）",
   "account.cancelCondPermission": "沒有普通使用者以外的權限",
+  "account.cancelCondTokens": "授權碼已刪除（剩餘 {count} 個）",
+  "account.cancelGoTokens": "去授權碼頁刪除",
   "account.cancelPermissionHint": "您持有管理員等權限，請先前往管理員清單去掉權限，再回來繼續註銷。",
   "account.cancelVerifyLead": "請驗證您保留的手機號或電子郵件與帳號密碼，通過後進入最後一步。",
   "account.cancelConfirmButton": "確認註銷",

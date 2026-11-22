@@ -21,6 +21,9 @@ public class CancelStatusVO {
     /** 简历库中剩余的简历数，0 表示已删除。 */
     private long resumes;
 
+    /** 未删除的授权码数量（MyBatis-Plus 逻辑删除后自动排除），0 表示已删完。 */
+    private long tokens;
+
     /** 是否拥有普通用户以外的权限（如管理员），需要先放弃权限。 */
     private boolean elevatedPermission;
 }

@@ -10,9 +10,11 @@ import com.jobtrack.application.pojo.dto.CancelVerifyDTO;
 import com.jobtrack.application.pojo.po.ApplicationRecord;
 import com.jobtrack.application.service.AccountCancelService;
 import com.jobtrack.common.exception.BusinessException;
+import com.jobtrack.system.mapper.AccessTokenMapper;
 import com.jobtrack.system.mapper.SysUserMapper;
 import com.jobtrack.system.mapper.UserProfileMapper;
 import com.jobtrack.system.messaging.AsyncTaskPublisher;
+import com.jobtrack.system.pojo.po.AccessToken;
 import com.jobtrack.system.pojo.po.SysUser;
 import com.jobtrack.system.pojo.po.UserProfile;
 import com.jobtrack.system.security.AuthPrincipal;
@@ -45,6 +47,7 @@ public class AccountCancelServiceImpl implements AccountCancelService {
     private final ApplicationRecordMapper applicationMapper;
     private final DeletedApplicationMapper trashMapper;
     private final ResumeMapper resumeMapper;
+    private final AccessTokenMapper tokenMapper;
     private final SysUserMapper userMapper;
     private final UserProfileMapper profileMapper;
     private final PermissionService permissionService;
@@ -57,7 +60,10 @@ public class AccountCancelServiceImpl implements AccountCancelService {
         long applications = count(applicationMapper.selectCount(null));
         long trash = count(trashMapper.selectCount(null));
         long resumes = count(resumeMapper.selectCount(null));
-        return new CancelStatusVO(applications, trash, resumes,
+        // @TableLogic 逻辑删除：selectCount 自动排除已删除的授权码。
+        long tokens = count(tokenMapper.selectCount(Wrappers.<AccessToken>lambdaQuery()
+                .eq(AccessToken::getUserId, principal.id())));
+        return new CancelStatusVO(applications, trash, resumes, tokens,
                 permissionService.hasElevated(principal.id()));
     }
 
@@ -84,6 +90,10 @@ public class AccountCancelServiceImpl implements AccountCancelService {
         if (status.getResumes() > 0) {
             throw BusinessException.badRequest("cancel_resumes_not_deleted",
                     "请先删除简历库中的简历后再注销");
+        }
+        if (status.getTokens() > 0) {
+            throw BusinessException.badRequest("cancel_tokens_not_deleted",
+                    "请先删除授权码后再注销");
         }
         if (status.isElevatedPermission()) {
             throw BusinessException.badRequest("cancel_permission_not_dropped",

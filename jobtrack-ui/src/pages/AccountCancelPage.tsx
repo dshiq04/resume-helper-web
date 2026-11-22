@@ -116,6 +116,7 @@ export function AccountCancelPage() {
     && status.applications === 0
     && status.trash === 0
     && status.resumes === 0
+    && status.tokens === 0
     && !status.elevatedPermission;
 
   const verify = async (values: VerifyValues) => {
@@ -268,6 +269,17 @@ export function AccountCancelPage() {
                 <div className="cancel-condition-actions">
                   <Link to="/resumes">
                     <Button>{t("account.cancelGoResumes")}</Button>
+                  </Link>
+                </div>
+              )}
+              {conditionRow(
+                !!status && status.tokens === 0,
+                t("account.cancelCondTokens", { count: status?.tokens ?? 0 }),
+              )}
+              {(!status || status.tokens > 0) && (
+                <div className="cancel-condition-actions">
+                  <Link to="/account/tokens">
+                    <Button>{t("account.cancelGoTokens")}</Button>
                   </Link>
                 </div>
               )}
