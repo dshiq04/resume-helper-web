@@ -2,7 +2,7 @@ package com.jobtrack.system.mapper;
 
 import com.baomidou.mybatisplus.annotation.InterceptorIgnore;
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.jobtrack.system.pojo.SysPermission;
+import com.jobtrack.system.pojo.po.SysPermission;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 

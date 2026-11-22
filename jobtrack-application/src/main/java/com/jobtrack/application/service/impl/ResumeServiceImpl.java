@@ -5,10 +5,10 @@ import com.jobtrack.application.service.FileCrypto;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.fasterxml.jackson.core.type.TypeReference;
-import com.jobtrack.application.pojo.ResumeListResponse;
-import com.jobtrack.application.pojo.ResumeUpdateRequest;
-import com.jobtrack.application.pojo.ResumeView;
-import com.jobtrack.application.pojo.Resume;
+import com.jobtrack.application.pojo.vo.ResumeListVO;
+import com.jobtrack.application.pojo.dto.ResumeUpdateDTO;
+import com.jobtrack.application.pojo.vo.ResumeVO;
+import com.jobtrack.application.pojo.po.Resume;
 import com.jobtrack.application.mapper.ResumeMapper;
 import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.common.context.TenantContext;
@@ -52,7 +52,7 @@ public class ResumeServiceImpl implements ResumeService {
     private final ObjectStorageService objectStorage;
     private final AsyncTaskPublisher publisher;
 
-    public ResumeListResponse list(String search) {
+    public ResumeListVO list(String search) {
         var query = Wrappers.<Resume>lambdaQuery();
         if (search != null && !search.isBlank()) {
             String like = "%" + search.trim().toLowerCase() + "%";
@@ -65,16 +65,16 @@ public class ResumeServiceImpl implements ResumeService {
                 .orderByDesc(Resume::getCreatedAt)
                 .orderByDesc(Resume::getId);
         List<Resume> rows = resumeMapper.selectList(query);
-        List<ResumeView> items = rows.stream().map(this::view).toList();
-        return new ResumeListResponse(items, items.size());
+        List<ResumeVO> items = rows.stream().map(this::view).toList();
+        return new ResumeListVO(items, items.size());
     }
 
-    public ResumeView get(Long id) {
+    public ResumeVO get(Long id) {
         return view(entity(id));
     }
 
     @Transactional
-    public ResumeView create(String name, String tagsRaw, MultipartFile file) {
+    public ResumeVO create(String name, String tagsRaw, MultipartFile file) {
         if (file == null) {
             throw BusinessException.badRequest("file_required", "请选择要上传的简历文件");
         }
@@ -138,7 +138,7 @@ public class ResumeServiceImpl implements ResumeService {
     }
 
     @Transactional
-    public ResumeView update(Long id, ResumeUpdateRequest request) {
+    public ResumeVO update(Long id, ResumeUpdateDTO request) {
         Resume resume = entity(id);
         if (request.getName() != null) {
             String name = request.getName().trim();
@@ -189,8 +189,8 @@ public class ResumeServiceImpl implements ResumeService {
         return SUPPORTED_TYPES.getOrDefault(resume.getFileType(), "application/octet-stream");
     }
 
-    public ResumeView view(Resume resume) {
-        ResumeView view = new ResumeView();
+    public ResumeVO view(Resume resume) {
+        ResumeVO view = new ResumeVO();
         view.setId(resume.getId());
         view.setName(resume.getName());
         view.setTags(parseStoredTags(resume.getTags()));

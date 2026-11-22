@@ -1,8 +1,8 @@
 package com.jobtrack.application.controller;
 
-import com.jobtrack.application.pojo.DailyStatsResponse;
-import com.jobtrack.application.pojo.FunnelResponse;
-import com.jobtrack.application.pojo.StatsResponse;
+import com.jobtrack.application.pojo.vo.DailyStatsVO;
+import com.jobtrack.application.pojo.vo.FunnelVO;
+import com.jobtrack.application.pojo.vo.StatsVO;
 import com.jobtrack.application.service.StatsService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,21 +18,21 @@ public class StatsController {
     private final StatsService statsService;
 
     @GetMapping
-    public StatsResponse stats(@RequestParam(required = false) String from,
+    public StatsVO stats(@RequestParam(required = false) String from,
                                @RequestParam(required = false) String to,
                                @RequestParam(required = false) Integer year) {
         return statsService.stats(from, to, year);
     }
 
     @GetMapping("/daily")
-    public DailyStatsResponse daily(@RequestParam(required = false) String from,
+    public DailyStatsVO daily(@RequestParam(required = false) String from,
                                     @RequestParam(required = false) String to,
                                     @RequestParam(required = false) Integer year) {
         return statsService.daily(from, to, year);
     }
 
     @GetMapping("/funnel")
-    public FunnelResponse funnel(@RequestParam(required = false) String from,
+    public FunnelVO funnel(@RequestParam(required = false) String from,
                                  @RequestParam(required = false) String to,
                                  @RequestParam(required = false) Integer year) {
         return statsService.funnel(from, to, year);

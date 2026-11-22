@@ -1,11 +1,11 @@
 package com.jobtrack.system.service;
 
-import com.jobtrack.system.pojo.AccessTokenCreateRequest;
-import com.jobtrack.system.pojo.AccessTokenLogPage;
-import com.jobtrack.system.pojo.AccessTokenView;
-import com.jobtrack.system.pojo.TokenValidationResponse;
-import com.jobtrack.system.pojo.AccessToken;
-import com.jobtrack.system.pojo.SysUser;
+import com.jobtrack.system.pojo.dto.AccessTokenCreateDTO;
+import com.jobtrack.system.pojo.vo.AccessTokenLogPageVO;
+import com.jobtrack.system.pojo.vo.AccessTokenVO;
+import com.jobtrack.system.pojo.vo.TokenValidationVO;
+import com.jobtrack.system.pojo.po.AccessToken;
+import com.jobtrack.system.pojo.po.SysUser;
 
 import java.util.List;
 
@@ -14,19 +14,19 @@ import java.util.List;
  */
 public interface AccessTokenService {
 
-    List<AccessTokenView> list(Long userId);
+    List<AccessTokenVO> list(Long userId);
 
-    AccessTokenView create(Long tenantId, Long userId, AccessTokenCreateRequest request);
+    AccessTokenVO create(Long tenantId, Long userId, AccessTokenCreateDTO request);
 
     void delete(Long userId, Long id);
 
-    AccessTokenView setEnabled(Long userId, Long id, boolean enabled);
+    AccessTokenVO setEnabled(Long userId, Long id, boolean enabled);
 
-    TokenValidationResponse validate(String rawCode, String ip, String userAgent);
+    TokenValidationVO validate(String rawCode, String ip, String userAgent);
 
     TokenAuth authenticate(String rawCode);
 
-    AccessTokenLogPage logs(Long userId, int page, int pageSize, String name, String result);
+    AccessTokenLogPageVO logs(Long userId, int page, int pageSize, String name, String result);
 
     void warmCache();
 

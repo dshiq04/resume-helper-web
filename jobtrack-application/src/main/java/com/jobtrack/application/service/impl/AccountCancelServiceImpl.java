@@ -4,17 +4,17 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.application.mapper.ApplicationRecordMapper;
 import com.jobtrack.application.mapper.DeletedApplicationMapper;
 import com.jobtrack.application.mapper.ResumeMapper;
-import com.jobtrack.application.pojo.CancelConfirmRequest;
-import com.jobtrack.application.pojo.CancelStatusResponse;
-import com.jobtrack.application.pojo.CancelVerifyRequest;
-import com.jobtrack.application.pojo.ApplicationRecord;
+import com.jobtrack.application.pojo.dto.CancelConfirmDTO;
+import com.jobtrack.application.pojo.vo.CancelStatusVO;
+import com.jobtrack.application.pojo.dto.CancelVerifyDTO;
+import com.jobtrack.application.pojo.po.ApplicationRecord;
 import com.jobtrack.application.service.AccountCancelService;
 import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.system.mapper.SysUserMapper;
 import com.jobtrack.system.mapper.UserProfileMapper;
 import com.jobtrack.system.messaging.AsyncTaskPublisher;
-import com.jobtrack.system.pojo.SysUser;
-import com.jobtrack.system.pojo.UserProfile;
+import com.jobtrack.system.pojo.po.SysUser;
+import com.jobtrack.system.pojo.po.UserProfile;
 import com.jobtrack.system.security.AuthPrincipal;
 import com.jobtrack.system.security.SessionService;
 import com.jobtrack.system.service.CaptchaService;
@@ -53,22 +53,22 @@ public class AccountCancelServiceImpl implements AccountCancelService {
     private final SessionService sessionService;
     private final AsyncTaskPublisher publisher;
 
-    public CancelStatusResponse status(AuthPrincipal principal) {
+    public CancelStatusVO status(AuthPrincipal principal) {
         long applications = count(applicationMapper.selectCount(null));
         long trash = count(trashMapper.selectCount(null));
         long resumes = count(resumeMapper.selectCount(null));
-        return new CancelStatusResponse(applications, trash, resumes,
+        return new CancelStatusVO(applications, trash, resumes,
                 permissionService.hasElevated(principal.id()));
     }
 
-    public void verify(AuthPrincipal principal, CancelVerifyRequest request) {
+    public void verify(AuthPrincipal principal, CancelVerifyDTO request) {
         SysUser user = requireUser(principal);
         verifyContactAndPassword(user, request.getContactType(),
                 request.getContact(), request.getPassword());
     }
 
     @Transactional
-    public void confirm(AuthPrincipal principal, CancelConfirmRequest request) {
+    public void confirm(AuthPrincipal principal, CancelConfirmDTO request) {
         SysUser user = requireUser(principal);
         // 后台验证验证码，通过后执行注销。
         captchaService.verify(request.getCaptchaId(), request.getCaptchaCode());
@@ -76,7 +76,7 @@ public class AccountCancelServiceImpl implements AccountCancelService {
                 request.getContact(), request.getPassword());
 
         // 再次检查注销条件，防止验证期间用户又录入了数据。
-        CancelStatusResponse status = status(principal);
+        CancelStatusVO status = status(principal);
         if (status.getApplications() > 0 || status.getTrash() > 0) {
             throw BusinessException.badRequest("cancel_applications_not_cleared",
                     "请先清除投递记录后再注销");

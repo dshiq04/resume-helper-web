@@ -5,11 +5,11 @@ import com.jobtrack.application.service.ApplicationCacheService;
 import com.jobtrack.application.service.ApplicationHistoryService;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.jobtrack.application.pojo.DailyStatsResponse;
-import com.jobtrack.application.pojo.FunnelResponse;
-import com.jobtrack.application.pojo.StatsResponse;
-import com.jobtrack.application.pojo.ApplicationChange;
-import com.jobtrack.application.pojo.ApplicationRecord;
+import com.jobtrack.application.pojo.vo.DailyStatsVO;
+import com.jobtrack.application.pojo.vo.FunnelVO;
+import com.jobtrack.application.pojo.vo.StatsVO;
+import com.jobtrack.application.pojo.po.ApplicationChange;
+import com.jobtrack.application.pojo.po.ApplicationRecord;
 import com.jobtrack.application.mapper.ApplicationRecordMapper;
 import com.jobtrack.application.mapper.ResumeMapper;
 import com.jobtrack.common.constant.DomainConstants;
@@ -38,28 +38,28 @@ public class StatsServiceImpl implements StatsService {
     private final ApplicationHistoryService historyService;
     private final ApplicationCacheService applicationCache;
 
-    public StatsResponse stats(String from, String to, Integer year) {
+    public StatsVO stats(String from, String to, Integer year) {
         Integer normalizedYear = normalizeYear(year);
         String key = "stats|" + normalizedYear + "|" + value(from) + "|" + value(to);
-        return applicationCache.cached(key, StatsResponse.class,
+        return applicationCache.cached(key, StatsVO.class,
                 () -> computeStats(range(from, to, normalizedYear)));
     }
 
-    public DailyStatsResponse daily(String from, String to, Integer year) {
+    public DailyStatsVO daily(String from, String to, Integer year) {
         Integer normalizedYear = normalizeYear(year);
         String key = "daily|" + normalizedYear + "|" + value(from) + "|" + value(to);
-        return applicationCache.cached(key, DailyStatsResponse.class,
+        return applicationCache.cached(key, DailyStatsVO.class,
                 () -> computeDaily(range(from, to, normalizedYear)));
     }
 
-    public FunnelResponse funnel(String from, String to, Integer year) {
+    public FunnelVO funnel(String from, String to, Integer year) {
         Integer normalizedYear = normalizeYear(year);
         String key = "funnel|" + normalizedYear + "|" + value(from) + "|" + value(to);
-        return applicationCache.cached(key, FunnelResponse.class,
+        return applicationCache.cached(key, FunnelVO.class,
                 () -> computeFunnel(range(from, to, normalizedYear)));
     }
 
-    private StatsResponse computeStats(Range range) {
+    private StatsVO computeStats(Range range) {
         List<ApplicationRecord> applications = applications(range);
         List<Long> ids = applications.stream().map(ApplicationRecord::getId).toList();
         Map<Long, List<ApplicationChange>> changes = historyService.loadChanges(ids);
@@ -115,14 +115,14 @@ public class StatsServiceImpl implements StatsService {
 
         Long resumeCount = resumeMapper.selectCount(null);
 
-        StatsResponse response = new StatsResponse();
+        StatsVO response = new StatsVO();
         response.setTotal(total);
         response.setResumes(resumeCount == null ? 0 : resumeCount);
         response.setByCategory(byCategory);
         response.setByStatus(byStatus);
         response.setByCategoryStatus(byCategoryStatus);
         response.setByYear(byYear);
-        StatsResponse.StuckScreening stuck = new StatsResponse.StuckScreening();
+        StatsVO.StuckScreening stuck = new StatsVO.StuckScreening();
         stuck.setCount(screeningCount);
         stuck.setAverageDays(screeningCount == 0 ? 0 : (int) (screeningDaysSum / screeningCount));
         stuck.setMaxDays(screeningMax);
@@ -130,26 +130,26 @@ public class StatsServiceImpl implements StatsService {
         return response;
     }
 
-    private DailyStatsResponse computeDaily(Range range) {
+    private DailyStatsVO computeDaily(Range range) {
         List<ApplicationRecord> applications = applications(range);
-        Map<String, DailyStatsResponse.DailyStat> counts = new TreeMap<>();
+        Map<String, DailyStatsVO.DailyStat> counts = new TreeMap<>();
         for (ApplicationRecord application : applications) {
             if (application.getAppliedAt() == null) {
                 continue;
             }
             String date = application.getAppliedAt().toLocalDate().toString();
             String key = date + "|" + application.getCategory();
-            DailyStatsResponse.DailyStat item = counts.get(key);
+            DailyStatsVO.DailyStat item = counts.get(key);
             if (item == null) {
-                item = new DailyStatsResponse.DailyStat(date, application.getCategory(), 0);
+                item = new DailyStatsVO.DailyStat(date, application.getCategory(), 0);
                 counts.put(key, item);
             }
             item.setCount(item.getCount() + 1);
         }
-        return new DailyStatsResponse(new ArrayList<>(counts.values()));
+        return new DailyStatsVO(new ArrayList<>(counts.values()));
     }
 
-    private FunnelResponse computeFunnel(Range range) {
+    private FunnelVO computeFunnel(Range range) {
         List<ApplicationRecord> applications = applications(range);
         List<Long> ids = applications.stream().map(ApplicationRecord::getId).toList();
         Map<Long, List<ApplicationChange>> changes = historyService.loadChanges(ids);
@@ -209,17 +209,17 @@ public class StatsServiceImpl implements StatsService {
         }
 
         long total = applications.size();
-        List<FunnelResponse.FunnelStage> stages = new ArrayList<>();
-        stages.add(new FunnelResponse.FunnelStage("applied", total, percent(total, total)));
+        List<FunnelVO.FunnelStage> stages = new ArrayList<>();
+        stages.add(new FunnelVO.FunnelStage("applied", total, percent(total, total)));
         for (String stage : DomainConstants.STAGE_ORDER) {
             long count = reached.getOrDefault(stage, 0L);
-            stages.add(new FunnelResponse.FunnelStage(stage, count, percent(count, total)));
+            stages.add(new FunnelVO.FunnelStage(stage, count, percent(count, total)));
         }
 
-        List<FunnelResponse.CompanyFunnel> companyFunnels = new ArrayList<>();
+        List<FunnelVO.CompanyFunnel> companyFunnels = new ArrayList<>();
         for (Map.Entry<String, CompanyStat> entry : companies.entrySet()) {
             CompanyStat stat = entry.getValue();
-            FunnelResponse.CompanyFunnel funnel = new FunnelResponse.CompanyFunnel();
+            FunnelVO.CompanyFunnel funnel = new FunnelVO.CompanyFunnel();
             funnel.setCompany(entry.getKey());
             funnel.setTotal(stat.total);
             funnel.setInterviews(stat.interviews);
@@ -230,13 +230,13 @@ public class StatsServiceImpl implements StatsService {
             companyFunnels.add(funnel);
         }
         companyFunnels.sort(Comparator
-                .comparingLong(FunnelResponse.CompanyFunnel::getTotal).reversed()
-                .thenComparing(FunnelResponse.CompanyFunnel::getCompany));
+                .comparingLong(FunnelVO.CompanyFunnel::getTotal).reversed()
+                .thenComparing(FunnelVO.CompanyFunnel::getCompany));
         if (companyFunnels.size() > 12) {
             companyFunnels = companyFunnels.subList(0, 12);
         }
 
-        FunnelResponse response = new FunnelResponse();
+        FunnelVO response = new FunnelVO();
         response.setTotal(total);
         response.setStages(stages);
         response.setCompanies(companyFunnels);

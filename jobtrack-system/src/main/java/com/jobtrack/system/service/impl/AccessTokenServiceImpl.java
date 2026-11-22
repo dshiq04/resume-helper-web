@@ -6,14 +6,14 @@ import com.jobtrack.system.service.AccessTokenLogWriter;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jobtrack.common.exception.BusinessException;
-import com.jobtrack.system.pojo.AccessTokenCreateRequest;
-import com.jobtrack.system.pojo.AccessTokenLogPage;
-import com.jobtrack.system.pojo.AccessTokenLogView;
-import com.jobtrack.system.pojo.AccessTokenView;
-import com.jobtrack.system.pojo.TokenValidationResponse;
-import com.jobtrack.system.pojo.AccessToken;
-import com.jobtrack.system.pojo.AccessTokenLog;
-import com.jobtrack.system.pojo.SysUser;
+import com.jobtrack.system.pojo.dto.AccessTokenCreateDTO;
+import com.jobtrack.system.pojo.vo.AccessTokenLogPageVO;
+import com.jobtrack.system.pojo.vo.AccessTokenLogVO;
+import com.jobtrack.system.pojo.vo.AccessTokenVO;
+import com.jobtrack.system.pojo.vo.TokenValidationVO;
+import com.jobtrack.system.pojo.po.AccessToken;
+import com.jobtrack.system.pojo.po.AccessTokenLog;
+import com.jobtrack.system.pojo.po.SysUser;
 import com.jobtrack.system.mapper.AccessTokenLogMapper;
 import com.jobtrack.system.mapper.AccessTokenMapper;
 import com.jobtrack.system.config.RedisSettings;
@@ -63,7 +63,7 @@ public class AccessTokenServiceImpl implements AccessTokenService {
     private final AsyncTaskPublisher publisher;
     private final AccessTokenLogWriter logWriter;
 
-    public List<AccessTokenView> list(Long userId) {
+    public List<AccessTokenVO> list(Long userId) {
         return tokenMapper.selectList(Wrappers.<AccessToken>lambdaQuery()
                         .eq(AccessToken::getUserId, userId)
                         .orderByDesc(AccessToken::getCreatedAt))
@@ -73,7 +73,7 @@ public class AccessTokenServiceImpl implements AccessTokenService {
     }
 
     @Transactional
-    public AccessTokenView create(Long tenantId, Long userId, AccessTokenCreateRequest request) {
+    public AccessTokenVO create(Long tenantId, Long userId, AccessTokenCreateDTO request) {
         String scope = request.getScope() == null
                 ? "" : request.getScope().trim().toLowerCase(Locale.ROOT);
         if (!SCOPES.contains(scope)) {
@@ -110,7 +110,7 @@ public class AccessTokenServiceImpl implements AccessTokenService {
     }
 
     @Transactional
-    public AccessTokenView setEnabled(Long userId, Long id, boolean enabled) {
+    public AccessTokenVO setEnabled(Long userId, Long id, boolean enabled) {
         AccessToken token = tokenMapper.selectById(id);
         if (token == null || !userId.equals(token.getUserId())) {
             throw BusinessException.notFound("token_not_found", "授权码不存在或已删除");
@@ -129,16 +129,16 @@ public class AccessTokenServiceImpl implements AccessTokenService {
      * 该方法不需要登录态，因此 access_token 表在租户拦截器中已被忽略。
      */
     @Transactional
-    public TokenValidationResponse validate(String rawCode, String ip, String userAgent) {
+    public TokenValidationVO validate(String rawCode, String ip, String userAgent) {
         String code = rawCode == null ? "" : rawCode.trim();
         if (code.isEmpty()) {
             logUse(null, null, "invalid", code, ip, userAgent);
-            return TokenValidationResponse.invalid("invalid");
+            return TokenValidationVO.invalid("invalid");
         }
         AccessToken token = loadToken(code);
         if (token == null) {
             logUse(null, null, "invalid", code, ip, userAgent);
-            return TokenValidationResponse.invalid("invalid");
+            return TokenValidationVO.invalid("invalid");
         }
         // 每次使用（含过期 / 停用）都刷新最近使用时间。
         AccessToken touch = new AccessToken();
@@ -148,21 +148,21 @@ public class AccessTokenServiceImpl implements AccessTokenService {
 
         if (token.getExpiresOn() != null && token.getExpiresOn().isBefore(LocalDate.now())) {
             logUse(token, null, "expired", code, ip, userAgent);
-            return TokenValidationResponse.invalid("expired");
+            return TokenValidationVO.invalid("expired");
         }
         if (Boolean.FALSE.equals(token.getEnabled())) {
             logUse(token, null, "disabled", code, ip, userAgent);
-            return TokenValidationResponse.invalid("disabled");
+            return TokenValidationVO.invalid("disabled");
         }
         SysUser user = userMapper.selectById(token.getUserId());
         if (user == null || !Boolean.TRUE.equals(user.getEnabled())) {
             logUse(token, null, "disabled", code, ip, userAgent);
-            return TokenValidationResponse.invalid("disabled");
+            return TokenValidationVO.invalid("disabled");
         }
 
         logUse(token, user, "valid", code, ip, userAgent);
 
-        TokenValidationResponse response = new TokenValidationResponse();
+        TokenValidationVO response = new TokenValidationVO();
         response.setValid(true);
         response.setScope(token.getScope());
         response.setResources(splitResources(token.getResources()));
@@ -200,7 +200,7 @@ public class AccessTokenServiceImpl implements AccessTokenService {
         return new AccessTokenService.TokenAuth(token, user);
     }
 
-    public AccessTokenLogPage logs(Long userId, int page, int pageSize, String name, String result) {
+    public AccessTokenLogPageVO logs(Long userId, int page, int pageSize, String name, String result) {
         int current = Math.max(1, page);
         int size = Math.min(100, Math.max(1, pageSize));
         String normalizedResult = result == null ? "" : result.trim().toLowerCase(Locale.ROOT);
@@ -212,15 +212,15 @@ public class AccessTokenServiceImpl implements AccessTokenService {
                         .like(!nameKeyword.isEmpty(), AccessTokenLog::getTokenName, nameKeyword)
                         .eq(!normalizedResult.isEmpty(), AccessTokenLog::getResult, normalizedResult)
                         .orderByDesc(AccessTokenLog::getCreatedAt));
-        List<AccessTokenLogView> items = resultPage.getRecords().stream()
+        List<AccessTokenLogVO> items = resultPage.getRecords().stream()
                 .map(log -> {
-                    AccessTokenLogView view = new AccessTokenLogView();
+                    AccessTokenLogVO view = new AccessTokenLogVO();
                     BeanUtils.copyProperties(log, view, "resources");
                     view.setResources(splitResources(log.getResources()));
                     return view;
                 })
                 .toList();
-        return new AccessTokenLogPage(items, resultPage.getTotal(), current, size);
+        return new AccessTokenLogPageVO(items, resultPage.getTotal(), current, size);
     }
 
     /**
@@ -361,8 +361,8 @@ public class AccessTokenServiceImpl implements AccessTokenService {
         }
     }
 
-    private AccessTokenView view(AccessToken token) {
-        AccessTokenView view = new AccessTokenView();
+    private AccessTokenVO view(AccessToken token) {
+        AccessTokenVO view = new AccessTokenVO();
         BeanUtils.copyProperties(token, view, "resources");
         view.setResources(splitResources(token.getResources()));
         return view;

@@ -3,10 +3,10 @@ package com.jobtrack.application.service.impl;
 import com.jobtrack.application.service.ApplicationImportService;
 import com.jobtrack.application.service.ApplicationService;
 
-import com.jobtrack.application.pojo.ApplicationImportRow;
-import com.jobtrack.application.pojo.ApplicationRecord;
-import com.jobtrack.application.pojo.ApplicationRequest;
-import com.jobtrack.application.pojo.ImportResult;
+import com.jobtrack.application.pojo.dto.ApplicationImportDTO;
+import com.jobtrack.application.pojo.po.ApplicationRecord;
+import com.jobtrack.application.pojo.dto.ApplicationDTO;
+import com.jobtrack.application.pojo.vo.ImportResultVO;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.common.exception.BusinessException;
@@ -61,7 +61,7 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
 
     public byte[] template() {
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            FesodSheet.write(output, ApplicationImportRow.class)
+            FesodSheet.write(output, ApplicationImportDTO.class)
                     .registerWriteHandler(new TemplateSheetWriteHandler())
                     .sheet("投递导入模板")
                     .doWrite(List.of());
@@ -79,10 +79,10 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         List<ApplicationRecord> records = applicationRecordMapper.selectList(
                 Wrappers.<ApplicationRecord>lambdaQuery()
                         .orderByDesc(ApplicationRecord::getAppliedAt));
-        List<ApplicationImportRow> rows = new ArrayList<>();
+        List<ApplicationImportDTO> rows = new ArrayList<>();
         DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
         for (ApplicationRecord record : records) {
-            ApplicationImportRow row = new ApplicationImportRow();
+            ApplicationImportDTO row = new ApplicationImportDTO();
             row.setYear(record.getApplyYear());
             row.setCategory(categoryLabel(record.getCategory()));
             row.setCompany(record.getCompanyName());
@@ -92,7 +92,7 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
             rows.add(row);
         }
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            FesodSheet.write(output, ApplicationImportRow.class)
+            FesodSheet.write(output, ApplicationImportDTO.class)
                     .registerWriteHandler(new TemplateSheetWriteHandler())
                     .sheet("投递台账")
                     .doWrite(rows);
@@ -114,18 +114,18 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         };
     }
 
-    public ImportResult importFile(MultipartFile file) {
+    public ImportResultVO importFile(MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw BusinessException.badRequest("file_required", "请选择要导入的 Excel 文件");
         }
         if (file.getSize() > MAX_BYTES) {
             throw BusinessException.badRequest("file_too_large", "文件不能超过 10 MB");
         }
-        List<ApplicationImportRow> rows = new ArrayList<>();
+        List<ApplicationImportDTO> rows = new ArrayList<>();
         try (InputStream input = file.getInputStream()) {
-            FesodSheet.read(input, ApplicationImportRow.class, new ReadListener<ApplicationImportRow>() {
+            FesodSheet.read(input, ApplicationImportDTO.class, new ReadListener<ApplicationImportDTO>() {
                 @Override
-                public void invoke(ApplicationImportRow row, AnalysisContext context) {
+                public void invoke(ApplicationImportDTO row, AnalysisContext context) {
                     if (row != null) {
                         rows.add(row);
                     }
@@ -145,7 +145,7 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         int skipped = 0;
         List<String> errors = new ArrayList<>();
         for (int index = 0; index < rows.size(); index++) {
-            ApplicationImportRow row = rows.get(index);
+            ApplicationImportDTO row = rows.get(index);
             try {
                 applicationService.create(toRequest(row));
                 imported++;
@@ -157,10 +157,10 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
                 addError(errors, index, "该行数据不完整");
             }
         }
-        return new ImportResult(imported, skipped, rows.size(), errors);
+        return new ImportResultVO(imported, skipped, rows.size(), errors);
     }
 
-    private ApplicationRequest toRequest(ApplicationImportRow row) {
+    private ApplicationDTO toRequest(ApplicationImportDTO row) {
         String company = trim(row.getCompany());
         if (company.isEmpty()) {
             throw BusinessException.badRequest("company_required", "公司名称不能为空");
@@ -171,7 +171,7 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         }
         LocalDateTime appliedAt = parseTime(row.getTime());
 
-        ApplicationRequest request = new ApplicationRequest();
+        ApplicationDTO request = new ApplicationDTO();
         request.setCompanyName(company);
         request.setLink(link);
         request.setCategory(mapCategory(row.getCategory()));

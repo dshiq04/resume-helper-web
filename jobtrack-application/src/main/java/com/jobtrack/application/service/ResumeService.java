@@ -1,9 +1,9 @@
 package com.jobtrack.application.service;
 
-import com.jobtrack.application.pojo.Resume;
-import com.jobtrack.application.pojo.ResumeListResponse;
-import com.jobtrack.application.pojo.ResumeUpdateRequest;
-import com.jobtrack.application.pojo.ResumeView;
+import com.jobtrack.application.pojo.po.Resume;
+import com.jobtrack.application.pojo.vo.ResumeListVO;
+import com.jobtrack.application.pojo.dto.ResumeUpdateDTO;
+import com.jobtrack.application.pojo.vo.ResumeVO;
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -11,13 +11,13 @@ import org.springframework.web.multipart.MultipartFile;
  */
 public interface ResumeService {
 
-    ResumeListResponse list(String search);
+    ResumeListVO list(String search);
 
-    ResumeView get(Long id);
+    ResumeVO get(Long id);
 
-    ResumeView create(String name, String tagsRaw, MultipartFile file);
+    ResumeVO create(String name, String tagsRaw, MultipartFile file);
 
-    ResumeView update(Long id, ResumeUpdateRequest request);
+    ResumeVO update(Long id, ResumeUpdateDTO request);
 
     void delete(Long id);
 
@@ -27,5 +27,5 @@ public interface ResumeService {
 
     String contentType(Resume resume);
 
-    ResumeView view(Resume resume);
+    ResumeVO view(Resume resume);
 }

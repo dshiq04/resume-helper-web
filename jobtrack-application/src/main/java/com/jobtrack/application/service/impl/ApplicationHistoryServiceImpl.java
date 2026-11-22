@@ -3,10 +3,10 @@ package com.jobtrack.application.service.impl;
 import com.jobtrack.application.service.ApplicationHistoryService;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.jobtrack.application.pojo.ApplicationChangeView;
-import com.jobtrack.application.pojo.HistoryResponse;
-import com.jobtrack.application.pojo.ApplicationChange;
-import com.jobtrack.application.pojo.ApplicationRecord;
+import com.jobtrack.application.pojo.vo.ApplicationChangeVO;
+import com.jobtrack.application.pojo.vo.HistoryVO;
+import com.jobtrack.application.pojo.po.ApplicationChange;
+import com.jobtrack.application.pojo.po.ApplicationRecord;
 import com.jobtrack.application.mapper.ApplicationChangeMapper;
 import com.jobtrack.common.constant.DomainConstants;
 import lombok.RequiredArgsConstructor;
@@ -99,7 +99,7 @@ public class ApplicationHistoryServiceImpl implements ApplicationHistoryService 
         return grouped;
     }
 
-    public HistoryResponse history(ApplicationRecord record) {
+    public HistoryVO history(ApplicationRecord record) {
         List<ApplicationChange> changes = reconcile(record, loadChanges(record.getId()));
         sortForTimeline(changes);
 
@@ -130,12 +130,12 @@ public class ApplicationHistoryServiceImpl implements ApplicationHistoryService 
             }
         }
 
-        List<ApplicationChangeView> views = new ArrayList<>();
+        List<ApplicationChangeVO> views = new ArrayList<>();
         LocalDateTime previous = null;
         LocalDateTime now = LocalDateTime.now();
         for (int index = 0; index < changes.size(); index++) {
             ApplicationChange change = changes.get(index);
-            ApplicationChangeView view = ApplicationChangeView.of(change);
+            ApplicationChangeVO view = ApplicationChangeVO.of(change);
             if (previous != null) {
                 view.setDaysSincePrevious(daysBetween(previous, change.getChangedAt()));
             }
@@ -157,7 +157,7 @@ public class ApplicationHistoryServiceImpl implements ApplicationHistoryService 
             screeningDays = daysBetween(since, now);
         }
 
-        return new HistoryResponse(views, missing, screeningDays, record.getAppliedAt());
+        return new HistoryVO(views, missing, screeningDays, record.getAppliedAt());
     }
 
     /**

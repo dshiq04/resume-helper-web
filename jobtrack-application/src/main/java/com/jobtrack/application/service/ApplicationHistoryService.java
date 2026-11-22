@@ -1,8 +1,8 @@
 package com.jobtrack.application.service;
 
-import com.jobtrack.application.pojo.ApplicationChange;
-import com.jobtrack.application.pojo.ApplicationRecord;
-import com.jobtrack.application.pojo.HistoryResponse;
+import com.jobtrack.application.pojo.po.ApplicationChange;
+import com.jobtrack.application.pojo.po.ApplicationRecord;
+import com.jobtrack.application.pojo.vo.HistoryVO;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -22,7 +22,7 @@ public interface ApplicationHistoryService {
 
     Map<Long, List<ApplicationChange>> loadChanges(List<Long> applicationIds);
 
-    HistoryResponse history(ApplicationRecord record);
+    HistoryVO history(ApplicationRecord record);
 
     void attachStatusDays(List<ApplicationRecord> records);
 

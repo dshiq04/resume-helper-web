@@ -1,7 +1,7 @@
 package com.jobtrack.system.service;
 
-import com.jobtrack.system.pojo.PreferencesRequest;
-import com.jobtrack.system.pojo.PreferencesResponse;
+import com.jobtrack.system.pojo.dto.PreferencesDTO;
+import com.jobtrack.system.pojo.vo.PreferencesVO;
 
 /**
  * 租户级配置读写。
@@ -14,7 +14,7 @@ public interface SettingService {
 
     void put(String key, String value);
 
-    PreferencesResponse preferences();
+    PreferencesVO preferences();
 
-    PreferencesResponse update(PreferencesRequest request);
+    PreferencesVO update(PreferencesDTO request);
 }

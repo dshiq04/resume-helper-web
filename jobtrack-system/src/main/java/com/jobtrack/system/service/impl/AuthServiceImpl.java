@@ -7,18 +7,18 @@ import com.jobtrack.system.service.AvatarService;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.common.exception.BusinessException;
-import com.jobtrack.system.pojo.AuthResponse;
-import com.jobtrack.system.pojo.ChangePasswordRequest;
-import com.jobtrack.system.pojo.ForgotPasswordResetRequest;
-import com.jobtrack.system.pojo.ForgotPasswordVerifyRequest;
-import com.jobtrack.system.pojo.LoginRequest;
-import com.jobtrack.system.pojo.OnlineStatusResponse;
-import com.jobtrack.system.pojo.ProfileRequest;
-import com.jobtrack.system.pojo.RegisterRequest;
-import com.jobtrack.system.pojo.UserView;
-import com.jobtrack.system.pojo.SysTenant;
-import com.jobtrack.system.pojo.SysUser;
-import com.jobtrack.system.pojo.UserProfile;
+import com.jobtrack.system.pojo.vo.AuthVO;
+import com.jobtrack.system.pojo.dto.ChangePasswordDTO;
+import com.jobtrack.system.pojo.dto.ForgotPasswordResetDTO;
+import com.jobtrack.system.pojo.dto.ForgotPasswordVerifyDTO;
+import com.jobtrack.system.pojo.dto.LoginDTO;
+import com.jobtrack.system.pojo.vo.OnlineStatusVO;
+import com.jobtrack.system.pojo.dto.ProfileDTO;
+import com.jobtrack.system.pojo.dto.RegisterDTO;
+import com.jobtrack.system.pojo.vo.UserVO;
+import com.jobtrack.system.pojo.po.SysTenant;
+import com.jobtrack.system.pojo.po.SysUser;
+import com.jobtrack.system.pojo.po.UserProfile;
 import com.jobtrack.system.mapper.UserAgreementMapper;
 import com.jobtrack.system.mapper.UserProfileMapper;
 
@@ -66,7 +66,7 @@ public class AuthServiceImpl implements AuthService {
     private final PermissionService permissionService;
     private final AsyncTaskPublisher publisher;
 
-    public AuthResponse login(LoginRequest request) {
+    public AuthVO login(LoginDTO request) {
         captchaService.verify(request.getCaptchaId(), request.getCaptchaCode());
         String username = normalizeUsername(request.getUsername());
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
@@ -84,7 +84,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Transactional
-    public AuthResponse register(RegisterRequest request) {
+    public AuthVO register(RegisterDTO request) {
         captchaService.verify(request.getCaptchaId(), request.getCaptchaCode());
         if (!Boolean.TRUE.equals(request.getAgreementAccepted())) {
             throw BusinessException.badRequest("agreement_required", "请先阅读并同意用户协议");
@@ -172,7 +172,7 @@ public class AuthServiceImpl implements AuthService {
         return session(user, tenant);
     }
 
-    public UserView me(AuthPrincipal principal) {
+    public UserVO me(AuthPrincipal principal) {
         SysUser user = userMapper.selectById(principal.id());
         if (user == null) {
             throw BusinessException.unauthorized("user_not_found", "账号不存在");
@@ -181,7 +181,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Transactional
-    public UserView updateProfile(AuthPrincipal principal, ProfileRequest request) {
+    public UserVO updateProfile(AuthPrincipal principal, ProfileDTO request) {
         SysUser user = userMapper.selectById(principal.id());
         if (user == null) {
             throw BusinessException.unauthorized("user_not_found", "账号不存在");
@@ -192,7 +192,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Transactional
-    public void changePassword(AuthPrincipal principal, ChangePasswordRequest request) {
+    public void changePassword(AuthPrincipal principal, ChangePasswordDTO request) {
         SysUser user = userMapper.selectById(principal.id());
         if (user == null) {
             throw BusinessException.unauthorized("user_not_found", "账号不存在");
@@ -262,13 +262,13 @@ public class AuthServiceImpl implements AuthService {
     }
 
     /** 忘记密码第一步：验证用户名与保留的手机号/邮箱，验证方式与修改密码一致。 */
-    public void forgotPasswordVerify(ForgotPasswordVerifyRequest request) {
+    public void forgotPasswordVerify(ForgotPasswordVerifyDTO request) {
         SysUser user = findUserForForgotPassword(request.getUsername());
         verifyForgotContact(user, request.getContactType(), request.getContact());
     }
 
     @Transactional
-    public void forgotPasswordReset(ForgotPasswordResetRequest request) {
+    public void forgotPasswordReset(ForgotPasswordResetDTO request) {
         SysUser user = findUserForForgotPassword(request.getUsername());
         verifyForgotContact(user, request.getContactType(), request.getContact());
         if (request.getNewPassword() == null
@@ -346,17 +346,17 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
-    public OnlineStatusResponse online(AuthPrincipal principal) {
-        return new OnlineStatusResponse(sessionService.mode(),
+    public OnlineStatusVO online(AuthPrincipal principal) {
+        return new OnlineStatusVO(sessionService.mode(),
                 sessionService.countOnline(principal.tenantId()), true);
     }
 
-    private AuthResponse session(SysUser user) {
+    private AuthVO session(SysUser user) {
         SysTenant tenant = tenantMapper.selectById(user.getTenantId());
         return session(user, tenant);
     }
 
-    private AuthResponse session(SysUser user, SysTenant tenant) {
+    private AuthVO session(SysUser user, SysTenant tenant) {
         Duration ttl = Duration.ofHours(jwtService.ttlHours());
         // 登录通过后，从数据库查询权限，与令牌一起写入 Redis（过期时间与令牌一致）。
         List<String> permissions = permissionService.permissionsOf(user.getId());
@@ -371,19 +371,19 @@ public class AuthServiceImpl implements AuthService {
                 user.getUsername(), user.getDisplayName(), role, permissions);
         String sessionId = sessionService.create(info, ttl);
         JwtService.IssuedToken issued = jwtService.issue(user, sessionId);
-        return new AuthResponse(issued.token(), issued.expiresAt(), view(user, tenant));
+        return new AuthVO(issued.token(), issued.expiresAt(), view(user, tenant));
     }
 
-    private UserView view(SysUser user) {
+    private UserVO view(SysUser user) {
         return view(user, tenantMapper.selectById(user.getTenantId()));
     }
 
-    private UserView view(SysUser user, SysTenant tenant) {
+    private UserVO view(SysUser user, SysTenant tenant) {
         // 登录时还没有 TenantContext，按 user_id 直接查询。
         UserProfile profile = profileMapper.selectByUserIdIgnoreTenant(user.getId());
         String avatarUrl = profile == null ? null
                 : avatarService.url(user.getId(), profile.getAvatarUrl());
-        return new UserView(user.getId(), user.getTenantId(), user.getUsername(),
+        return new UserVO(user.getId(), user.getTenantId(), user.getUsername(),
                 user.getDisplayName(), user.getRole(), statusOf(user),
                 tenant == null ? "" : tenant.getName(),
                 avatarUrl);

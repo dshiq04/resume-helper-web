@@ -6,9 +6,9 @@ import com.jobtrack.system.service.CacheService;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.common.context.TenantContext;
 import com.jobtrack.common.exception.BusinessException;
-import com.jobtrack.system.pojo.PreferencesRequest;
-import com.jobtrack.system.pojo.PreferencesResponse;
-import com.jobtrack.system.pojo.TenantSetting;
+import com.jobtrack.system.pojo.dto.PreferencesDTO;
+import com.jobtrack.system.pojo.vo.PreferencesVO;
+import com.jobtrack.system.pojo.po.TenantSetting;
 import com.jobtrack.system.mapper.TenantSettingMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -68,17 +68,17 @@ public class SettingServiceImpl implements SettingService {
         cacheService.putString(cacheKey(key), value, CACHE_TTL);
     }
 
-    public PreferencesResponse preferences() {
+    public PreferencesVO preferences() {
         boolean enabled = getBoolean(IDLE_LOCK_ENABLED, false);
         int minutes = parseInt(get(IDLE_LOCK_MINUTES, "15"), 15);
         if (minutes < 1 || minutes > 240) {
             minutes = 15;
         }
-        return new PreferencesResponse(enabled, minutes);
+        return new PreferencesVO(enabled, minutes);
     }
 
     @Transactional
-    public PreferencesResponse update(PreferencesRequest request) {
+    public PreferencesVO update(PreferencesDTO request) {
         if (request.getIdleLockMinutes() != null) {
             int minutes = request.getIdleLockMinutes();
             if (minutes < 1 || minutes > 240) {

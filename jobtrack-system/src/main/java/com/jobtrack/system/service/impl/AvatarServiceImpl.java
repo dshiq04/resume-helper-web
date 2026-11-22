@@ -3,7 +3,7 @@ package com.jobtrack.system.service.impl;
 import com.jobtrack.system.service.AvatarService;
 
 import com.jobtrack.common.exception.BusinessException;
-import com.jobtrack.system.pojo.UserProfile;
+import com.jobtrack.system.pojo.po.UserProfile;
 import com.jobtrack.system.mapper.UserProfileMapper;
 import com.jobtrack.system.storage.ObjectStorageService;
 import lombok.RequiredArgsConstructor;

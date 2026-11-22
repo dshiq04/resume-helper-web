@@ -1,7 +1,7 @@
 package com.jobtrack.system.controller;
 
-import com.jobtrack.system.pojo.TokenValidationRequest;
-import com.jobtrack.system.pojo.TokenValidationResponse;
+import com.jobtrack.system.pojo.dto.TokenValidationDTO;
+import com.jobtrack.system.pojo.vo.TokenValidationVO;
 import com.jobtrack.system.service.AccessTokenService;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
@@ -24,10 +24,10 @@ public class TokenValidationController {
     private final AccessTokenService accessTokenService;
 
     @PostMapping("/validate")
-    public ResponseEntity<TokenValidationResponse> validate(
-            @Valid @RequestBody TokenValidationRequest request,
+    public ResponseEntity<TokenValidationVO> validate(
+            @Valid @RequestBody TokenValidationDTO request,
             HttpServletRequest httpRequest) {
-        TokenValidationResponse response = accessTokenService.validate(request.getCode(),
+        TokenValidationVO response = accessTokenService.validate(request.getCode(),
                 clientIp(httpRequest), httpRequest.getHeader("User-Agent"));
         if (response.isValid()) {
             return ResponseEntity.ok(response);

@@ -1,7 +1,7 @@
 package com.jobtrack.system.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.jobtrack.system.pojo.AccessToken;
+import com.jobtrack.system.pojo.po.AccessToken;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

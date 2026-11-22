@@ -1,15 +1,15 @@
 package com.jobtrack.system.controller;
 
-import com.jobtrack.system.pojo.AuthResponse;
-import com.jobtrack.system.pojo.CaptchaResponse;
-import com.jobtrack.system.pojo.ChangePasswordRequest;
-import com.jobtrack.system.pojo.ForgotPasswordResetRequest;
-import com.jobtrack.system.pojo.ForgotPasswordVerifyRequest;
-import com.jobtrack.system.pojo.LoginRequest;
-import com.jobtrack.system.pojo.OnlineStatusResponse;
-import com.jobtrack.system.pojo.ProfileRequest;
-import com.jobtrack.system.pojo.RegisterRequest;
-import com.jobtrack.system.pojo.UserView;
+import com.jobtrack.system.pojo.vo.AuthVO;
+import com.jobtrack.system.pojo.vo.CaptchaVO;
+import com.jobtrack.system.pojo.dto.ChangePasswordDTO;
+import com.jobtrack.system.pojo.dto.ForgotPasswordResetDTO;
+import com.jobtrack.system.pojo.dto.ForgotPasswordVerifyDTO;
+import com.jobtrack.system.pojo.dto.LoginDTO;
+import com.jobtrack.system.pojo.vo.OnlineStatusVO;
+import com.jobtrack.system.pojo.dto.ProfileDTO;
+import com.jobtrack.system.pojo.dto.RegisterDTO;
+import com.jobtrack.system.pojo.vo.UserVO;
 import com.jobtrack.system.security.SecurityUtils;
 import com.jobtrack.system.service.AuthService;
 import com.jobtrack.system.service.CaptchaService;
@@ -43,33 +43,33 @@ public class AuthController {
     }
 
     @GetMapping("/captcha")
-    public CaptchaResponse captcha() {
+    public CaptchaVO captcha() {
         return captchaService.generate();
     }
 
     @PostMapping("/login")
-    public AuthResponse login(@Valid @RequestBody LoginRequest request) {
+    public AuthVO login(@Valid @RequestBody LoginDTO request) {
         return authService.login(request);
     }
 
     @PostMapping("/register")
     @ResponseStatus(HttpStatus.CREATED)
-    public AuthResponse register(@Valid @RequestBody RegisterRequest request) {
+    public AuthVO register(@Valid @RequestBody RegisterDTO request) {
         return authService.register(request);
     }
 
     @GetMapping("/me")
-    public UserView me() {
+    public UserVO me() {
         return authService.me(SecurityUtils.current());
     }
 
     @PutMapping("/me")
-    public UserView updateProfile(@Valid @RequestBody ProfileRequest request) {
+    public UserVO updateProfile(@Valid @RequestBody ProfileDTO request) {
         return authService.updateProfile(SecurityUtils.current(), request);
     }
 
     @PostMapping("/change-password")
-    public Map<String, Object> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+    public Map<String, Object> changePassword(@Valid @RequestBody ChangePasswordDTO request) {
         authService.changePassword(SecurityUtils.current(), request);
         return Map.of("changed", true);
     }
@@ -77,7 +77,7 @@ public class AuthController {
     /** 忘记密码第一步：验证用户名与手机号/邮箱。 */
     @PostMapping("/forgot-password/verify")
     public Map<String, Object> forgotPasswordVerify(
-            @Valid @RequestBody ForgotPasswordVerifyRequest request) {
+            @Valid @RequestBody ForgotPasswordVerifyDTO request) {
         authService.forgotPasswordVerify(request);
         return Map.of("verified", true);
     }
@@ -85,13 +85,13 @@ public class AuthController {
     /** 忘记密码第二步：重置密码并注销全部旧令牌。 */
     @PostMapping("/forgot-password/reset")
     public Map<String, Object> forgotPasswordReset(
-            @Valid @RequestBody ForgotPasswordResetRequest request) {
+            @Valid @RequestBody ForgotPasswordResetDTO request) {
         authService.forgotPasswordReset(request);
         return Map.of("reset", true);
     }
 
     @GetMapping("/online")
-    public OnlineStatusResponse online() {
+    public OnlineStatusVO online() {
         return authService.online(SecurityUtils.current());
     }
 

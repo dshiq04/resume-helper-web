@@ -1,7 +1,7 @@
 package com.jobtrack.system.controller;
 
-import com.jobtrack.system.pojo.PreferencesRequest;
-import com.jobtrack.system.pojo.PreferencesResponse;
+import com.jobtrack.system.pojo.dto.PreferencesDTO;
+import com.jobtrack.system.pojo.vo.PreferencesVO;
 import com.jobtrack.system.service.SettingService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -18,12 +18,12 @@ public class PreferencesController {
     private final SettingService settingService;
 
     @GetMapping
-    public PreferencesResponse get() {
+    public PreferencesVO get() {
         return settingService.preferences();
     }
 
     @PutMapping
-    public PreferencesResponse update(@RequestBody PreferencesRequest request) {
+    public PreferencesVO update(@RequestBody PreferencesDTO request) {
         return settingService.update(request);
     }
 }

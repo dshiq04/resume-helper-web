@@ -1,7 +1,7 @@
 package com.jobtrack.system.security;
 
 import com.jobtrack.system.config.AppProperties;
-import com.jobtrack.system.pojo.SysUser;
+import com.jobtrack.system.pojo.po.SysUser;
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.security.Keys;

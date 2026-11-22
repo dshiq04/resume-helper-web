@@ -5,13 +5,13 @@ import com.jobtrack.system.service.AvatarService;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.common.exception.BusinessException;
-import com.jobtrack.system.pojo.ContactUpdateRequest;
-import com.jobtrack.system.pojo.UserProfileRequest;
-import com.jobtrack.system.pojo.UserProfileView;
-import com.jobtrack.system.pojo.UserView;
-import com.jobtrack.system.pojo.SysTenant;
-import com.jobtrack.system.pojo.SysUser;
-import com.jobtrack.system.pojo.UserProfile;
+import com.jobtrack.system.pojo.dto.ContactUpdateDTO;
+import com.jobtrack.system.pojo.dto.UserProfileDTO;
+import com.jobtrack.system.pojo.vo.UserProfileVO;
+import com.jobtrack.system.pojo.vo.UserVO;
+import com.jobtrack.system.pojo.po.SysTenant;
+import com.jobtrack.system.pojo.po.SysUser;
+import com.jobtrack.system.pojo.po.UserProfile;
 import com.jobtrack.system.mapper.SysTenantMapper;
 import com.jobtrack.system.mapper.SysUserMapper;
 import com.jobtrack.system.mapper.UserProfileMapper;
@@ -53,11 +53,11 @@ public class AccountServiceImpl implements AccountService {
     private static final Set<String> AVATAR_TYPES = Set.of("png", "jpg", "jpeg", "webp", "gif");
     private static final long AVATAR_MAX_BYTES = 5L * 1024 * 1024;
 
-    public UserProfileView profile(AuthPrincipal principal) {
+    public UserProfileVO profile(AuthPrincipal principal) {
         UserProfile profile = profileMapper.selectOne(Wrappers.<UserProfile>lambdaQuery()
                 .eq(UserProfile::getUserId, principal.id()));
         if (profile == null) {
-            UserProfileView empty = new UserProfileView();
+            UserProfileVO empty = new UserProfileVO();
             empty.setUserId(principal.id());
             return empty;
         }
@@ -65,7 +65,7 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Transactional
-    public UserProfileView saveProfile(AuthPrincipal principal, UserProfileRequest request) {
+    public UserProfileVO saveProfile(AuthPrincipal principal, UserProfileDTO request) {
         UserProfile profile = profileMapper.selectOne(Wrappers.<UserProfile>lambdaQuery()
                 .eq(UserProfile::getUserId, principal.id()));
         boolean creating = profile == null;
@@ -92,7 +92,7 @@ public class AccountServiceImpl implements AccountService {
      * 是否已被其他未注销账号占用；被占用时禁止修改并提示用户。
      */
     @Transactional
-    public UserProfileView saveContact(AuthPrincipal principal, ContactUpdateRequest request) {
+    public UserProfileVO saveContact(AuthPrincipal principal, ContactUpdateDTO request) {
         // 1. 检查本用户是否存在。
         SysUser user = userMapper.selectById(principal.id());
         if (user == null) {
@@ -137,7 +137,7 @@ public class AccountServiceImpl implements AccountService {
     }
 
     @Transactional
-    public UserProfileView uploadAvatar(AuthPrincipal principal, MultipartFile file) {
+    public UserProfileVO uploadAvatar(AuthPrincipal principal, MultipartFile file) {
         if (file == null || file.isEmpty()) {
             throw BusinessException.badRequest("file_required", "请选择头像图片");
         }
@@ -193,8 +193,8 @@ public class AccountServiceImpl implements AccountService {
         };
     }
 
-    private UserProfileView view(UserProfile profile) {
-        UserProfileView view = new UserProfileView();
+    private UserProfileVO view(UserProfile profile) {
+        UserProfileVO view = new UserProfileVO();
         BeanUtils.copyProperties(profile, view);
         view.setAvatarUrl(avatarService.url(profile.getUserId(), profile.getAvatarUrl()));
         return view;
@@ -219,11 +219,11 @@ public class AccountServiceImpl implements AccountService {
         return value == null ? "" : value.replaceAll("[^0-9]", "");
     }
 
-    private UserView view(SysUser user) {
+    private UserVO view(SysUser user) {
         SysTenant tenant = tenantMapper.selectById(user.getTenantId());
         String status = user.getStatus() == null || user.getStatus().isBlank()
                 ? "NORMAL" : user.getStatus();
-        return new UserView(user.getId(), user.getTenantId(), user.getUsername(),
+        return new UserVO(user.getId(), user.getTenantId(), user.getUsername(),
                 user.getDisplayName(), user.getRole(), status,
                 tenant == null ? "" : tenant.getName(), null);
     }

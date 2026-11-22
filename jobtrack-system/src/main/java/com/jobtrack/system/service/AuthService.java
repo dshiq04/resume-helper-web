@@ -1,14 +1,14 @@
 package com.jobtrack.system.service;
 
-import com.jobtrack.system.pojo.AuthResponse;
-import com.jobtrack.system.pojo.ChangePasswordRequest;
-import com.jobtrack.system.pojo.ForgotPasswordResetRequest;
-import com.jobtrack.system.pojo.ForgotPasswordVerifyRequest;
-import com.jobtrack.system.pojo.LoginRequest;
-import com.jobtrack.system.pojo.OnlineStatusResponse;
-import com.jobtrack.system.pojo.ProfileRequest;
-import com.jobtrack.system.pojo.RegisterRequest;
-import com.jobtrack.system.pojo.UserView;
+import com.jobtrack.system.pojo.vo.AuthVO;
+import com.jobtrack.system.pojo.dto.ChangePasswordDTO;
+import com.jobtrack.system.pojo.dto.ForgotPasswordResetDTO;
+import com.jobtrack.system.pojo.dto.ForgotPasswordVerifyDTO;
+import com.jobtrack.system.pojo.dto.LoginDTO;
+import com.jobtrack.system.pojo.vo.OnlineStatusVO;
+import com.jobtrack.system.pojo.dto.ProfileDTO;
+import com.jobtrack.system.pojo.dto.RegisterDTO;
+import com.jobtrack.system.pojo.vo.UserVO;
 import com.jobtrack.system.security.AuthPrincipal;
 
 /**
@@ -16,23 +16,23 @@ import com.jobtrack.system.security.AuthPrincipal;
  */
 public interface AuthService {
 
-    AuthResponse login(LoginRequest request);
+    AuthVO login(LoginDTO request);
 
-    AuthResponse register(RegisterRequest request);
+    AuthVO register(RegisterDTO request);
 
-    UserView me(AuthPrincipal principal);
+    UserVO me(AuthPrincipal principal);
 
-    UserView updateProfile(AuthPrincipal principal, ProfileRequest request);
+    UserVO updateProfile(AuthPrincipal principal, ProfileDTO request);
 
-    void changePassword(AuthPrincipal principal, ChangePasswordRequest request);
+    void changePassword(AuthPrincipal principal, ChangePasswordDTO request);
 
     /** 忘记密码第一步：验证用户名与保留的手机号/邮箱。 */
-    void forgotPasswordVerify(ForgotPasswordVerifyRequest request);
+    void forgotPasswordVerify(ForgotPasswordVerifyDTO request);
 
     /** 忘记密码第二步：重置密码，成功后注销该用户全部令牌（RabbitMQ）。 */
-    void forgotPasswordReset(ForgotPasswordResetRequest request);
+    void forgotPasswordReset(ForgotPasswordResetDTO request);
 
     void logout(AuthPrincipal principal);
 
-    OnlineStatusResponse online(AuthPrincipal principal);
+    OnlineStatusVO online(AuthPrincipal principal);
 }

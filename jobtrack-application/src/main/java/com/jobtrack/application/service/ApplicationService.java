@@ -1,11 +1,11 @@
 package com.jobtrack.application.service;
 
-import com.jobtrack.application.pojo.ApplicationChangeView;
-import com.jobtrack.application.pojo.ApplicationRecord;
-import com.jobtrack.application.pojo.ApplicationRequest;
-import com.jobtrack.application.pojo.ApplicationUpdateRequest;
-import com.jobtrack.application.pojo.HistoryResponse;
-import com.jobtrack.application.pojo.YearList;
+import com.jobtrack.application.pojo.vo.ApplicationChangeVO;
+import com.jobtrack.application.pojo.po.ApplicationRecord;
+import com.jobtrack.application.pojo.dto.ApplicationDTO;
+import com.jobtrack.application.pojo.dto.ApplicationUpdateDTO;
+import com.jobtrack.application.pojo.vo.HistoryVO;
+import com.jobtrack.application.pojo.vo.YearListVO;
 import com.jobtrack.common.api.PageResult;
 
 import java.util.List;
@@ -19,13 +19,13 @@ public interface ApplicationService {
                                        String channel, String priority, Integer year,
                                        String from, String to, int page, int pageSize);
 
-    YearList years();
+    YearListVO years();
 
-    ApplicationRecord create(ApplicationRequest request);
+    ApplicationRecord create(ApplicationDTO request);
 
     ApplicationRecord get(Long id);
 
-    ApplicationRecord update(Long id, ApplicationUpdateRequest request);
+    ApplicationRecord update(Long id, ApplicationUpdateDTO request);
 
     void delete(Long id);
 
@@ -37,7 +37,7 @@ public interface ApplicationService {
 
     List<String> companySuggestions(String search);
 
-    HistoryResponse history(Long id);
+    HistoryVO history(Long id);
 
-    List<ApplicationChangeView> appendHistory(Long id, String status, String changedAt);
+    List<ApplicationChangeVO> appendHistory(Long id, String status, String changedAt);
 }

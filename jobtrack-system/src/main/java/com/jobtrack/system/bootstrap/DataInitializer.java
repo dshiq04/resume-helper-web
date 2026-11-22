@@ -2,8 +2,8 @@ package com.jobtrack.system.bootstrap;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.system.config.AppProperties;
-import com.jobtrack.system.pojo.SysTenant;
-import com.jobtrack.system.pojo.SysUser;
+import com.jobtrack.system.pojo.po.SysTenant;
+import com.jobtrack.system.pojo.po.SysUser;
 import com.jobtrack.system.mapper.SysTenantMapper;
 import com.jobtrack.system.mapper.SysUserMapper;
 import com.jobtrack.system.service.PermissionService;

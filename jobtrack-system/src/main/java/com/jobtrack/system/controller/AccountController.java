@@ -1,12 +1,12 @@
 package com.jobtrack.system.controller;
 
-import com.jobtrack.system.pojo.AccessTokenCreateRequest;
-import com.jobtrack.system.pojo.AccessTokenLogPage;
-import com.jobtrack.system.pojo.AccessTokenView;
-import com.jobtrack.system.pojo.ContactUpdateRequest;
-import com.jobtrack.system.pojo.TokenStatusRequest;
-import com.jobtrack.system.pojo.UserProfileRequest;
-import com.jobtrack.system.pojo.UserProfileView;
+import com.jobtrack.system.pojo.dto.AccessTokenCreateDTO;
+import com.jobtrack.system.pojo.vo.AccessTokenLogPageVO;
+import com.jobtrack.system.pojo.vo.AccessTokenVO;
+import com.jobtrack.system.pojo.dto.ContactUpdateDTO;
+import com.jobtrack.system.pojo.dto.TokenStatusDTO;
+import com.jobtrack.system.pojo.dto.UserProfileDTO;
+import com.jobtrack.system.pojo.vo.UserProfileVO;
 import com.jobtrack.system.security.AuthPrincipal;
 import com.jobtrack.system.security.SecurityUtils;
 import com.jobtrack.system.service.AccessTokenService;
@@ -41,34 +41,34 @@ public class AccountController {
     private final AccessTokenService accessTokenService;
 
     @GetMapping("/profile")
-    public UserProfileView profile() {
+    public UserProfileVO profile() {
         return accountService.profile(SecurityUtils.current());
     }
 
     @PutMapping("/profile")
-    public UserProfileView saveProfile(@Valid @RequestBody UserProfileRequest request) {
+    public UserProfileVO saveProfile(@Valid @RequestBody UserProfileDTO request) {
         return accountService.saveProfile(SecurityUtils.current(), request);
     }
 
     /** 账号与安全 · 保存联系方式：占用检查通过后才能修改。 */
     @PutMapping("/contact")
-    public UserProfileView saveContact(@Valid @RequestBody ContactUpdateRequest request) {
+    public UserProfileVO saveContact(@Valid @RequestBody ContactUpdateDTO request) {
         return accountService.saveContact(SecurityUtils.current(), request);
     }
 
     @PostMapping("/avatar")
-    public UserProfileView uploadAvatar(@RequestParam("file") MultipartFile file) {
+    public UserProfileVO uploadAvatar(@RequestParam("file") MultipartFile file) {
         return accountService.uploadAvatar(SecurityUtils.current(), file);
     }
 
     @GetMapping("/tokens")
-    public List<AccessTokenView> tokens() {
+    public List<AccessTokenVO> tokens() {
         return accessTokenService.list(SecurityUtils.currentUserId());
     }
 
     @PostMapping("/tokens")
     @ResponseStatus(HttpStatus.CREATED)
-    public AccessTokenView createToken(@Valid @RequestBody AccessTokenCreateRequest request) {
+    public AccessTokenVO createToken(@Valid @RequestBody AccessTokenCreateDTO request) {
         AuthPrincipal principal = SecurityUtils.current();
         return accessTokenService.create(principal.tenantId(), principal.id(), request);
     }
@@ -80,13 +80,13 @@ public class AccountController {
     }
 
     @PutMapping("/tokens/{id}/enabled")
-    public AccessTokenView updateTokenStatus(@PathVariable Long id,
-                                             @Valid @RequestBody TokenStatusRequest request) {
+    public AccessTokenVO updateTokenStatus(@PathVariable Long id,
+                                             @Valid @RequestBody TokenStatusDTO request) {
         return accessTokenService.setEnabled(SecurityUtils.currentUserId(), id, request.getEnabled());
     }
 
     @GetMapping("/tokens/logs")
-    public AccessTokenLogPage tokenLogs(
+    public AccessTokenLogPageVO tokenLogs(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String name,

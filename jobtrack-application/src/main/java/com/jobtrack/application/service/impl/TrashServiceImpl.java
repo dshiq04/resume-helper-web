@@ -5,12 +5,12 @@ import com.jobtrack.application.service.ApplicationCacheService;
 import com.jobtrack.application.service.ApplicationHistoryService;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
-import com.jobtrack.application.pojo.TrashItem;
-import com.jobtrack.application.pojo.TrashListResponse;
-import com.jobtrack.application.pojo.TrashPayload;
-import com.jobtrack.application.pojo.ApplicationChange;
-import com.jobtrack.application.pojo.ApplicationRecord;
-import com.jobtrack.application.pojo.DeletedApplication;
+import com.jobtrack.application.pojo.vo.TrashItemVO;
+import com.jobtrack.application.pojo.vo.TrashListVO;
+import com.jobtrack.application.pojo.po.TrashPayload;
+import com.jobtrack.application.pojo.po.ApplicationChange;
+import com.jobtrack.application.pojo.po.ApplicationRecord;
+import com.jobtrack.application.pojo.po.DeletedApplication;
 import com.jobtrack.application.mapper.ApplicationChangeMapper;
 import com.jobtrack.application.mapper.ApplicationRecordMapper;
 import com.jobtrack.application.mapper.DeletedApplicationMapper;
@@ -61,14 +61,14 @@ public class TrashServiceImpl implements TrashService {
         return trash;
     }
 
-    public TrashListResponse list() {
+    public TrashListVO list() {
         List<DeletedApplication> rows = deletedMapper.selectList(Wrappers.<DeletedApplication>lambdaQuery()
                 .orderByDesc(DeletedApplication::getDeletedAt)
                 .orderByDesc(DeletedApplication::getId));
-        List<TrashItem> items = new ArrayList<>();
+        List<TrashItemVO> items = new ArrayList<>();
         for (DeletedApplication row : rows) {
             TrashPayload payload = parsePayload(row);
-            TrashItem item = new TrashItem();
+            TrashItemVO item = new TrashItemVO();
             item.setId(row.getId());
             item.setOriginalId(row.getOriginalId());
             item.setDeletedAt(row.getDeletedAt());
@@ -89,7 +89,7 @@ public class TrashServiceImpl implements TrashService {
                     ? List.of() : payload.getHistory());
             items.add(item);
         }
-        return new TrashListResponse(items, items.size());
+        return new TrashListVO(items, items.size());
     }
 
     @Transactional

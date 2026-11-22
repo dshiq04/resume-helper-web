@@ -1,14 +1,14 @@
 package com.jobtrack.application.controller;
 
-import com.jobtrack.application.pojo.ApplicationChangeView;
-import com.jobtrack.application.pojo.ApplicationRequest;
-import com.jobtrack.application.pojo.ApplicationUpdateRequest;
-import com.jobtrack.application.pojo.BatchCategoryRequest;
-import com.jobtrack.application.pojo.BatchStatusRequest;
-import com.jobtrack.application.pojo.HistoryResponse;
-import com.jobtrack.application.pojo.IdsRequest;
-import com.jobtrack.application.pojo.ApplicationRecord;
-import com.jobtrack.application.pojo.ImportResult;
+import com.jobtrack.application.pojo.vo.ApplicationChangeVO;
+import com.jobtrack.application.pojo.dto.ApplicationDTO;
+import com.jobtrack.application.pojo.dto.ApplicationUpdateDTO;
+import com.jobtrack.application.pojo.dto.BatchCategoryDTO;
+import com.jobtrack.application.pojo.dto.BatchStatusDTO;
+import com.jobtrack.application.pojo.vo.HistoryVO;
+import com.jobtrack.application.pojo.dto.IdsDTO;
+import com.jobtrack.application.pojo.po.ApplicationRecord;
+import com.jobtrack.application.pojo.vo.ImportResultVO;
 import com.jobtrack.application.service.ApplicationImportService;
 import com.jobtrack.application.service.ApplicationService;
 import com.jobtrack.common.api.PageResult;
@@ -70,7 +70,7 @@ public class ApplicationController {
     }
 
     @PostMapping("/applications/import")
-    public ImportResult importApplications(@RequestParam("file") MultipartFile file) {
+    public ImportResultVO importApplications(@RequestParam("file") MultipartFile file) {
         return applicationImportService.importFile(file);
     }
 
@@ -87,13 +87,13 @@ public class ApplicationController {
     }
 
     @GetMapping("/applications/years")
-    public com.jobtrack.application.pojo.YearList years() {
+    public com.jobtrack.application.pojo.vo.YearListVO years() {
         return applicationService.years();
     }
 
     @PostMapping("/applications")
     @ResponseStatus(HttpStatus.CREATED)
-    public ApplicationRecord create(@Valid @RequestBody ApplicationRequest request) {
+    public ApplicationRecord create(@Valid @RequestBody ApplicationDTO request) {
         return applicationService.create(request);
     }
 
@@ -104,7 +104,7 @@ public class ApplicationController {
 
     @PutMapping("/application/{id}")
     public ApplicationRecord update(@PathVariable Long id,
-                                    @Valid @RequestBody ApplicationUpdateRequest request) {
+                                    @Valid @RequestBody ApplicationUpdateDTO request) {
         return applicationService.update(id, request);
     }
 
@@ -115,17 +115,17 @@ public class ApplicationController {
     }
 
     @PostMapping("/applications/batch-delete")
-    public Map<String, Object> batchDelete(@Valid @RequestBody IdsRequest request) {
+    public Map<String, Object> batchDelete(@Valid @RequestBody IdsDTO request) {
         return Map.of("deleted", applicationService.batchDelete(request.getIds()));
     }
 
     @PatchMapping("/applications/batch-status")
-    public Map<String, Object> batchStatus(@Valid @RequestBody BatchStatusRequest request) {
+    public Map<String, Object> batchStatus(@Valid @RequestBody BatchStatusDTO request) {
         return Map.of("updated", applicationService.batchStatus(request.getIds(), request.getStatus()));
     }
 
     @PatchMapping("/applications/batch-category")
-    public Map<String, Object> batchCategory(@Valid @RequestBody BatchCategoryRequest request) {
+    public Map<String, Object> batchCategory(@Valid @RequestBody BatchCategoryDTO request) {
         return Map.of("updated", applicationService.batchCategory(request.getIds(), request.getCategory()));
     }
 
@@ -135,7 +135,7 @@ public class ApplicationController {
     }
 
     @GetMapping("/application/{id}/history")
-    public HistoryResponse history(@PathVariable Long id) {
+    public HistoryVO history(@PathVariable Long id) {
         return applicationService.history(id);
     }
 
@@ -143,7 +143,7 @@ public class ApplicationController {
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, Object> appendHistory(@PathVariable Long id,
                                              @RequestBody Map<String, String> body) {
-        List<ApplicationChangeView> items = applicationService.appendHistory(
+        List<ApplicationChangeVO> items = applicationService.appendHistory(
                 id, body.get("status"), body.get("changedAt"));
         return Map.of("items", items);
     }

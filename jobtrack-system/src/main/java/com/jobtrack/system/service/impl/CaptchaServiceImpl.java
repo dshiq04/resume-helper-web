@@ -5,7 +5,7 @@ import com.jobtrack.system.service.CaptchaService;
 import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.system.config.CaptchaSettings;
 import com.jobtrack.system.config.RedisSettings;
-import com.jobtrack.system.pojo.CaptchaResponse;
+import com.jobtrack.system.pojo.vo.CaptchaVO;
 import com.wf.captcha.ArithmeticCaptcha;
 import com.wf.captcha.SpecCaptcha;
 import com.wf.captcha.base.Captcha;
@@ -52,7 +52,7 @@ public class CaptchaServiceImpl implements CaptchaService {
         return captchaSettings.isEnabled();
     }
 
-    public CaptchaResponse generate() {
+    public CaptchaVO generate() {
         requireEnabled();
         Captcha captcha;
         if ("math".equalsIgnoreCase(captchaSettings.getType())) {
@@ -78,7 +78,7 @@ public class CaptchaServiceImpl implements CaptchaService {
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
             captcha.out(output);
             String image = "data:image/png;base64," + Base64.getEncoder().encodeToString(output.toByteArray());
-            return new CaptchaResponse(captchaId, image, ttl);
+            return new CaptchaVO(captchaId, image, ttl);
         } catch (Exception exception) {
             throw new BusinessException(500, "captcha_failed", "生成验证码失败");
         }

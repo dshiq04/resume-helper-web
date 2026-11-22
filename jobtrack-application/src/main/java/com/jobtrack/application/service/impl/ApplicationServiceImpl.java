@@ -8,14 +8,14 @@ import com.jobtrack.application.service.ApplicationHistoryService;
 import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
-import com.jobtrack.application.pojo.ApplicationChangeView;
-import com.jobtrack.application.pojo.ApplicationPageCache;
-import com.jobtrack.application.pojo.ApplicationRequest;
-import com.jobtrack.application.pojo.ApplicationUpdateRequest;
-import com.jobtrack.application.pojo.HistoryResponse;
-import com.jobtrack.application.pojo.YearList;
-import com.jobtrack.application.pojo.ApplicationChange;
-import com.jobtrack.application.pojo.ApplicationRecord;
+import com.jobtrack.application.pojo.vo.ApplicationChangeVO;
+import com.jobtrack.application.pojo.po.ApplicationPageCache;
+import com.jobtrack.application.pojo.dto.ApplicationDTO;
+import com.jobtrack.application.pojo.dto.ApplicationUpdateDTO;
+import com.jobtrack.application.pojo.vo.HistoryVO;
+import com.jobtrack.application.pojo.vo.YearListVO;
+import com.jobtrack.application.pojo.po.ApplicationChange;
+import com.jobtrack.application.pojo.po.ApplicationRecord;
 import com.jobtrack.application.mapper.ApplicationChangeMapper;
 import com.jobtrack.application.mapper.ApplicationRecordMapper;
 import com.jobtrack.common.api.PageResult;
@@ -66,8 +66,8 @@ public class ApplicationServiceImpl implements ApplicationService {
     /**
      * 年度选项同样走缓存，页面打开时只查一次数据库。
      */
-    public YearList years() {
-        return applicationCache.cached("years", YearList.class, () -> {
+    public YearListVO years() {
+        return applicationCache.cached("years", YearListVO.class, () -> {
             QueryWrapper<ApplicationRecord> query = new QueryWrapper<>();
             query.select("DISTINCT apply_year").isNotNull("apply_year").orderByDesc("apply_year");
             List<Object> values = applicationMapper.selectObjs(query);
@@ -79,7 +79,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                     years.add(Integer.parseInt(String.valueOf(value)));
                 }
             }
-            return new YearList(years);
+            return new YearListVO(years);
         });
     }
 
@@ -133,7 +133,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Transactional
-    public ApplicationRecord create(ApplicationRequest request) {
+    public ApplicationRecord create(ApplicationDTO request) {
         ApplicationRecord record = new ApplicationRecord();
         String category = normalizeFilter(request.getCategory());
         requireCategory(category);
@@ -183,7 +183,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Transactional
-    public ApplicationRecord update(Long id, ApplicationUpdateRequest request) {
+    public ApplicationRecord update(Long id, ApplicationUpdateDTO request) {
         // 修改前先确认记录存在，不存在按 500 返回明确提示。
         ApplicationRecord record = applicationMapper.selectById(id);
         if (record == null) {
@@ -343,7 +343,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         return names;
     }
 
-    public HistoryResponse history(Long id) {
+    public HistoryVO history(Long id) {
         ApplicationRecord record = applicationMapper.selectById(id);
         if (record == null) {
             throw BusinessException.notFound("not_found", "投递记录不存在");
@@ -352,7 +352,7 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Transactional
-    public List<ApplicationChangeView> appendHistory(Long id, String status, String changedAt) {
+    public List<ApplicationChangeVO> appendHistory(Long id, String status, String changedAt) {
         ApplicationRecord record = applicationMapper.selectById(id);
         if (record == null) {
             throw BusinessException.notFound("not_found", "投递记录不存在");
@@ -370,9 +370,9 @@ public class ApplicationServiceImpl implements ApplicationService {
         historyService.recordStatusChange(id, normalized, when);
         applicationCache.invalidate();
         List<ApplicationChange> changes = historyService.reconcile(record, historyService.loadChanges(id));
-        List<ApplicationChangeView> views = new ArrayList<>();
+        List<ApplicationChangeVO> views = new ArrayList<>();
         for (ApplicationChange change : changes) {
-            views.add(ApplicationChangeView.of(change));
+            views.add(ApplicationChangeVO.of(change));
         }
         return views;
     }

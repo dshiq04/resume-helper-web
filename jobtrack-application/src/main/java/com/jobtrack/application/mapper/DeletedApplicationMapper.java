@@ -1,7 +1,7 @@
 package com.jobtrack.application.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
-import com.jobtrack.application.pojo.DeletedApplication;
+import com.jobtrack.application.pojo.po.DeletedApplication;
 import org.apache.ibatis.annotations.Mapper;
 
 @Mapper

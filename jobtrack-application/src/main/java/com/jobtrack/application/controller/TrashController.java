@@ -1,7 +1,7 @@
 package com.jobtrack.application.controller;
 
-import com.jobtrack.application.pojo.TrashListResponse;
-import com.jobtrack.application.pojo.ApplicationRecord;
+import com.jobtrack.application.pojo.vo.TrashListVO;
+import com.jobtrack.application.pojo.po.ApplicationRecord;
 import com.jobtrack.application.service.TrashService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,7 +21,7 @@ public class TrashController {
     private final TrashService trashService;
 
     @GetMapping
-    public TrashListResponse list() {
+    public TrashListVO list() {
         return trashService.list();
     }
 

@@ -2,7 +2,7 @@ package com.jobtrack.system.controller;
 
 import com.jobtrack.system.config.AppProperties;
 import com.jobtrack.system.database.DatabaseManager;
-import com.jobtrack.system.pojo.DatabaseTestResult;
+import com.jobtrack.system.pojo.vo.DatabaseTestResultVO;
 import com.jobtrack.system.security.SecurityUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
@@ -41,7 +41,7 @@ public class DatabaseController {
     }
 
     @GetMapping("/test")
-    public DatabaseTestResult test() {
+    public DatabaseTestResultVO test() {
         SecurityUtils.requireAdmin();
         return databaseManager.testCurrent();
     }

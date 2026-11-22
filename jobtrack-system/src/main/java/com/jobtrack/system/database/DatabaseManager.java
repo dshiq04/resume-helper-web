@@ -1,7 +1,7 @@
 package com.jobtrack.system.database;
 
 import com.jobtrack.system.config.DatabaseSettings;
-import com.jobtrack.system.pojo.DatabaseTestResult;
+import com.jobtrack.system.pojo.vo.DatabaseTestResultVO;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
@@ -66,13 +66,13 @@ public class DatabaseManager {
     /**
      * 使用当前连接池执行一次 SELECT 1，用于设置页的“测试连接”。
      */
-    public DatabaseTestResult testCurrent() {
+    public DatabaseTestResultVO testCurrent() {
         try (Connection connection = dataSource.getConnection();
              Statement statement = connection.createStatement()) {
             statement.execute("SELECT 1");
-            return new DatabaseTestResult(true, "连接成功");
+            return new DatabaseTestResultVO(true, "连接成功");
         } catch (Exception exception) {
-            return new DatabaseTestResult(false, rootMessage(exception));
+            return new DatabaseTestResultVO(false, rootMessage(exception));
         }
     }
 

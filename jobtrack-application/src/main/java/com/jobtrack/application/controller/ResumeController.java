@@ -1,9 +1,9 @@
 package com.jobtrack.application.controller;
 
-import com.jobtrack.application.pojo.ResumeListResponse;
-import com.jobtrack.application.pojo.ResumeUpdateRequest;
-import com.jobtrack.application.pojo.ResumeView;
-import com.jobtrack.application.pojo.Resume;
+import com.jobtrack.application.pojo.vo.ResumeListVO;
+import com.jobtrack.application.pojo.dto.ResumeUpdateDTO;
+import com.jobtrack.application.pojo.vo.ResumeVO;
+import com.jobtrack.application.pojo.po.Resume;
 import com.jobtrack.application.service.ResumeService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
@@ -34,25 +34,25 @@ public class ResumeController {
     private final ResumeService resumeService;
 
     @GetMapping("/resumes")
-    public ResumeListResponse list(@RequestParam(required = false) String search) {
+    public ResumeListVO list(@RequestParam(required = false) String search) {
         return resumeService.list(search);
     }
 
     @PostMapping("/resumes")
     @ResponseStatus(HttpStatus.CREATED)
-    public ResumeView upload(@RequestParam(required = false) String name,
+    public ResumeVO upload(@RequestParam(required = false) String name,
                              @RequestParam(required = false) String tags,
                              @RequestParam("file") MultipartFile file) {
         return resumeService.create(name, tags, file);
     }
 
     @GetMapping("/resume/{id}")
-    public ResumeView get(@PathVariable Long id) {
+    public ResumeVO get(@PathVariable Long id) {
         return resumeService.get(id);
     }
 
     @PutMapping("/resume/{id}")
-    public ResumeView update(@PathVariable Long id, @RequestBody ResumeUpdateRequest request) {
+    public ResumeVO update(@PathVariable Long id, @RequestBody ResumeUpdateDTO request) {
         return resumeService.update(id, request);
     }
 
