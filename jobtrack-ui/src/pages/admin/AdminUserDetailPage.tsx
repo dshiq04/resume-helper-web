@@ -16,13 +16,14 @@ import {
 } from "antd";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { adminApi } from "../../api/admin";
 import type { AdminUserDetail, UserProfile } from "../../api/types";
 import { PageHeader } from "../../components/PageHeader";
 import { useI18n } from "../../i18n";
 import { COUNTRY_CODES, joinPhone, splitPhone } from "../../utils/countryCodes";
 import { errorMessage } from "../../utils/errors";
+import { canViewOperations } from "../../utils/permissions";
 import { AdminUserApplicationsPanel } from "./AdminUserApplicationsPanel";
 import { AdminUserAgreementPanel } from "./AdminUserAgreementPanel";
 import { AdminUserOperationsPanel } from "./AdminUserOperationsPanel";
@@ -62,6 +63,8 @@ export function AdminUserDetailPage() {
   const { message } = AntdApp.useApp();
   const params = useParams();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const requestedTab = searchParams.get("tab");
   const parsed = Number(params.id);
   const userId = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   const [accountForm] = Form.useForm<AccountValues>();
@@ -84,14 +87,14 @@ export function AdminUserDetailPage() {
       return;
     }
     setLoading(true);
-    setTab("profile");
+    setTab(requestedTab || "profile");
     void adminApi
       .user(userId)
       .then(setDetail)
       .catch((error) => message.error(errorMessage(error)))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [userId, message]);
+  }, [userId, message, requestedTab]);
 
   // 详情返回后表单才挂载，这里统一回填一次，避免在未挂载时 setFieldsValue。
   const loadedUserId = detail?.user.id;
@@ -119,6 +122,13 @@ export function AdminUserDetailPage() {
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadedUserId, accountForm, contactForm, profileForm]);
+
+  // 没有操作记录权限时，即使通过 URL 指定 tab 也不渲染该面板。
+  useEffect(() => {
+    if (detail && tab === "operations" && !canViewOperations(detail.user)) {
+      setTab("profile");
+    }
+  }, [detail, tab]);
 
   const saveAccount = async (values: AccountValues) => {
     if (!userId) return;
@@ -563,11 +573,13 @@ export function AdminUserDetailPage() {
               label: t("admin.tabAgreement"),
               children: <AdminUserAgreementPanel userId={user.id} />,
             },
-            {
-              key: "operations",
-              label: t("admin.tabOperations"),
-              children: <AdminUserOperationsPanel userId={user.id} />,
-            },
+            ...(canViewOperations(user)
+              ? [{
+                  key: "operations",
+                  label: t("admin.tabOperations"),
+                  children: <AdminUserOperationsPanel userId={user.id} />,
+                }]
+              : []),
           ]}
         />
       ) : (

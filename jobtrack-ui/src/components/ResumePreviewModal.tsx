@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Button, Modal, Spin } from "antd";
 import { DocViewer } from "anyview";
 import "anyview/styles";
+import { adminApi } from "../api/admin";
 import { resumeApi } from "../api/resumes";
 import type { Resume } from "../api/types";
 import { useI18n } from "../i18n";
@@ -12,9 +13,12 @@ import { errorMessage } from "../utils/errors";
 export function ResumePreviewModal({
   resume,
   onClose,
+  userId,
 }: {
   resume: Resume | null;
   onClose: () => void;
+  /** 管理员预览指定用户的简历时传入用户 ID。 */
+  userId?: number;
 }) {
   const { t } = useI18n();
   const themeMode = useAppSelector((state) => state.ui.themeMode);
@@ -35,7 +39,9 @@ export function ResumePreviewModal({
 
     void (async () => {
       try {
-        const blob = await resumeApi.fetchFile(resume.id);
+        const blob = userId
+          ? await adminApi.resumeFile(userId, resume.id)
+          : await resumeApi.fetchFile(resume.id);
         if (cancelled) return;
         setFile(
           new File([blob], resume.fileName, {
@@ -52,11 +58,13 @@ export function ResumePreviewModal({
     return () => {
       cancelled = true;
     };
-  }, [resume]);
+  }, [resume, userId]);
 
   const download = async () => {
     if (!resume) return;
-    const blob = await resumeApi.fetchFile(resume.id);
+    const blob = userId
+      ? await adminApi.resumeFile(userId, resume.id)
+      : await resumeApi.fetchFile(resume.id);
     downloadBlob(blob, resume.fileName);
   };
 

@@ -62,6 +62,8 @@ public class DataInitializer implements ApplicationRunner {
                 "用户管理", "查看与修改所有用户、投递与简历");
         permissionService.ensurePermission(PermissionService.ADMIN_ONLINE,
                 "在线用户", "查看在线用户并踢出");
+        permissionService.ensurePermission(PermissionService.ADMIN_OPERATIONS,
+                "用户操作记录", "查看全局与用户维度的操作日志");
         permissionService.ensurePermission(PermissionService.ADMIN_PERMISSIONS,
                 "权限授权", "给成员授予或收回权限");
 

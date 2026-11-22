@@ -16,12 +16,15 @@ public interface PermissionService {
     String ADMIN_USERS = "ADMIN_USERS";
     /** 在线用户权限：查看在线用户并踢出。 */
     String ADMIN_ONLINE = "ADMIN_ONLINE";
+    /** 用户操作记录权限：查看全局与用户维度的操作日志。 */
+    String ADMIN_OPERATIONS = "ADMIN_OPERATIONS";
     /** 权限授权权限：给成员授予或收回权限。 */
     String ADMIN_PERMISSIONS = "ADMIN_PERMISSIONS";
 
     /** 所有管理员控制台权限编码。 */
     static List<String> adminConsolePermissions() {
-        return List.of(ADMIN_CONSOLE, ADMIN_USERS, ADMIN_ONLINE, ADMIN_PERMISSIONS);
+        return List.of(ADMIN_CONSOLE, ADMIN_USERS, ADMIN_ONLINE,
+                ADMIN_OPERATIONS, ADMIN_PERMISSIONS);
     }
 
     /** 用户拥有的全部权限编码，如 [USER] 或 [USER, ADMIN]。 */

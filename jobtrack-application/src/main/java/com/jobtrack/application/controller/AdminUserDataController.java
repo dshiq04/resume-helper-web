@@ -5,6 +5,7 @@ import com.jobtrack.application.pojo.po.Resume;
 import com.jobtrack.application.pojo.dto.ApplicationDTO;
 import com.jobtrack.application.pojo.dto.ApplicationUpdateDTO;
 import com.jobtrack.application.pojo.dto.ResumeUpdateDTO;
+import com.jobtrack.application.pojo.vo.HistoryVO;
 import com.jobtrack.application.pojo.vo.ResumeListVO;
 import com.jobtrack.application.pojo.vo.ResumeVO;
 import com.jobtrack.application.service.ApplicationService;
@@ -34,6 +35,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 
@@ -77,6 +79,37 @@ public class AdminUserDataController {
                                                @Valid @RequestBody ApplicationDTO request) {
         SysUser user = requireUser(userId);
         return inTenant(user.getTenantId(), () -> applicationService.create(request));
+    }
+
+    /** 管理员查看目标用户的单条投递详情。 */
+    @GetMapping("/applications/{applicationId}")
+    public ApplicationRecord application(@PathVariable Long userId,
+                                         @PathVariable Long applicationId) {
+        SysUser user = requireUser(userId);
+        return inTenant(user.getTenantId(), () -> applicationService.get(applicationId));
+    }
+
+    /** 管理员查看目标用户投递的状态时间线。 */
+    @GetMapping("/applications/{applicationId}/history")
+    public HistoryVO applicationHistory(@PathVariable Long userId,
+                                        @PathVariable Long applicationId) {
+        SysUser user = requireUser(userId);
+        return inTenant(user.getTenantId(), () -> applicationService.history(applicationId));
+    }
+
+    /** 管理员代目标用户补全状态时间线。 */
+    @PostMapping("/applications/{applicationId}/history")
+    @ResponseStatus(HttpStatus.CREATED)
+    public Map<String, Object> appendApplicationHistory(@PathVariable Long userId,
+                                                        @PathVariable Long applicationId,
+                                                        @RequestBody Map<String, String> body) {
+        SysUser user = requireUser(userId);
+        return inTenant(user.getTenantId(), () -> {
+            List<com.jobtrack.application.pojo.vo.ApplicationChangeVO> items =
+                    applicationService.appendHistory(applicationId,
+                            body.get("status"), body.get("changedAt"));
+            return Map.of("items", items);
+        });
     }
 
     /** 管理员代目标用户修改投递。 */

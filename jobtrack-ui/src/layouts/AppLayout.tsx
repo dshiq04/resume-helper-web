@@ -50,6 +50,7 @@ import {
   canGrantPermissions,
   canManageUsers,
   canViewOnline,
+  canViewOperations,
   isAdminUser,
 } from "../utils/permissions";
 
@@ -105,6 +106,9 @@ const PATH_CRUMB: Record<string, { group?: string; key: string }> = {
 
 function tabForPath(path: string): PageTab | null {
   if (path.startsWith("/applications/")) {
+    return { path, labelKey: "detail.title", closable: true };
+  }
+  if (/^\/admin\/users\/\d+\/applications\/\d+$/.test(path)) {
     return { path, labelKey: "detail.title", closable: true };
   }
   if (path.startsWith("/admin/users/")) {
@@ -230,10 +234,10 @@ export function AppLayout() {
             label: t("admin.group"),
             children: [
               ...(canManageUsers(user)
-                ? [
-                    { key: "/admin/users", icon: <UserSwitchOutlined />, label: t("admin.users") },
-                    { key: "/admin/operations", icon: <HistoryOutlined />, label: t("admin.operations") },
-                  ]
+                ? [{ key: "/admin/users", icon: <UserSwitchOutlined />, label: t("admin.users") }]
+                : []),
+              ...(canViewOperations(user)
+                ? [{ key: "/admin/operations", icon: <HistoryOutlined />, label: t("admin.operations") }]
                 : []),
               ...(canViewOnline(user)
                 ? [{ key: "/admin/online", icon: <TeamOutlined />, label: t("admin.online") }]
@@ -266,6 +270,9 @@ export function AppLayout() {
       return { trail: [t("dash.eyebrow"), t("nav.all"), t("detail.title")] };
     }
     if (path.startsWith("/admin/users/")) {
+      if (/^\/admin\/users\/\d+\/applications\/\d+$/.test(path)) {
+        return { trail: [t("admin.group"), t("admin.users"), t("detail.title")] };
+      }
       return { trail: [t("admin.group"), t("admin.users"), t("admin.detailTitle")] };
     }
     const item = PATH_CRUMB[path];
@@ -427,6 +434,7 @@ export function AppLayout() {
             {tabs.map((tab) => {
               const active = location.pathname === tab.path;
               const suffix = tab.path.startsWith("/applications/")
+                || /^\/admin\/users\/\d+\/applications\/\d+$/.test(tab.path)
                 ? ` #${tab.path.split("/").pop()}`
                 : "";
               return (

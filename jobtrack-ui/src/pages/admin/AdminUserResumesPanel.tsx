@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { App as AntdApp, Button, Input, Popconfirm, Table, Tag, Tooltip } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import {
@@ -14,6 +14,12 @@ import type { Resume } from "../../api/types";
 import { ResumeUploadModal } from "../../components/ResumeUploadModal";
 import { useI18n } from "../../i18n";
 import { errorMessage } from "../../utils/errors";
+
+const ResumePreviewModal = lazy(() =>
+  import("../../components/ResumePreviewModal").then((module) => ({
+    default: module.ResumePreviewModal,
+  })),
+);
 
 function fileSize(value: number) {
   if (!value) return "0 B";
@@ -31,6 +37,7 @@ export function AdminUserResumesPanel({ userId }: { userId: number }) {
   const [downloading, setDownloading] = useState<number | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Resume | null>(null);
+  const [preview, setPreview] = useState<Resume | null>(null);
 
   const load = (keyword = search) => {
     setLoading(true);
@@ -43,6 +50,8 @@ export function AdminUserResumesPanel({ userId }: { userId: number }) {
 
   useEffect(() => {
     load("");
+    // 预加载预览组件，点击文件名时不再出现加载占位。
+    void import("../../components/ResumePreviewModal");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
@@ -83,10 +92,14 @@ export function AdminUserResumesPanel({ userId }: { userId: number }) {
       title: t("field.resume"),
       dataIndex: "name",
       render: (value: string, record) => (
-        <div className="admin-resume-name">
+        <button
+          type="button"
+          className="admin-resume-name is-link"
+          onClick={() => setPreview(record)}
+        >
           <strong>{value}</strong>
           <span>{record.fileName}</span>
-        </div>
+        </button>
       ),
     },
     {
@@ -125,6 +138,7 @@ export function AdminUserResumesPanel({ userId }: { userId: number }) {
       key: "actions",
       width: 126,
       align: "right",
+      fixed: "right",
       render: (_, record) => (
         <div className="row-actions">
           <Tooltip title={t("common.download")}>
@@ -199,6 +213,15 @@ export function AdminUserResumesPanel({ userId }: { userId: number }) {
         onClose={() => setFormOpen(false)}
         onSaved={() => load()}
       />
+      {preview && (
+        <Suspense fallback={null}>
+          <ResumePreviewModal
+            resume={preview}
+            userId={userId}
+            onClose={() => setPreview(null)}
+          />
+        </Suspense>
+      )}
     </section>
   );
 }

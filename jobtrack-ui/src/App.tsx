@@ -1,6 +1,6 @@
 import { useCallback, useEffect, type ReactNode } from "react";
 import { App as AntdApp, Spin, Watermark } from "antd";
-import { Navigate, Route, Routes, useLocation } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import { useI18n } from "./i18n";
 import { AgreementGate } from "./components/AgreementGate";
@@ -29,6 +29,7 @@ import {
   canGrantPermissions,
   canManageUsers,
   canViewOnline,
+  canViewOperations,
   hasAdminPermission,
   isAdminUser,
 } from "./utils/permissions";
@@ -47,8 +48,19 @@ function AdminIndexRedirect() {
   const { user } = useAuth();
   if (canManageUsers(user)) return <Navigate to="users" replace />;
   if (canViewOnline(user)) return <Navigate to="online" replace />;
+  if (canViewOperations(user)) return <Navigate to="operations" replace />;
   if (canGrantPermissions(user)) return <Navigate to="permissions" replace />;
   return <Navigate to="/" replace />;
+}
+
+/** 管理员查看指定用户的投递详情，详情接口会切换到目标用户的工作区。 */
+function AdminApplicationDetailRoute() {
+  const params = useParams();
+  const userId = Number(params.userId);
+  if (!Number.isFinite(userId) || userId <= 0) {
+    return <Navigate to="/admin/users" replace />;
+  }
+  return <ApplicationDetailPage adminUserId={userId} />;
 }
 
 function AppShell() {
@@ -172,6 +184,14 @@ function AppShell() {
             )}
           />
           <Route
+            path="users/:userId/applications/:id"
+            element={(
+              <AdminRoute permission="ADMIN_USERS">
+                <AdminApplicationDetailRoute />
+              </AdminRoute>
+            )}
+          />
+          <Route
             path="online"
             element={(
               <AdminRoute permission="ADMIN_ONLINE">
@@ -182,7 +202,7 @@ function AppShell() {
           <Route
             path="operations"
             element={(
-              <AdminRoute permission="ADMIN_USERS">
+              <AdminRoute permission="ADMIN_OPERATIONS">
                 <AdminOperationsPage />
               </AdminRoute>
             )}

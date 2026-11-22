@@ -131,7 +131,7 @@ public class SchemaUpgrade implements ApplicationRunner {
                     + "SELECT 'ADMIN_CONSOLE', '管理员控制台', '访问管理员控制台（兼容旧权限）'"
                     + fromDual + " WHERE NOT EXISTS "
                     + "(SELECT 1 FROM sys_permission WHERE code = 'ADMIN_CONSOLE')");
-            // 管理员控制台细分权限：用户管理 / 在线用户 / 权限授权。
+            // 管理员控制台细分权限：用户管理 / 在线用户 / 操作记录 / 权限授权。
             statement.execute("INSERT INTO sys_permission (code, name, description) "
                     + "SELECT 'ADMIN_USERS', '用户管理', '查看与修改所有用户、投递与简历'"
                     + fromDual + " WHERE NOT EXISTS "
@@ -140,6 +140,10 @@ public class SchemaUpgrade implements ApplicationRunner {
                     + "SELECT 'ADMIN_ONLINE', '在线用户', '查看在线用户并踢出'"
                     + fromDual + " WHERE NOT EXISTS "
                     + "(SELECT 1 FROM sys_permission WHERE code = 'ADMIN_ONLINE')");
+            statement.execute("INSERT INTO sys_permission (code, name, description) "
+                    + "SELECT 'ADMIN_OPERATIONS', '用户操作记录', '查看全局与用户维度的操作日志'"
+                    + fromDual + " WHERE NOT EXISTS "
+                    + "(SELECT 1 FROM sys_permission WHERE code = 'ADMIN_OPERATIONS')");
             statement.execute("INSERT INTO sys_permission (code, name, description) "
                     + "SELECT 'ADMIN_PERMISSIONS', '权限授权', '给成员授予或收回权限'"
                     + fromDual + " WHERE NOT EXISTS "

@@ -530,7 +530,7 @@ public class AdminServiceImpl implements AdminService {
     public AdminUserVO grantPermission(Long operatorId, Long userId, String code) {
         SysUser user = requireUser(userId);
         permissionService.grant(userId, clean(code));
-        invalidatePermissionSessions(operatorId, userId, user.getTenantId(), false);
+        invalidatePermissionSessions(userId, user.getTenantId());
         return view(user, tenantNames(), onlineCounts());
     }
 
@@ -545,17 +545,19 @@ public class AdminServiceImpl implements AdminService {
             throw BusinessException.badRequest("last_admin", "系统至少需要保留一个管理员控制台账号");
         }
         permissionService.revoke(userId, normalized);
-        invalidatePermissionSessions(operatorId, userId, user.getTenantId(), true);
+        invalidatePermissionSessions(userId, user.getTenantId());
         return view(user, tenantNames(), onlineCounts());
     }
 
-    private void invalidatePermissionSessions(Long operatorId, Long userId,
-                                              Long tenantId, boolean includeSelf) {
-        // 权限写入 Redis 会话，变更后让目标用户重新登录；授予自己权限时保留当前会话。
-        if (!includeSelf && operatorId != null && operatorId.equals(userId)) {
-            return;
-        }
+    /**
+     * 权限变更后彻底清理目标用户在 Redis 中的登录态：
+     * 在线会话、会话中保存的旧权限快照、在线人数集合、授权码缓存全部删除，
+     * 目标用户必须重新登录才能获得新的权限。
+     */
+    private void invalidatePermissionSessions(Long userId, Long tenantId) {
         sessionService.deleteByUser(userId, tenantId);
+        accessTokenService.evictUserCache(userId);
+        log.info("权限变更，已清除用户 {} 的在线状态、权限快照与令牌缓存", userId);
     }
 
     private boolean isLastConsoleHolder(Long userId) {

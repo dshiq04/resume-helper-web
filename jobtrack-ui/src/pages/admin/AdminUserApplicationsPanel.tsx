@@ -2,18 +2,17 @@ import { useEffect, useState } from "react";
 import {
   App as AntdApp,
   Button,
-  Descriptions,
   Input,
   Popconfirm,
   Select,
   Table,
   Tag,
   Tooltip,
-  Typography,
 } from "antd";
 import type { ColumnsType } from "antd/es/table";
 import { DeleteOutlined, EditOutlined, EyeOutlined, PlusOutlined } from "@ant-design/icons";
 import dayjs from "dayjs";
+import { useNavigate } from "react-router-dom";
 import { adminApi } from "../../api/admin";
 import type { Application, Category, Status } from "../../api/types";
 import { ApplicationFormDrawer } from "../../components/ApplicationFormDrawer";
@@ -33,6 +32,7 @@ const STATUSES: Status[] = [
 export function AdminUserApplicationsPanel({ userId }: { userId: number }) {
   const { t } = useI18n();
   const { message } = AntdApp.useApp();
+  const navigate = useNavigate();
   const [rows, setRows] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -43,7 +43,6 @@ export function AdminUserApplicationsPanel({ userId }: { userId: number }) {
   const [status, setStatus] = useState("all");
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Application | null>(null);
-  const [expandedKeys, setExpandedKeys] = useState<number[]>([]);
 
   const load = (nextPage = page, nextSize = pageSize) => {
     setLoading(true);
@@ -83,7 +82,6 @@ export function AdminUserApplicationsPanel({ userId }: { userId: number }) {
   const remove = async (record: Application) => {
     try {
       await adminApi.deleteApplication(userId, record.id);
-      setExpandedKeys((keys) => keys.filter((key) => key !== record.id));
       message.success(t("admin.applicationDeleted"));
       load(1);
     } catch (error) {
@@ -91,12 +89,8 @@ export function AdminUserApplicationsPanel({ userId }: { userId: number }) {
     }
   };
 
-  const toggleExpanded = (record: Application) => {
-    setExpandedKeys((keys) => (
-      keys.includes(record.id)
-        ? keys.filter((key) => key !== record.id)
-        : [...keys, record.id]
-    ));
+  const openDetail = (record: Application) => {
+    navigate(`/admin/users/${userId}/applications/${record.id}`);
   };
 
   const columns: ColumnsType<Application> = [
@@ -106,7 +100,13 @@ export function AdminUserApplicationsPanel({ userId }: { userId: number }) {
       width: 200,
       render: (value: string, record) => (
         <div className="admin-app-company">
-          <strong>{value}</strong>
+          <button
+            type="button"
+            className="admin-app-link"
+            onClick={() => openDetail(record)}
+          >
+            <strong>{value}</strong>
+          </button>
           {record.link && (
             <a href={record.link} target="_blank" rel="noreferrer">{record.link}</a>
           )}
@@ -166,7 +166,7 @@ export function AdminUserApplicationsPanel({ userId }: { userId: number }) {
             <button
               type="button"
               className="ghost-icon tiny"
-              onClick={() => toggleExpanded(record)}
+              onClick={() => openDetail(record)}
             >
               <EyeOutlined />
             </button>
@@ -239,39 +239,6 @@ export function AdminUserApplicationsPanel({ userId }: { userId: number }) {
         columns={columns}
         dataSource={rows}
         scroll={{ x: 1130 }}
-        expandable={{
-          expandedRowKeys: expandedKeys,
-          onExpandedRowsChange: (keys) => setExpandedKeys(keys as number[]),
-          expandedRowRender: (record) => (
-            <Descriptions size="small" column={3} bordered>
-              <Descriptions.Item label={t("field.salary")}>
-                {record.salary || "—"}
-              </Descriptions.Item>
-              <Descriptions.Item label={t("field.contact")}>
-                {record.contact || "—"}
-              </Descriptions.Item>
-              <Descriptions.Item label={t("field.contactInfo")}>
-                {record.contactInfo || "—"}
-              </Descriptions.Item>
-              <Descriptions.Item label={t("field.priority")}>
-                {record.priority ? t(`priority.${record.priority}`) : "—"}
-              </Descriptions.Item>
-              <Descriptions.Item label={t("field.interviewRound")}>
-                {record.interviewRound ?? "—"}
-              </Descriptions.Item>
-              <Descriptions.Item label={t("field.nextAction")}>
-                {record.nextActionAt
-                  ? dayjs(record.nextActionAt).format("YYYY-MM-DD HH:mm")
-                  : "—"}
-              </Descriptions.Item>
-              <Descriptions.Item label={t("field.notes")} span={3}>
-                <Typography.Paragraph style={{ margin: 0, whiteSpace: "pre-wrap" }}>
-                  {record.notes || "—"}
-                </Typography.Paragraph>
-              </Descriptions.Item>
-            </Descriptions>
-          ),
-        }}
         pagination={{
           current: page,
           pageSize,

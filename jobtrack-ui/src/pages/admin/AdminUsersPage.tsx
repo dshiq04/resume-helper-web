@@ -271,20 +271,11 @@ export function AdminUsersPage() {
       ),
     },
     {
-      title: t("field.createdAt"),
-      dataIndex: "createdAt",
-      width: 160,
-      render: (value: string | null) => (
-        <span className="admin-muted">
-          {value ? dayjs(value).format("YYYY-MM-DD HH:mm") : "—"}
-        </span>
-      ),
-    },
-    {
       title: t("admin.actions"),
       key: "actions",
       width: 110,
       align: "right",
+      fixed: "right",
       render: (_, record) => (
         <Dropdown menu={actionMenu(record)} trigger={["click"]}>
           <Button size="small">{t("admin.changeStatus")}</Button>
@@ -333,7 +324,7 @@ export function AdminUsersPage() {
         loading={loading}
         columns={columns}
         dataSource={rows}
-        scroll={{ x: 1500 }}
+        scroll={{ x: 1340 }}
         pagination={{
           current: page,
           pageSize,
@@ -396,7 +387,11 @@ export function AdminUsersPage() {
               />
             </Form.Item>
           )}
-          <Form.Item name="reason" label={t("admin.banReason")}>
+          <Form.Item
+            name="reason"
+            label={t("admin.banReason")}
+            className="admin-ban-reason"
+          >
             <Input.TextArea
               rows={3}
               maxLength={255}

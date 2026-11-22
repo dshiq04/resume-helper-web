@@ -87,11 +87,13 @@ public class SecurityConfig {
                         .hasAnyRole("ADMIN", "ADMIN_CONSOLE", "ADMIN_PERMISSIONS")
                         .requestMatchers("/api/admin/online/**")
                         .hasAnyRole("ADMIN", "ADMIN_CONSOLE", "ADMIN_ONLINE")
+                        .requestMatchers("/api/admin/operations", "/api/admin/operations/**")
+                        .hasAnyRole("ADMIN", "ADMIN_CONSOLE", "ADMIN_OPERATIONS")
                         .requestMatchers("/api/admin/users/**")
                         .hasAnyRole("ADMIN", "ADMIN_CONSOLE", "ADMIN_USERS")
                         .requestMatchers("/api/admin/**")
                         .hasAnyRole("ADMIN", "ADMIN_CONSOLE", "ADMIN_USERS",
-                                "ADMIN_ONLINE", "ADMIN_PERMISSIONS")
+                                "ADMIN_ONLINE", "ADMIN_OPERATIONS", "ADMIN_PERMISSIONS")
                         // 授权码权限由 SCOPE_* 权限控制：读接口需要 read/readwrite，
                         // 写接口需要 write/readwrite；JWT 登录用户拥有全部 SCOPE。
                         .requestMatchers(HttpMethod.GET, "/api/**")

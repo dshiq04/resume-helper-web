@@ -9,6 +9,7 @@ import {
 import dayjs, { type Dayjs } from "dayjs";
 import { useNavigate, useParams } from "react-router-dom";
 import { applicationApi } from "../api/applications";
+import { adminApi } from "../api/admin";
 import type { Application, HistoryResponse, Status } from "../api/types";
 import { ApplicationFormDrawer } from "../components/ApplicationFormDrawer";
 import { PageHeader } from "../components/PageHeader";
@@ -18,7 +19,7 @@ import { useI18n } from "../i18n";
 import { errorMessage } from "../utils/errors";
 import { formatDate, notifyDataChanged, openExternalLink } from "../utils/format";
 
-export function ApplicationDetailPage() {
+export function ApplicationDetailPage({ adminUserId }: { adminUserId?: number } = {}) {
   const { id } = useParams();
   const { t } = useI18n();
   const { message } = AntdApp.useApp();
@@ -30,14 +31,24 @@ export function ApplicationDetailPage() {
   const [fillOpen, setFillOpen] = useState(false);
   const [fillForm] = Form.useForm<{ status: Status; changedAt: Dayjs }>();
 
+  const backTarget = adminUserId
+    ? `/admin/users/${adminUserId}?tab=applications`
+    : "/";
+
   const load = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
-      const [application, timeline] = await Promise.all([
-        applicationApi.get(Number(id)),
-        applicationApi.history(Number(id)),
-      ]);
+      const applicationId = Number(id);
+      const [application, timeline] = adminUserId
+        ? await Promise.all([
+            adminApi.application(adminUserId, applicationId),
+            adminApi.applicationHistory(adminUserId, applicationId),
+          ])
+        : await Promise.all([
+            applicationApi.get(applicationId),
+            applicationApi.history(applicationId),
+          ]);
       setRecord(application);
       setHistory(timeline);
     } catch (error) {
@@ -45,7 +56,7 @@ export function ApplicationDetailPage() {
     } finally {
       setLoading(false);
     }
-  }, [id, message]);
+  }, [adminUserId, id, message]);
 
   useEffect(() => {
     void load();
@@ -54,10 +65,14 @@ export function ApplicationDetailPage() {
   const handleDelete = async () => {
     if (!record) return;
     try {
-      await applicationApi.remove(record.id);
-      notifyDataChanged();
+      if (adminUserId) {
+        await adminApi.deleteApplication(adminUserId, record.id);
+      } else {
+        await applicationApi.remove(record.id);
+        notifyDataChanged();
+      }
       message.success(t("common.delete"));
-      navigate("/");
+      navigate(backTarget);
     } catch (error) {
       message.error(errorMessage(error));
     }
@@ -66,16 +81,23 @@ export function ApplicationDetailPage() {
   const submitFill = async (values: { status: Status; changedAt: Dayjs }) => {
     if (!record) return;
     try {
-      await applicationApi.appendHistory(
-        record.id,
-        values.status,
-        values.changedAt.toISOString(),
-      );
+      if (adminUserId) {
+        await adminApi.appendApplicationHistory(adminUserId, record.id, {
+          status: values.status,
+          changedAt: values.changedAt.toISOString(),
+        });
+      } else {
+        await applicationApi.appendHistory(
+          record.id,
+          values.status,
+          values.changedAt.toISOString(),
+        );
+        notifyDataChanged();
+      }
       setFillOpen(false);
       fillForm.resetFields();
       message.success(t("detail.fillSuccess"));
       await load();
-      notifyDataChanged();
     } catch (error) {
       message.error(errorMessage(error));
     }
@@ -92,7 +114,7 @@ export function ApplicationDetailPage() {
   if (!record) {
     return (
       <Empty description={t("error.notFound")}>
-        <Button onClick={() => navigate("/")}>{t("detail.back")}</Button>
+        <Button onClick={() => navigate(backTarget)}>{t("detail.back")}</Button>
       </Empty>
     );
   }
@@ -117,12 +139,16 @@ export function ApplicationDetailPage() {
   return (
     <>
       <PageHeader
-        eyebrow={t("detail.title")}
+        eyebrow={adminUserId ? `${t("admin.group")} · ${t("admin.users")}` : t("detail.title")}
         title={record.companyName}
-        subtitle={`${record.position || "—"} · ${record.year}`}
+        subtitle={
+          adminUserId
+            ? `${record.position || "—"} · ${record.year} · ${t("admin.viewingUser", { id: adminUserId })}`
+            : `${record.position || "—"} · ${record.year}`
+        }
         actions={
           <div className="head-actions">
-            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/")}>
+            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate(backTarget)}>
               {t("detail.back")}
             </Button>
             <Button icon={<LinkOutlined />} onClick={() => openExternalLink(record.link)}>
@@ -199,10 +225,13 @@ export function ApplicationDetailPage() {
       <ApplicationFormDrawer
         open={editOpen}
         editing={record}
+        userId={adminUserId}
         onClose={() => setEditOpen(false)}
         onSaved={() => {
           void load();
-          notifyDataChanged();
+          if (!adminUserId) {
+            notifyDataChanged();
+          }
         }}
       />
 

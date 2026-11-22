@@ -149,6 +149,10 @@
   }
 }
 
+.admin-ban-reason {
+  margin-bottom: 36px !important;
+}
+
 .admin-detail-page {
   .page-head {
     margin-bottom: 12px;
@@ -293,6 +297,19 @@
   font-size: 11px;
 }
 
+/* 固定列需要不透明背景，避免横向滚动时表头文字透出重叠。 */
+.admin-card,
+.admin-detail-card {
+  .ant-table-cell-fix-right {
+    background: var(--bg-elev);
+  }
+
+  .ant-table-thead > tr > th.ant-table-cell-fix-right {
+    background: var(--bg-elev);
+    z-index: 3;
+  }
+}
+
 .admin-user-operations {
   .admin-toolbar {
     margin-bottom: 10px;
@@ -365,6 +382,34 @@
 
   a:hover {
     color: var(--accent-ink);
+  }
+}
+
+.admin-resume-name.is-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover strong {
+    color: var(--accent-ink);
+    text-decoration: underline;
+  }
+}
+
+.admin-app-company .admin-app-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover strong {
+    color: var(--accent-ink);
+    text-decoration: underline;
   }
 }
 

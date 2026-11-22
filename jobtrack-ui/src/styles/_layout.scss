@@ -100,6 +100,28 @@
   overflow-x: hidden;
   padding-bottom: 12px;
 }
+.side-nav::-webkit-scrollbar {
+  width: 5px;
+}
+.side-nav::-webkit-scrollbar-button {
+  display: none;
+  width: 0;
+  height: 0;
+}
+.side-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.side-nav::-webkit-scrollbar-thumb {
+  border: 0;
+  border-radius: 999px;
+  background: rgba(145, 160, 152, 0.45);
+}
+.side-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(145, 160, 152, 0.72);
+}
+.side-nav::-webkit-scrollbar-corner {
+  background: transparent;
+}
 .nav-section-label {
   padding: 16px 10px 7px;
   color: var(--sidebar-muted);

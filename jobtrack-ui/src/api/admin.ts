@@ -15,6 +15,8 @@ import type {
   PermissionItem,
   Resume,
   ResumeList,
+  HistoryResponse,
+  Status,
   UserAgreementRecord,
   UserOperationPage,
   UserProfile,
@@ -156,6 +158,22 @@ export const adminApi = {
       method: "POST",
       data: input,
     });
+  },
+  application(id: number, applicationId: number) {
+    return request<Application>(`/admin/users/${id}/applications/${applicationId}`);
+  },
+  applicationHistory(id: number, applicationId: number) {
+    return request<HistoryResponse>(`/admin/users/${id}/applications/${applicationId}/history`);
+  },
+  appendApplicationHistory(
+    id: number,
+    applicationId: number,
+    input: { status: Status; changedAt: string },
+  ) {
+    return request<{ items: unknown[] }>(
+      `/admin/users/${id}/applications/${applicationId}/history`,
+      { method: "POST", data: input },
+    );
   },
   updateApplication(id: number, applicationId: number, input: ApplicationUpdate) {
     return request<Application>(`/admin/users/${id}/applications/${applicationId}`, {
