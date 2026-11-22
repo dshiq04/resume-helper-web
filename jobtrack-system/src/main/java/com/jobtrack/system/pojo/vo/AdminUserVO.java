@@ -26,6 +26,7 @@ public class AdminUserVO {
     private String banType;
     private LocalDateTime banUntil;
     private LocalDateTime bannedAt;
+    private String banReason;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 }

@@ -19,15 +19,16 @@ import type { ColumnsType } from "antd/es/table";
 import type { MenuProps } from "antd";
 import { ReloadOutlined, TeamOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
+import { useNavigate } from "react-router-dom";
 import { adminApi } from "../../api/admin";
 import type { AdminUser } from "../../api/types";
 import { useI18n } from "../../i18n";
 import { errorMessage } from "../../utils/errors";
-import { AdminUserDrawer } from "./AdminUserDrawer";
 
 interface BanValues {
   banType: "PERMANENT" | "TEMPORARY";
   banUntil?: Dayjs;
+  reason?: string;
 }
 
 function statusColor(status: string) {
@@ -39,6 +40,7 @@ function statusColor(status: string) {
 export function AdminUsersPage() {
   const { t } = useI18n();
   const { message, modal } = AntdApp.useApp();
+  const navigate = useNavigate();
   const [banForm] = Form.useForm<BanValues>();
   const [rows, setRows] = useState<AdminUser[]>([]);
   const [total, setTotal] = useState(0);
@@ -47,7 +49,6 @@ export function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("");
   const [loading, setLoading] = useState(true);
-  const [detailId, setDetailId] = useState<number | null>(null);
   const [banTarget, setBanTarget] = useState<AdminUser | null>(null);
   const [banning, setBanning] = useState(false);
   const banType = Form.useWatch("banType", banForm) ?? "PERMANENT";
@@ -121,6 +122,7 @@ export function AdminUsersPage() {
     banForm.setFieldsValue({
       banType: record.banType === "TEMPORARY" ? "TEMPORARY" : "PERMANENT",
       banUntil: record.banUntil ? dayjs(record.banUntil) : undefined,
+      reason: record.banReason ?? "",
     });
   };
 
@@ -138,6 +140,7 @@ export function AdminUsersPage() {
         banUntil: values.banType === "TEMPORARY"
           ? values.banUntil?.format("YYYY-MM-DDTHH:mm:ss")
           : null,
+        reason: values.reason?.trim() || undefined,
       });
       replaceRow(updated);
       setBanTarget(null);
@@ -160,7 +163,7 @@ export function AdminUsersPage() {
       { key: "delete", label: t("admin.delete"), danger: true },
     ],
     onClick: ({ key }) => {
-      if (key === "detail") setDetailId(record.id);
+      if (key === "detail") navigate(`/admin/users/${record.id}`);
       if (key === "normal") changeStatus(record, "NORMAL");
       if (key === "cancel") changeStatus(record, "CANCELLED");
       if (key === "ban") openBan(record);
@@ -179,11 +182,15 @@ export function AdminUsersPage() {
             size={38}
             src={record.avatarUrl || undefined}
             className="admin-user-avatar"
-            onClick={() => setDetailId(record.id)}
+            onClick={() => navigate(`/admin/users/${record.id}`)}
           >
             {(record.displayName || record.username || "U").slice(0, 1)}
           </Avatar>
-          <button type="button" className="admin-user-link" onClick={() => setDetailId(record.id)}>
+          <button
+            type="button"
+            className="admin-user-link"
+            onClick={() => navigate(`/admin/users/${record.id}`)}
+          >
             <strong>{record.username}</strong>
             <span>{record.displayName}</span>
           </button>
@@ -214,6 +221,7 @@ export function AdminUsersPage() {
               {record.banType === "TEMPORARY" && record.banUntil
                 ? `${t("admin.temporary")} · ${dayjs(record.banUntil).format("YYYY-MM-DD HH:mm")}`
                 : t("admin.permanent")}
+              {record.banReason ? ` · ${record.banReason}` : ""}
             </span>
           )}
         </Space>
@@ -368,14 +376,17 @@ export function AdminUsersPage() {
               />
             </Form.Item>
           )}
+          <Form.Item name="reason" label={t("admin.banReason")}>
+            <Input.TextArea
+              rows={3}
+              maxLength={255}
+              showCount
+              placeholder={t("admin.banReasonPlaceholder")}
+            />
+          </Form.Item>
         </Form>
       </Modal>
 
-      <AdminUserDrawer
-        userId={detailId}
-        onClose={() => setDetailId(null)}
-        onChanged={() => load(page)}
-      />
     </section>
   );
 }

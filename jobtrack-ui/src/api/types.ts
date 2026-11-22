@@ -33,6 +33,7 @@ export interface User {
   banType?: string | null;
   banUntil?: string | null;
   bannedAt?: string | null;
+  banReason?: string | null;
   createdAt?: string | null;
 }
 
@@ -52,6 +53,7 @@ export interface AdminUser {
   banType?: string | null;
   banUntil?: string | null;
   bannedAt?: string | null;
+  banReason?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
 }

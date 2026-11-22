@@ -10,8 +10,11 @@ import org.springframework.stereotype.Component;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
+import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.Statement;
+import java.sql.Timestamp;
+import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -36,6 +39,8 @@ public class SchemaUpgrade implements ApplicationRunner {
             String product = connection.getMetaData().getDatabaseProductName().toLowerCase(Locale.ROOT);
             boolean mysql = product.contains("mysql");
             createPermissionTables(connection, mysql);
+            boolean banReady = createBanTable(connection, mysql);
+            boolean banMigrated = banReady && migrateLegacyBans(connection, mysql);
             Map<String, String> tokenColumns = new LinkedHashMap<>();
             tokenColumns.put("resources", "VARCHAR(200)");
             tokenColumns.put("enabled", mysql
@@ -44,15 +49,17 @@ public class SchemaUpgrade implements ApplicationRunner {
                     ? "TINYINT(1) NOT NULL DEFAULT 0" : "BOOLEAN NOT NULL DEFAULT FALSE");
             tokenColumns.forEach((column, type) -> ensureColumn(connection, "access_token", column, type));
             ensureColumn(connection, "access_token_log", "resources", "VARCHAR(200)");
-            // 用户状态：NORMAL 正常 / CANCELLED 已注销 / BANNED 已封禁，默认正常。
+            // 用户状态：NORMAL 正常 / CANCELLED 已注销；封禁状态由 sys_user_ban 判断。
             ensureColumn(connection, "sys_user", "status",
                     mysql ? "VARCHAR(16) NOT NULL DEFAULT 'NORMAL'"
                           : "VARCHAR(16) NOT NULL DEFAULT 'NORMAL'");
-            ensureColumn(connection, "sys_user", "ban_type", "VARCHAR(16) NULL");
-            ensureColumn(connection, "sys_user", "ban_until",
-                    mysql ? "DATETIME NULL" : "TIMESTAMP NULL");
-            ensureColumn(connection, "sys_user", "banned_at",
-                    mysql ? "DATETIME NULL" : "TIMESTAMP NULL");
+            // 旧版本把封禁信息放在 sys_user 上，迁移到封禁记录表后删除这 3 个列。
+            // 只有封禁表可用且迁移成功才删除，避免迁移失败时丢失封禁数据。
+            if (banMigrated) {
+                dropColumnIfExists(connection, "sys_user", "ban_type");
+                dropColumnIfExists(connection, "sys_user", "ban_until");
+                dropColumnIfExists(connection, "sys_user", "banned_at");
+            }
             // 用户名唯一索引 → 普通索引（唯一性改为逻辑判断，注销后可重新注册）。
             demoteUsernameUniqueIndex(connection, mysql);
         } catch (Exception exception) {
@@ -111,25 +118,163 @@ public class SchemaUpgrade implements ApplicationRunner {
                     + "(SELECT 1 FROM sys_permission WHERE code = 'ADMIN')");
             // 独立的管理员控制台权限：只有持有它（或 ADMIN）才能访问 /api/admin/**。
             statement.execute("INSERT INTO sys_permission (code, name, description) "
-                    + "SELECT 'ADMIN_CONSOLE', '管理员控制台', '访问管理员菜单与 /api/admin/** 接口'"
+                    + "SELECT 'ADMIN_CONSOLE', '管理员控制台', '访问管理员控制台（兼容旧权限）'"
                     + fromDual + " WHERE NOT EXISTS "
                     + "(SELECT 1 FROM sys_permission WHERE code = 'ADMIN_CONSOLE')");
+            // 管理员控制台细分权限：用户管理 / 在线用户 / 权限授权。
+            statement.execute("INSERT INTO sys_permission (code, name, description) "
+                    + "SELECT 'ADMIN_USERS', '用户管理', '查看与修改所有用户、投递与简历'"
+                    + fromDual + " WHERE NOT EXISTS "
+                    + "(SELECT 1 FROM sys_permission WHERE code = 'ADMIN_USERS')");
+            statement.execute("INSERT INTO sys_permission (code, name, description) "
+                    + "SELECT 'ADMIN_ONLINE', '在线用户', '查看在线用户并踢出'"
+                    + fromDual + " WHERE NOT EXISTS "
+                    + "(SELECT 1 FROM sys_permission WHERE code = 'ADMIN_ONLINE')");
+            statement.execute("INSERT INTO sys_permission (code, name, description) "
+                    + "SELECT 'ADMIN_PERMISSIONS', '权限授权', '给成员授予或收回权限'"
+                    + fromDual + " WHERE NOT EXISTS "
+                    + "(SELECT 1 FROM sys_permission WHERE code = 'ADMIN_PERMISSIONS')");
             // 历史数据迁移：把 sys_user.role 复制到用户权限对应表（只补缺，不重复）。
             statement.execute("INSERT INTO sys_user_permission (user_id, permission_id) "
                     + "SELECT u.id, p.id FROM sys_user u "
                     + "JOIN sys_permission p ON p.code = u.role "
                     + "WHERE NOT EXISTS (SELECT 1 FROM sys_user_permission up "
                     + "WHERE up.user_id = u.id AND up.permission_id = p.id)");
-            // 已有 admin 角色自动获得独立的管理员控制台权限。
+            // 已有 admin 角色自动获得全部管理员控制台权限。
             statement.execute("INSERT INTO sys_user_permission (user_id, permission_id) "
                     + "SELECT u.id, p.id FROM sys_user u "
-                    + "JOIN sys_permission p ON p.code = 'ADMIN_CONSOLE' "
+                    + "JOIN sys_permission p ON p.code IN ('ADMIN_CONSOLE', "
+                    + "'ADMIN_USERS', 'ADMIN_ONLINE', 'ADMIN_PERMISSIONS') "
                     + "WHERE UPPER(u.role) = 'ADMIN' AND NOT EXISTS "
                     + "(SELECT 1 FROM sys_user_permission up "
                     + "WHERE up.user_id = u.id AND up.permission_id = p.id)");
             log.info("权限表检查完成（sys_permission / sys_user_permission）");
         } catch (Exception exception) {
             log.warn("权限表创建或迁移失败: {}", exception.getMessage());
+        }
+    }
+
+    /** 封禁记录表：封禁状态、时间与原因都保存到这里。 */
+    private boolean createBanTable(Connection connection, boolean mysql) {
+        String sql;
+        if (mysql) {
+            sql = "CREATE TABLE IF NOT EXISTS sys_user_ban ("
+                    + "id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,"
+                    + "tenant_id BIGINT UNSIGNED NOT NULL,"
+                    + "user_id BIGINT UNSIGNED NOT NULL,"
+                    + "ban_type VARCHAR(16) NOT NULL,"
+                    + "reason VARCHAR(255) NULL,"
+                    + "banned_at DATETIME NOT NULL,"
+                    + "ban_until DATETIME NULL,"
+                    + "unbanned_at DATETIME NULL,"
+                    + "operator_id BIGINT UNSIGNED NULL,"
+                    + "created_at DATETIME NULL,"
+                    + "PRIMARY KEY (id),"
+                    + "KEY idx_sys_user_ban_user (user_id, unbanned_at, ban_until),"
+                    + "KEY idx_sys_user_ban_tenant (tenant_id, banned_at)"
+                    + ") ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+        } else {
+            sql = "CREATE TABLE IF NOT EXISTS sys_user_ban ("
+                    + "id BIGSERIAL PRIMARY KEY,"
+                    + "tenant_id BIGINT NOT NULL,"
+                    + "user_id BIGINT NOT NULL,"
+                    + "ban_type VARCHAR(16) NOT NULL,"
+                    + "reason VARCHAR(255),"
+                    + "banned_at TIMESTAMP NOT NULL,"
+                    + "ban_until TIMESTAMP,"
+                    + "unbanned_at TIMESTAMP,"
+                    + "operator_id BIGINT,"
+                    + "created_at TIMESTAMP)";
+        }
+        try (Statement statement = connection.createStatement()) {
+            statement.execute(sql);
+            return true;
+        } catch (Exception exception) {
+            log.warn("创建封禁记录表失败: {}", exception.getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 把旧版 sys_user.ban_type / ban_until / banned_at 迁移到封禁记录表，
+     * 随后由调用方删除这 3 个列。
+     */
+    private boolean migrateLegacyBans(Connection connection, boolean mysql) {
+        try {
+            DatabaseMetaData meta = connection.getMetaData();
+            boolean hasBanType = hasColumn(meta, connection, "sys_user", "ban_type");
+            boolean hasBanUntil = hasColumn(meta, connection, "sys_user", "ban_until");
+            boolean hasBannedAt = hasColumn(meta, connection, "sys_user", "banned_at");
+            String select = "SELECT id, tenant_id, status"
+                    + (hasBanType ? ", ban_type" : ", NULL AS ban_type")
+                    + (hasBanUntil ? ", ban_until" : ", NULL AS ban_until")
+                    + (hasBannedAt ? ", banned_at" : ", NULL AS banned_at")
+                    + " FROM sys_user WHERE status = 'BANNED'"
+                    + (hasBanType ? " OR ban_type IS NOT NULL" : "");
+            try (PreparedStatement insert = connection.prepareStatement(
+                    "INSERT INTO sys_user_ban (tenant_id, user_id, ban_type, reason, "
+                            + "banned_at, ban_until, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)");
+                 PreparedStatement exists = connection.prepareStatement(
+                         "SELECT COUNT(*) FROM sys_user_ban WHERE user_id = ?");
+                 Statement statement = connection.createStatement();
+                 ResultSet rows = statement.executeQuery(select)) {
+                int migrated = 0;
+                while (rows.next()) {
+                    long userId = rows.getLong("id");
+                    exists.setLong(1, userId);
+                    try (ResultSet found = exists.executeQuery()) {
+                        if (found.next() && found.getLong(1) > 0) {
+                            continue;
+                        }
+                    }
+                    String banType = rows.getString("ban_type");
+                    Timestamp until = rows.getTimestamp("ban_until");
+                    Timestamp bannedAt = rows.getTimestamp("banned_at");
+                    if (banType == null || banType.isBlank()) {
+                        banType = "PERMANENT";
+                    }
+                    LocalDateTime now = LocalDateTime.now();
+                    insert.setLong(1, rows.getLong("tenant_id"));
+                    insert.setLong(2, userId);
+                    insert.setString(3, banType);
+                    insert.setString(4, "历史封禁数据");
+                    insert.setTimestamp(5, bannedAt == null ? Timestamp.valueOf(now) : bannedAt);
+                    if (until == null) {
+                        insert.setNull(6, java.sql.Types.TIMESTAMP);
+                    } else {
+                        insert.setTimestamp(6, until);
+                    }
+                    insert.setTimestamp(7, Timestamp.valueOf(now));
+                    insert.executeUpdate();
+                    migrated++;
+                }
+                if (migrated > 0) {
+                    log.info("已迁移 {} 条历史封禁记录到 sys_user_ban", migrated);
+                }
+            }
+            try (Statement statement = connection.createStatement()) {
+                statement.executeUpdate("UPDATE sys_user SET status = 'NORMAL' "
+                        + "WHERE status = 'BANNED'");
+            }
+            return true;
+        } catch (Exception exception) {
+            log.warn("迁移历史封禁记录失败: {}", exception.getMessage());
+            return false;
+        }
+    }
+
+    private void dropColumnIfExists(Connection connection, String table, String column) {
+        try {
+            DatabaseMetaData meta = connection.getMetaData();
+            if (!hasColumn(meta, connection, table, column)) {
+                return;
+            }
+            try (Statement statement = connection.createStatement()) {
+                statement.execute("ALTER TABLE " + table + " DROP COLUMN " + column);
+                log.info("已删除字段: {}.{}", table, column);
+            }
+        } catch (Exception exception) {
+            log.warn("删除字段 {}.{} 失败: {}", table, column, exception.getMessage());
         }
     }
 

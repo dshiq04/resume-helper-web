@@ -45,7 +45,12 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { loadOnline } from "../store/slices/metaSlice";
 import { closeTab, syncRoute } from "../store/slices/tabsSlice";
 import { setSidebarCollapsed, toggleTheme } from "../store/slices/uiSlice";
-import { isAdminUser } from "../utils/permissions";
+import {
+  canGrantPermissions,
+  canManageUsers,
+  canViewOnline,
+  isAdminUser,
+} from "../utils/permissions";
 
 function withCount(label: string, count?: number) {
   return (
@@ -98,6 +103,9 @@ const PATH_CRUMB: Record<string, { group?: string; key: string }> = {
 function tabForPath(path: string): PageTab | null {
   if (path.startsWith("/applications/")) {
     return { path, labelKey: "detail.title", closable: true };
+  }
+  if (path.startsWith("/admin/users/")) {
+    return { path, labelKey: "admin.detailTitle", closable: true };
   }
   const labelKey = PATH_KEYS[path];
   if (!labelKey) {
@@ -218,9 +226,15 @@ export function AppLayout() {
             icon: <SafetyCertificateOutlined />,
             label: t("admin.group"),
             children: [
-              { key: "/admin/users", icon: <UserSwitchOutlined />, label: t("admin.users") },
-              { key: "/admin/online", icon: <TeamOutlined />, label: t("admin.online") },
-              { key: "/admin/permissions", icon: <AuditOutlined />, label: t("admin.permissions") },
+              ...(canManageUsers(user)
+                ? [{ key: "/admin/users", icon: <UserSwitchOutlined />, label: t("admin.users") }]
+                : []),
+              ...(canViewOnline(user)
+                ? [{ key: "/admin/online", icon: <TeamOutlined />, label: t("admin.online") }]
+                : []),
+              ...(canGrantPermissions(user)
+                ? [{ key: "/admin/permissions", icon: <AuditOutlined />, label: t("admin.permissions") }]
+                : []),
             ],
           }]
         : []),
@@ -230,6 +244,9 @@ export function AppLayout() {
 
   const selectedKeys = useMemo(() => {
     const path = location.pathname;
+    if (path.startsWith("/admin/users/")) {
+      return ["/admin/users"];
+    }
     const known = ["/", "/spring", "/autumn", "/internship", "/social",
       "/resumes", "/statistics", "/trash", "/settings",
       "/admin/users", "/admin/online", "/admin/permissions"];
@@ -241,6 +258,9 @@ export function AppLayout() {
     const path = location.pathname;
     if (path.startsWith("/applications/")) {
       return { trail: [t("dash.eyebrow"), t("nav.all"), t("detail.title")] };
+    }
+    if (path.startsWith("/admin/users/")) {
+      return { trail: [t("admin.group"), t("admin.users"), t("admin.detailTitle")] };
     }
     const item = PATH_CRUMB[path];
     if (!item) {

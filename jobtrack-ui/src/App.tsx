@@ -19,15 +19,34 @@ import { TrashPage } from "./pages/TrashPage";
 import { AdminOnlinePage } from "./pages/admin/AdminOnlinePage";
 import { AdminPage } from "./pages/admin/AdminPage";
 import { AdminPermissionsPage } from "./pages/admin/AdminPermissionsPage";
+import { AdminUserDetailPage } from "./pages/admin/AdminUserDetailPage";
 import { AdminUsersPage } from "./pages/admin/AdminUsersPage";
 import { useAppDispatch, useAppSelector } from "./store/hooks";
 import { loadPreferences, refreshStats } from "./store/slices/metaSlice";
-import { isAdminUser } from "./utils/permissions";
+import {
+  canGrantPermissions,
+  canManageUsers,
+  canViewOnline,
+  hasAdminPermission,
+  isAdminUser,
+} from "./utils/permissions";
 
-/** 管理员路由守卫：没有管理员控制台权限时不会渲染任何管理员页面。 */
-function AdminRoute({ children }: { children: ReactNode }) {
+/** 管理员路由守卫：按子功能权限决定是否渲染管理员页面。 */
+function AdminRoute({ children, permission }: { children: ReactNode; permission?: string }) {
   const { user } = useAuth();
-  return isAdminUser(user) ? <>{children}</> : <Navigate to="/" replace />;
+  const allowed = permission
+    ? hasAdminPermission(user, permission)
+    : isAdminUser(user);
+  return allowed ? <>{children}</> : <Navigate to="/" replace />;
+}
+
+/** 进入 /admin 时跳到当前账号拥有的第一个管理子页面。 */
+function AdminIndexRedirect() {
+  const { user } = useAuth();
+  if (canManageUsers(user)) return <Navigate to="users" replace />;
+  if (canViewOnline(user)) return <Navigate to="online" replace />;
+  if (canGrantPermissions(user)) return <Navigate to="permissions" replace />;
+  return <Navigate to="/" replace />;
 }
 
 function AppShell() {
@@ -133,10 +152,39 @@ function AppShell() {
             </AdminRoute>
           )}
         >
-          <Route index element={<Navigate to="users" replace />} />
-          <Route path="users" element={<AdminUsersPage />} />
-          <Route path="online" element={<AdminOnlinePage />} />
-          <Route path="permissions" element={<AdminPermissionsPage />} />
+          <Route index element={<AdminIndexRedirect />} />
+          <Route
+            path="users"
+            element={(
+              <AdminRoute permission="ADMIN_USERS">
+                <AdminUsersPage />
+              </AdminRoute>
+            )}
+          />
+          <Route
+            path="users/:id"
+            element={(
+              <AdminRoute permission="ADMIN_USERS">
+                <AdminUserDetailPage />
+              </AdminRoute>
+            )}
+          />
+          <Route
+            path="online"
+            element={(
+              <AdminRoute permission="ADMIN_ONLINE">
+                <AdminOnlinePage />
+              </AdminRoute>
+            )}
+          />
+          <Route
+            path="permissions"
+            element={(
+              <AdminRoute permission="ADMIN_PERMISSIONS">
+                <AdminPermissionsPage />
+              </AdminRoute>
+            )}
+          />
         </Route>
         <Route path="applications/:id" element={<ApplicationDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

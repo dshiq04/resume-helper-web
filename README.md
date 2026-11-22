@@ -363,6 +363,7 @@ server {
 | --- | --- |
 | `sys_tenant` | 工作区（租户） |
 | `sys_user` | 登录账号，全局唯一用户名 |
+| `sys_user_ban` | 封禁记录：类型、原因、封禁时间、解封时间与解除时间 |
 | `tenant_setting` | 账号偏好，如闲置锁定 |
 | `applications` | 投递记录，含年度 `apply_year` 与扩展字段 |
 | `application_changes` | 状态时间线，唯一键 `(tenant_id, application_id, status)` |
@@ -412,13 +413,19 @@ Content-Type: application/json
 
 ## 管理员控制台
 
-拥有 `ADMIN` 或独立权限 `ADMIN_CONSOLE` 的账号，侧边栏会出现「管理员」菜单（`/admin`），接口统一位于 `/api/admin/**` 并由 Spring Security 校验权限：
+管理员控制台按功能拆分为三个权限（`ADMIN` 拥有全部权限，`ADMIN_CONSOLE` 兼容旧版全量控制台权限）：
 
-- **用户管理**：跨工作区查看所有用户，支持搜索、修改用户名/显示名称/工作区、编辑个人资料与联系方式、重置密码、修改为正常/注销/封禁（永久或暂时）、删除用户。删除会级联清理该用户的投递、时间线、回收站、简历文件、授权码、使用日志、个人资料与工作区。
+- `ADMIN_USERS`：用户管理
+- `ADMIN_ONLINE`：在线用户
+- `ADMIN_PERMISSIONS`：权限授权
+
+侧边栏只渲染当前账号拥有权限的子菜单，接口位于 `/api/admin/**`，由 Spring Security 按子功能分别校验：
+
+- **用户管理**：跨工作区查看所有用户，支持搜索、修改用户名/显示名称/工作区、编辑个人资料与联系方式、重置密码、修改为正常/注销/封禁（永久或暂时，可填写原因）、删除用户。点击用户进入独立详情页，顶部菜单包含个人资料、授权码、投递内容、简历库内容与账号安全。删除会级联清理该用户的投递、时间线、回收站、简历文件、授权码、使用日志、封禁记录、个人资料与工作区。
 - **在线用户**：查看所有租户的在线会话并踢出，踢出会注销登录令牌并删除 Redis 中的在线状态与令牌信息。
 - **权限授权**：查看权限字典，把权限授予已存在的成员或收回；权限变更后目标用户需要重新登录。
 - 管理员重置密码无需验证原密码，但会立即让该用户所有设备下线。
-- 封禁状态同时写入数据库与 Redis 封禁集合（`jobtrack:ban:users`，通过 RabbitMQ 队列 `jobtrack.user.ban` 同步）。登录、JWT 令牌校验与授权码校验都会拒绝封禁用户并返回明确的解封提示。
+- 封禁详情保存在 `sys_user_ban` 记录表（类型、原因、封禁时间、解封时间、解除时间），Redis 只保存封禁集合 `jobtrack:ban:users` 用于快速拒绝，并通过 RabbitMQ 队列 `jobtrack.user.ban` 同步。登录、JWT 令牌校验与授权码校验都会拒绝封禁用户，并从封禁记录中读取原因与时间返回给用户。
 - 修改手机号/邮箱时会校验其他未注销账号是否已占用，占用时禁止修改。
 
 ---
@@ -474,6 +481,9 @@ Content-Type: application/json
 | `PUT` | `/api/admin/users/{id}/status` | 管理员：正常 / 注销 / 封禁（永久或暂时） |
 | `POST` | `/api/admin/users/{id}/password` | 管理员：免验证重置密码并注销全部会话 |
 | `GET/POST` | `/api/admin/users/{id}/tokens` | 管理员：查看 / 生成指定用户的授权码 |
+| `GET` | `/api/admin/users/{id}/applications` | 管理员：查看指定用户的投递内容 |
+| `GET` | `/api/admin/users/{id}/resumes` | 管理员：查看指定用户的简历库 |
+| `GET` | `/api/admin/users/{id}/resumes/{resumeId}/file` | 管理员：下载指定用户的简历文件 |
 | `GET` | `/api/admin/online` | 管理员：在线用户列表 |
 | `POST` | `/api/admin/online/{userId}/kick` | 管理员：踢出在线用户 |
 | `GET` | `/api/admin/permissions` | 管理员：权限字典 |

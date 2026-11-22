@@ -34,7 +34,7 @@ export function AdminPermissionsPage() {
     setLoading(true);
     void Promise.all([
       adminApi.permissions(),
-      adminApi.users({ page: 1, pageSize: 200 }),
+      adminApi.permissionUsers(),
     ])
       .then(([permissionList, userPage]) => {
         setPermissions(permissionList);

@@ -1,6 +1,7 @@
 package com.jobtrack.system.pojo.dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 import java.time.LocalDateTime;
@@ -20,4 +21,8 @@ public class AdminStatusDTO {
 
     /** 暂时封禁的到期时间；永久封禁时为空。 */
     private LocalDateTime banUntil;
+
+    /** 封禁原因，会展示给被封禁用户。 */
+    @Size(max = 255, message = "封禁原因不能超过 255 个字符")
+    private String reason;
 }

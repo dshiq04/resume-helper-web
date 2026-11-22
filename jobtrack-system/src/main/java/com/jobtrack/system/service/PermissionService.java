@@ -10,8 +10,19 @@ import java.util.List;
  */
 public interface PermissionService {
 
-    /** 管理员控制台权限编码：拥有它才能访问 /api/admin/**。 */
+    /** 管理员控制台兼容权限：拥有它可访问全部管理员接口。 */
     String ADMIN_CONSOLE = "ADMIN_CONSOLE";
+    /** 用户管理权限：查看/修改所有用户、投递与简历。 */
+    String ADMIN_USERS = "ADMIN_USERS";
+    /** 在线用户权限：查看在线用户并踢出。 */
+    String ADMIN_ONLINE = "ADMIN_ONLINE";
+    /** 权限授权权限：给成员授予或收回权限。 */
+    String ADMIN_PERMISSIONS = "ADMIN_PERMISSIONS";
+
+    /** 所有管理员控制台权限编码。 */
+    static List<String> adminConsolePermissions() {
+        return List.of(ADMIN_CONSOLE, ADMIN_USERS, ADMIN_ONLINE, ADMIN_PERMISSIONS);
+    }
 
     /** 用户拥有的全部权限编码，如 [USER] 或 [USER, ADMIN]。 */
     List<String> permissionsOf(Long userId);
@@ -34,10 +45,9 @@ public interface PermissionService {
     /** 用户是否拥有普通用户以外的权限。 */
     boolean hasElevated(Long userId);
 
-    /** 根据权限列表推导角色：拥有管理员或管理员控制台权限则为 ADMIN，否则 USER。 */
+    /** 根据权限列表推导角色：只有 ADMIN 是超级管理员，细分控制台权限仍保持 USER 角色。 */
     static String roleOf(List<String> permissions) {
-        if (permissions != null && permissions.stream().anyMatch(code ->
-                "ADMIN".equalsIgnoreCase(code) || ADMIN_CONSOLE.equalsIgnoreCase(code))) {
+        if (permissions != null && permissions.stream().anyMatch("ADMIN"::equalsIgnoreCase)) {
             return "ADMIN";
         }
         return "USER";

@@ -31,6 +31,8 @@ public class JobTenantLineHandler implements TenantLineHandler {
                 || "sys_user_permission".equalsIgnoreCase(tableName)
                 // 授权码校验发生在登录之前，无法依赖 TenantContext。
                 || "access_token".equalsIgnoreCase(tableName)
-                || "access_token_log".equalsIgnoreCase(tableName);
+                || "access_token_log".equalsIgnoreCase(tableName)
+                // 封禁校验同样发生在登录之前，按 user_id 查询封禁记录。
+                || "sys_user_ban".equalsIgnoreCase(tableName);
     }
 }

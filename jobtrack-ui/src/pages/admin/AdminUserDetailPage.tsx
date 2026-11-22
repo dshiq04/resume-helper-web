@@ -1,24 +1,30 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   App as AntdApp,
   Avatar,
   Button,
   DatePicker,
-  Drawer,
   Form,
   Input,
   InputNumber,
+  Result,
   Select,
   Spin,
   Tabs,
   Tag,
 } from "antd";
+import { ArrowLeftOutlined } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
+import { useNavigate, useParams } from "react-router-dom";
 import { adminApi } from "../../api/admin";
-import type { AdminUser, AdminUserDetail, UserProfile } from "../../api/types";
+import type { AdminUserDetail, UserProfile } from "../../api/types";
+import { PageHeader } from "../../components/PageHeader";
 import { useI18n } from "../../i18n";
 import { COUNTRY_CODES, joinPhone, splitPhone } from "../../utils/countryCodes";
 import { errorMessage } from "../../utils/errors";
+import { AdminUserApplicationsPanel } from "./AdminUserApplicationsPanel";
+import { AdminUserResumesPanel } from "./AdminUserResumesPanel";
 import { AdminUserTokensPanel } from "./AdminUserTokensPanel";
 
 interface AccountValues {
@@ -49,23 +55,19 @@ function statusColor(status: string) {
   return "green";
 }
 
-export function AdminUserDrawer({
-  userId,
-  onClose,
-  onChanged,
-}: {
-  userId: number | null;
-  onClose: () => void;
-  onChanged: () => void;
-}) {
+export function AdminUserDetailPage() {
   const { t } = useI18n();
   const { message } = AntdApp.useApp();
+  const params = useParams();
+  const navigate = useNavigate();
+  const parsed = Number(params.id);
+  const userId = Number.isFinite(parsed) && parsed > 0 ? parsed : null;
   const [accountForm] = Form.useForm<AccountValues>();
   const [contactForm] = Form.useForm<ContactValues>();
   const [profileForm] = Form.useForm<ProfileValues>();
   const [passwordForm] = Form.useForm<PasswordValues>();
   const [detail, setDetail] = useState<AdminUserDetail | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [tab, setTab] = useState("profile");
@@ -122,7 +124,6 @@ export function AdminUserDrawer({
     try {
       const updated = await adminApi.updateUser(userId, values);
       setDetail((current) => (current ? { ...current, user: updated } : current));
-      onChanged();
       message.success(t("admin.saved"));
     } catch (error) {
       message.error(errorMessage(error));
@@ -153,7 +154,6 @@ export function AdminUserDrawer({
         email: saved.email ?? "",
       });
       setDetail((current) => (current ? { ...current, profile: saved } : current));
-      onChanged();
       message.success(t("admin.saved"));
     } catch (error) {
       message.error(errorMessage(error));
@@ -180,7 +180,6 @@ export function AdminUserDrawer({
         birthday: saved.birthday ? dayjs(saved.birthday) : undefined,
         availableDate: saved.availableDate ? dayjs(saved.availableDate) : undefined,
       });
-      onChanged();
       message.success(t("admin.saved"));
     } catch (error) {
       message.error(errorMessage(error));
@@ -203,7 +202,6 @@ export function AdminUserDrawer({
             profile: saved,
           }
         : current));
-      onChanged();
       message.success(t("settings.saved"));
     } catch (error) {
       message.error(errorMessage(error));
@@ -223,7 +221,6 @@ export function AdminUserDrawer({
       const updated = await adminApi.resetPassword(userId, values.newPassword);
       setDetail((current) => (current ? { ...current, user: updated } : current));
       passwordForm.resetFields();
-      onChanged();
       message.success(t("admin.passwordReset"));
     } catch (error) {
       message.error(errorMessage(error));
@@ -240,6 +237,19 @@ export function AdminUserDrawer({
 
   const profileTab = user && (
     <div className="admin-detail-sections">
+      {user.status === "BANNED" && (
+        <Alert
+          type="error"
+          showIcon
+          message={t("admin.statusBanned")}
+          description={[
+            user.banType === "TEMPORARY" && user.banUntil
+              ? `${t("admin.temporary")} · ${t("admin.banUntil")} ${dayjs(user.banUntil).format("YYYY-MM-DD HH:mm")}`
+              : t("admin.permanent"),
+            user.banReason ? `${t("admin.banReason")}：${user.banReason}` : null,
+          ].filter(Boolean).join("；")}
+        />
+      )}
       <section className="admin-detail-card">
         <div className="admin-detail-head">
           <Avatar size={64} src={user.avatarUrl || undefined}>
@@ -480,27 +490,32 @@ export function AdminUserDrawer({
     </section>
   );
 
+  if (userId == null) {
+    return <Result status="404" title={t("admin.userNotExist")} />;
+  }
+
   return (
-    <Drawer
-      open={userId != null}
-      onClose={onClose}
-      width="min(960px, 96vw)"
-      destroyOnHidden
-      className="admin-user-drawer"
-      title={(
-        <div className="admin-drawer-title">
-          <span>{t("admin.detailTitle")}</span>
-          {user && (
-            <Tag color={statusColor(user.status)}>{statusLabel(user.status)}</Tag>
-          )}
-        </div>
-      )}
-    >
+    <div className="admin-detail-page">
+      <PageHeader
+        eyebrow={t("admin.users")}
+        title={user?.displayName || user?.username || t("admin.detailTitle")}
+        subtitle={user ? `@${user.username} · ${user.tenantName}` : undefined}
+        actions={(
+          <div className="admin-detail-actions">
+            {user && (
+              <Tag color={statusColor(user.status)}>{statusLabel(user.status)}</Tag>
+            )}
+            <Button icon={<ArrowLeftOutlined />} onClick={() => navigate("/admin/users")}>
+              {t("common.back")}
+            </Button>
+          </div>
+        )}
+      />
+
       {loading ? (
         <div className="admin-drawer-loading"><Spin /></div>
       ) : user ? (
         <Tabs
-          tabPosition="left"
           activeKey={tab}
           onChange={setTab}
           className="admin-detail-tabs"
@@ -511,10 +526,22 @@ export function AdminUserDrawer({
               label: t("admin.tabTokens"),
               children: <AdminUserTokensPanel userId={user.id} />,
             },
+            {
+              key: "applications",
+              label: t("admin.tabApplications"),
+              children: <AdminUserApplicationsPanel userId={user.id} />,
+            },
+            {
+              key: "resumes",
+              label: t("admin.tabResumes"),
+              children: <AdminUserResumesPanel userId={user.id} />,
+            },
             { key: "security", label: t("admin.tabSecurity"), children: securityTab },
           ]}
         />
-      ) : null}
-    </Drawer>
+      ) : (
+        <Result status="404" title={t("admin.userNotExist")} />
+      )}
+    </div>
   );
 }

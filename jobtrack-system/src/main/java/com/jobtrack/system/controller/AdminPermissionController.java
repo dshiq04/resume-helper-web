@@ -1,6 +1,7 @@
 package com.jobtrack.system.controller;
 
 import com.jobtrack.system.pojo.dto.AdminPermissionDTO;
+import com.jobtrack.system.pojo.vo.AdminUserPageVO;
 import com.jobtrack.system.pojo.vo.AdminUserVO;
 import com.jobtrack.system.pojo.vo.PermissionVO;
 import com.jobtrack.system.security.SecurityUtils;
@@ -13,6 +14,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -31,6 +33,15 @@ public class AdminPermissionController {
     @GetMapping("/permissions")
     public List<PermissionVO> permissions() {
         return adminService.permissions();
+    }
+
+    /** 授权页专用用户列表：只有权限授权权限也能查看可授权成员。 */
+    @GetMapping("/permissions/users")
+    public AdminUserPageVO grantableUsers(
+            @RequestParam(required = false) String search,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "200") int pageSize) {
+        return adminService.listUsers(search, null, page, pageSize);
     }
 
     @GetMapping("/users/{userId}/permissions")

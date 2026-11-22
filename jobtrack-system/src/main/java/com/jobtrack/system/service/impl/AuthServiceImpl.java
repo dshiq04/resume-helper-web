@@ -19,6 +19,7 @@ import com.jobtrack.system.pojo.dto.RegisterDTO;
 import com.jobtrack.system.pojo.vo.UserVO;
 import com.jobtrack.system.pojo.po.SysTenant;
 import com.jobtrack.system.pojo.po.SysUser;
+import com.jobtrack.system.pojo.po.SysUserBan;
 import com.jobtrack.system.pojo.po.UserProfile;
 import com.jobtrack.system.mapper.UserAgreementMapper;
 import com.jobtrack.system.mapper.UserProfileMapper;
@@ -89,12 +90,9 @@ public class AuthServiceImpl implements AuthService {
         if (banService.isBanned(user)) {
             throw BusinessException.forbidden("account_banned", banService.message(user));
         }
-        // 暂时封禁已到期：顺手把数据库状态恢复为正常，避免列表一直显示已封禁。
+        // 兼容历史数据：封禁状态已迁移到封禁记录表，账号状态只保留正常 / 注销。
         if ("BANNED".equalsIgnoreCase(user.getStatus())) {
             user.setStatus("NORMAL");
-            user.setBanType(null);
-            user.setBanUntil(null);
-            user.setBannedAt(null);
             userMapper.updateById(user);
         }
         return session(user);
@@ -409,11 +407,18 @@ public class AuthServiceImpl implements AuthService {
         String avatarUrl = profile == null ? null
                 : avatarService.url(user.getId(), profile.getAvatarUrl());
         List<String> permissions = permissionService.permissionsOf(user.getId());
+        // 封禁状态、时间与原因统一从封禁记录表读取。
+        SysUserBan ban = banService.activeBan(user.getId());
         return new UserVO(user.getId(), user.getTenantId(), user.getUsername(),
-                user.getDisplayName(), PermissionService.roleOf(permissions), statusOf(user),
+                user.getDisplayName(), PermissionService.roleOf(permissions),
+                ban != null ? "BANNED" : statusOf(user),
                 tenant == null ? "" : tenant.getName(), avatarUrl,
-                permissions, user.getEnabled(), user.getBanType(), user.getBanUntil(),
-                user.getBannedAt(), user.getCreatedAt());
+                permissions, user.getEnabled(),
+                ban == null ? null : ban.getBanType(),
+                ban == null ? null : ban.getBanUntil(),
+                ban == null ? null : ban.getBannedAt(),
+                ban == null ? null : ban.getReason(),
+                user.getCreatedAt());
     }
 
     /** 空状态按正常处理，兼容历史数据。 */

@@ -6,8 +6,10 @@ import type {
   AdminUser,
   AdminUserDetail,
   AdminUserPage,
+  ApplicationList,
   OnlineUser,
   PermissionItem,
+  ResumeList,
   UserProfile,
 } from "./types";
 
@@ -50,6 +52,7 @@ export const adminApi = {
       status: "NORMAL" | "CANCELLED" | "BANNED";
       banType?: "PERMANENT" | "TEMPORARY";
       banUntil?: string | null;
+      reason?: string;
     },
   ) {
     return request<AdminUser>(`/admin/users/${id}/status`, {
@@ -91,6 +94,41 @@ export const adminApi = {
     if (params.result) search.set("result", params.result);
     return request<AccessTokenLogPage>(`/admin/users/${id}/tokens/logs?${search.toString()}`);
   },
+  applications(
+    id: number,
+    params: {
+      search?: string;
+      category?: string;
+      status?: string;
+      channel?: string;
+      priority?: string;
+      year?: number;
+      page?: number;
+      pageSize?: number;
+    } = {},
+  ) {
+    const search = new URLSearchParams();
+    search.set("page", String(params.page ?? 1));
+    search.set("pageSize", String(params.pageSize ?? 10));
+    if (params.search) search.set("search", params.search);
+    if (params.category && params.category !== "all") search.set("category", params.category);
+    if (params.status && params.status !== "all") search.set("status", params.status);
+    if (params.channel) search.set("channel", params.channel);
+    if (params.priority) search.set("priority", params.priority);
+    if (params.year) search.set("year", String(params.year));
+    return request<ApplicationList>(`/admin/users/${id}/applications?${search.toString()}`);
+  },
+  resumes(id: number, search?: string) {
+    const query = new URLSearchParams();
+    if (search) query.set("search", search);
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return request<ResumeList>(`/admin/users/${id}/resumes${suffix}`);
+  },
+  resumeFile(id: number, resumeId: number) {
+    return request<Blob>(`/admin/users/${id}/resumes/${resumeId}/file`, {
+      responseType: "blob",
+    });
+  },
   online() {
     return request<OnlineUser[]>("/admin/online");
   },
@@ -101,6 +139,13 @@ export const adminApi = {
   },
   permissions() {
     return request<PermissionItem[]>("/admin/permissions");
+  },
+  permissionUsers(search?: string) {
+    const query = new URLSearchParams();
+    query.set("page", "1");
+    query.set("pageSize", "200");
+    if (search) query.set("search", search);
+    return request<AdminUserPage>(`/admin/permissions/users?${query.toString()}`);
   },
   userPermissions(id: number) {
     return request<string[]>(`/admin/users/${id}/permissions`);

@@ -17,9 +17,6 @@ CREATE TABLE IF NOT EXISTS sys_user (
     display_name VARCHAR(128),
     role VARCHAR(32) NOT NULL DEFAULT 'USER',
     status VARCHAR(16) NOT NULL DEFAULT 'NORMAL',
-    ban_type VARCHAR(16),
-    ban_until TIMESTAMP,
-    banned_at TIMESTAMP,
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP,
     updated_at TIMESTAMP
@@ -45,6 +42,23 @@ CREATE TABLE IF NOT EXISTS sys_user_permission (
     CONSTRAINT uk_sys_user_permission UNIQUE (user_id, permission_id)
 );
 CREATE INDEX IF NOT EXISTS idx_sys_user_permission_user ON sys_user_permission (user_id);
+
+CREATE TABLE IF NOT EXISTS sys_user_ban (
+    id BIGSERIAL PRIMARY KEY,
+    tenant_id BIGINT NOT NULL,
+    user_id BIGINT NOT NULL,
+    ban_type VARCHAR(16) NOT NULL,
+    reason VARCHAR(255),
+    banned_at TIMESTAMP NOT NULL,
+    ban_until TIMESTAMP,
+    unbanned_at TIMESTAMP,
+    operator_id BIGINT,
+    created_at TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_sys_user_ban_user
+    ON sys_user_ban (user_id, unbanned_at, ban_until);
+CREATE INDEX IF NOT EXISTS idx_sys_user_ban_tenant
+    ON sys_user_ban (tenant_id, banned_at);
 
 CREATE TABLE IF NOT EXISTS tenant_setting (
     id BIGSERIAL PRIMARY KEY,

@@ -17,6 +17,7 @@ import com.jobtrack.system.pojo.dto.ContactUpdateDTO;
 import com.jobtrack.system.pojo.dto.UserProfileDTO;
 import com.jobtrack.system.pojo.po.SysTenant;
 import com.jobtrack.system.pojo.po.SysUser;
+import com.jobtrack.system.pojo.po.SysUserBan;
 import com.jobtrack.system.pojo.po.UserProfile;
 import com.jobtrack.system.pojo.vo.AccessTokenLogPageVO;
 import com.jobtrack.system.pojo.vo.AccessTokenVO;
@@ -101,11 +102,28 @@ public class AdminServiceImpl implements AdminService {
                     .or().like(SysUser::getDisplayName, keyword));
         }
         if (STATUSES.contains(normalizedStatus)) {
-            if ("NORMAL".equals(normalizedStatus)) {
+            // 封禁状态来自 sys_user_ban 记录表，而不是 sys_user.status。
+            List<Long> bannedIds = banService.activeBans().stream()
+                    .map(ban -> ban.getUserId())
+                    .filter(java.util.Objects::nonNull)
+                    .distinct()
+                    .toList();
+            if ("BANNED".equals(normalizedStatus)) {
+                if (bannedIds.isEmpty()) {
+                    return new AdminUserPageVO(List.of(), 0, current, size);
+                }
+                query.in(SysUser::getId, bannedIds);
+            } else if ("NORMAL".equals(normalizedStatus)) {
                 query.and(w -> w.eq(SysUser::getStatus, "NORMAL")
                         .or().isNull(SysUser::getStatus));
+                if (!bannedIds.isEmpty()) {
+                    query.notIn(SysUser::getId, bannedIds);
+                }
             } else {
                 query.eq(SysUser::getStatus, normalizedStatus);
+                if (!bannedIds.isEmpty()) {
+                    query.notIn(SysUser::getId, bannedIds);
+                }
             }
         }
         query.orderByDesc(SysUser::getId);
@@ -302,13 +320,17 @@ public class AdminServiceImpl implements AdminService {
             throw BusinessException.badRequest("cannot_change_self_status", "不能封禁或注销当前登录的管理员账号");
         }
 
-        LocalDateTime until = null;
-        String banType = null;
+        String reason = clean(request.getReason());
+        if (reason.length() > 255) {
+            throw BusinessException.badRequest("reason_too_long", "封禁原因不能超过 255 个字符");
+        }
+
         if ("BANNED".equals(status)) {
-            banType = clean(request.getBanType()).toUpperCase(Locale.ROOT);
+            String banType = clean(request.getBanType()).toUpperCase(Locale.ROOT);
             if (banType.isEmpty()) {
                 banType = "PERMANENT";
             }
+            LocalDateTime until = null;
             if ("TEMPORARY".equals(banType)) {
                 until = request.getBanUntil();
                 if (until == null || !until.isAfter(LocalDateTime.now())) {
@@ -320,24 +342,22 @@ public class AdminServiceImpl implements AdminService {
             } else {
                 banType = "PERMANENT";
             }
-        }
-
-        user.setStatus(status);
-        if ("BANNED".equals(status)) {
-            user.setBanType(banType);
-            user.setBanUntil(until);
-            user.setBannedAt(LocalDateTime.now());
+            // 兼容历史数据：账号状态不再保存 BANNED。
+            if ("BANNED".equalsIgnoreCase(user.getStatus())) {
+                user.setStatus("NORMAL");
+                userMapper.updateById(user);
+            }
+            // 新增封禁记录，并把到期时间同步到 Redis 封禁集合。
+            banService.ban(userId, user.getTenantId(), operatorId, banType, until, reason);
+            publisher.publishUserBan(new UserBanMessage(userId, true, until));
         } else {
-            user.setBanType(null);
-            user.setBanUntil(null);
-            user.setBannedAt(null);
+            // 恢复为正常 / 注销：解除有效封禁记录并移出 Redis 集合。
+            banService.unban(userId);
+            user.setStatus(status);
+            userMapper.updateById(user);
+            publisher.publishUserBan(new UserBanMessage(userId, false, null));
         }
-        userMapper.updateById(user);
 
-        boolean banned = "BANNED".equals(status);
-        // 先同步更新本实例的封禁集合，再通过 RabbitMQ 通知其他实例。
-        banService.apply(userId, banned, until);
-        publisher.publishUserBan(new UserBanMessage(userId, banned, until));
         // 封禁 / 注销 / 恢复都让旧登录态立即失效。
         sessionService.deleteByUser(userId, user.getTenantId());
         return view(user, tenantNames(), onlineCounts());
@@ -349,8 +369,7 @@ public class AdminServiceImpl implements AdminService {
         if (operatorId != null && operatorId.equals(userId)) {
             throw BusinessException.badRequest("cannot_delete_self", "不能删除当前登录的管理员账号");
         }
-        if (permissionService.has(userId, PermissionService.ADMIN_CONSOLE)
-                && countPermissionHolders(PermissionService.ADMIN_CONSOLE) <= 1) {
+        if (isLastConsoleHolder(userId)) {
             throw BusinessException.badRequest("last_admin", "系统至少需要保留一个管理员控制台账号");
         }
 
@@ -373,6 +392,7 @@ public class AdminServiceImpl implements AdminService {
         jdbcTemplate.update("DELETE FROM deleted_applications WHERE tenant_id = ?", tenantId);
         jdbcTemplate.update("DELETE FROM resumes WHERE tenant_id = ?", tenantId);
         jdbcTemplate.update("DELETE FROM tenant_setting WHERE tenant_id = ?", tenantId);
+        jdbcTemplate.update("DELETE FROM sys_user_ban WHERE user_id = ?", userId);
         jdbcTemplate.update("DELETE FROM user_agreement WHERE user_id = ?", userId);
         jdbcTemplate.update("DELETE FROM user_profile WHERE user_id = ?", userId);
         jdbcTemplate.update("DELETE FROM access_token_log WHERE user_id = ?", userId);
@@ -505,9 +525,10 @@ public class AdminServiceImpl implements AdminService {
     public AdminUserVO revokePermission(Long operatorId, Long userId, String code) {
         SysUser user = requireUser(userId);
         String normalized = clean(code);
-        if (PermissionService.ADMIN_CONSOLE.equalsIgnoreCase(normalized)
-                && permissionService.has(userId, PermissionService.ADMIN_CONSOLE)
-                && countPermissionHolders(PermissionService.ADMIN_CONSOLE) <= 1) {
+        if (PermissionService.adminConsolePermissions().stream()
+                .anyMatch(item -> item.equalsIgnoreCase(normalized))
+                && permissionService.has(userId, normalized)
+                && countPermissionHolders(normalized) <= 1) {
             throw BusinessException.badRequest("last_admin", "系统至少需要保留一个管理员控制台账号");
         }
         permissionService.revoke(userId, normalized);
@@ -522,6 +543,12 @@ public class AdminServiceImpl implements AdminService {
             return;
         }
         sessionService.deleteByUser(userId, tenantId);
+    }
+
+    private boolean isLastConsoleHolder(Long userId) {
+        return PermissionService.adminConsolePermissions().stream()
+                .anyMatch(code -> permissionService.has(userId, code)
+                        && countPermissionHolders(code) <= 1);
     }
 
     private long countPermissionHolders(String code) {
@@ -545,25 +572,17 @@ public class AdminServiceImpl implements AdminService {
 
     private AdminUserVO view(SysUser user, Map<Long, String> tenantNames,
                              Map<Long, Integer> online) {
-        // 暂时封禁到期后自动恢复正常，避免管理员列表一直停留在已封禁。
-        if ("BANNED".equalsIgnoreCase(user.getStatus())
-                && user.getBanUntil() != null
-                && !user.getBanUntil().isAfter(LocalDateTime.now())) {
-            user.setStatus("NORMAL");
-            user.setBanType(null);
-            user.setBanUntil(null);
-            user.setBannedAt(null);
-            userMapper.updateById(user);
-        }
         List<String> permissions = permissionService.permissionsOf(user.getId());
         UserProfile profile = profileMapper.selectByUserIdIgnoreTenant(user.getId());
+        // 封禁状态、时间与原因统一从封禁记录表读取。
+        SysUserBan ban = banService.activeBan(user.getId());
         AdminUserVO view = new AdminUserVO();
         view.setId(user.getId());
         view.setTenantId(user.getTenantId());
         view.setUsername(user.getUsername());
         view.setDisplayName(user.getDisplayName());
         view.setRole(PermissionService.roleOf(permissions));
-        view.setStatus(statusOf(user));
+        view.setStatus(ban != null ? "BANNED" : statusOf(user));
         view.setEnabled(user.getEnabled());
         view.setTenantName(tenantNames.getOrDefault(user.getTenantId(), ""));
         view.setAvatarUrl(profile == null ? null
@@ -572,9 +591,10 @@ public class AdminServiceImpl implements AdminService {
         int sessions = online.getOrDefault(user.getId(), 0);
         view.setOnline(sessions > 0);
         view.setOnlineSessions(sessions);
-        view.setBanType(user.getBanType());
-        view.setBanUntil(user.getBanUntil());
-        view.setBannedAt(user.getBannedAt());
+        view.setBanType(ban == null ? null : ban.getBanType());
+        view.setBanUntil(ban == null ? null : ban.getBanUntil());
+        view.setBannedAt(ban == null ? null : ban.getBannedAt());
+        view.setBanReason(ban == null ? null : ban.getReason());
         view.setCreatedAt(user.getCreatedAt());
         view.setUpdatedAt(user.getUpdatedAt());
         return view;

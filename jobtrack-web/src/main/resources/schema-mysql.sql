@@ -19,9 +19,6 @@ CREATE TABLE IF NOT EXISTS sys_user (
     display_name VARCHAR(128) NULL,
     role VARCHAR(32) NOT NULL DEFAULT 'USER',
     status VARCHAR(16) NOT NULL DEFAULT 'NORMAL',
-    ban_type VARCHAR(16) NULL,
-    ban_until DATETIME NULL,
-    banned_at DATETIME NULL,
     enabled TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME NULL,
     updated_at DATETIME NULL,
@@ -49,6 +46,22 @@ CREATE TABLE IF NOT EXISTS sys_user_permission (
     PRIMARY KEY (id),
     UNIQUE KEY uk_sys_user_permission (user_id, permission_id),
     KEY idx_sys_user_permission_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS sys_user_ban (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    tenant_id BIGINT UNSIGNED NOT NULL,
+    user_id BIGINT UNSIGNED NOT NULL,
+    ban_type VARCHAR(16) NOT NULL,
+    reason VARCHAR(255) NULL,
+    banned_at DATETIME NOT NULL,
+    ban_until DATETIME NULL,
+    unbanned_at DATETIME NULL,
+    operator_id BIGINT UNSIGNED NULL,
+    created_at DATETIME NULL,
+    PRIMARY KEY (id),
+    KEY idx_sys_user_ban_user (user_id, unbanned_at, ban_until),
+    KEY idx_sys_user_ban_tenant (tenant_id, banned_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS tenant_setting (

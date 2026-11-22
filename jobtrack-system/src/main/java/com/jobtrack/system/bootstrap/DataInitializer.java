@@ -57,7 +57,13 @@ public class DataInitializer implements ApplicationRunner {
         permissionService.ensurePermission("USER", "普通用户", "默认权限");
         permissionService.ensurePermission("ADMIN", "管理员", "管理员权限");
         permissionService.ensurePermission(PermissionService.ADMIN_CONSOLE,
-                "管理员控制台", "访问管理员菜单与 /api/admin/** 接口");
+                "管理员控制台", "访问管理员控制台（兼容旧权限）");
+        permissionService.ensurePermission(PermissionService.ADMIN_USERS,
+                "用户管理", "查看与修改所有用户、投递与简历");
+        permissionService.ensurePermission(PermissionService.ADMIN_ONLINE,
+                "在线用户", "查看在线用户并踢出");
+        permissionService.ensurePermission(PermissionService.ADMIN_PERMISSIONS,
+                "权限授权", "给成员授予或收回权限");
 
         SysUser adminUser;
         if (existing == null || existing == 0) {
@@ -81,7 +87,9 @@ public class DataInitializer implements ApplicationRunner {
         // 无论账号是否刚创建，都确保 admin 拥有 ADMIN 与独立的管理员控制台权限。
         if (adminUser != null) {
             permissionService.grant(adminUser.getId(), "ADMIN");
-            permissionService.grant(adminUser.getId(), PermissionService.ADMIN_CONSOLE);
+            for (String code : PermissionService.adminConsolePermissions()) {
+                permissionService.grant(adminUser.getId(), code);
+            }
             if (!"ADMIN".equalsIgnoreCase(adminUser.getRole())) {
                 adminUser.setRole("ADMIN");
                 userMapper.updateById(adminUser);

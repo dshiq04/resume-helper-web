@@ -1,15 +1,16 @@
 package com.jobtrack.system.service.impl;
 
-import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.system.config.RedisSettings;
-import com.jobtrack.system.mapper.SysUserMapper;
+import com.jobtrack.system.mapper.SysUserBanMapper;
 import com.jobtrack.system.pojo.po.SysUser;
+import com.jobtrack.system.pojo.po.SysUserBan;
 import com.jobtrack.system.service.BanService;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -20,7 +21,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * 封禁集合：Redis ZSet + 进程内兜底。
+ * 封禁集合：Redis ZSet + 进程内兜底，封禁详情来自 sys_user_ban 记录表。
  */
 @Slf4j
 @Service
@@ -29,12 +30,11 @@ public class BanServiceImpl implements BanService {
 
     private static final String BAN_KEY = "ban:users";
     private static final long PERMANENT_SCORE = Long.MAX_VALUE;
-    private static final DateTimeFormatter UNTIL_FORMAT =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+    private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final RedisSettings redisSettings;
     private final StringRedisTemplate redisTemplate;
-    private final SysUserMapper userMapper;
+    private final SysUserBanMapper banMapper;
 
     private final Map<Long, Long> memory = new ConcurrentHashMap<>();
     private volatile boolean redisAvailable;
@@ -43,6 +43,27 @@ public class BanServiceImpl implements BanService {
     void init() {
         redisAvailable = redisSettings.isEnabled() && redisTemplate != null;
         log.info("封禁集合存储: {}", redisAvailable ? "Redis" : "进程内");
+    }
+
+    public SysUserBan activeBan(Long userId) {
+        if (userId == null) {
+            return null;
+        }
+        try {
+            return banMapper.selectActiveByUserId(userId, LocalDateTime.now());
+        } catch (Exception exception) {
+            log.warn("查询封禁记录失败: {}", exception.getMessage());
+            return null;
+        }
+    }
+
+    public List<SysUserBan> activeBans() {
+        try {
+            return banMapper.selectActiveBans(LocalDateTime.now());
+        } catch (Exception exception) {
+            log.warn("查询封禁记录列表失败: {}", exception.getMessage());
+            return List.of();
+        }
     }
 
     public boolean isBanned(Long userId) {
@@ -83,45 +104,47 @@ public class BanServiceImpl implements BanService {
         if (user == null) {
             return false;
         }
-        if ("BANNED".equalsIgnoreCase(user.getStatus())) {
-            LocalDateTime until = user.getBanUntil();
-            if (until == null || until.isAfter(LocalDateTime.now())) {
-                return true;
-            }
-            // 临时封禁已到期：缓存中的旧记录也一并清掉。
-            apply(user.getId(), false, null);
-            return false;
-        }
-        return isBanned(user.getId());
+        return activeBan(user.getId()) != null || isBanned(user.getId());
     }
 
     public String message(Long userId) {
+        SysUserBan ban = activeBan(userId);
+        if (ban != null) {
+            return describe(ban);
+        }
         if (!isBanned(userId)) {
             return null;
         }
-        Long score = memory.get(userId);
-        if (score == null && useRedis()) {
-            try {
-                Double value = redisTemplate.opsForZSet().score(banKey(), String.valueOf(userId));
-                score = value == null ? null : value.longValue();
-            } catch (Exception exception) {
-                disableRedis(exception);
-            }
-        }
-        return describe(score);
+        return "该账号已被封禁";
     }
 
     public String message(SysUser user) {
-        if (user == null || !isBanned(user)) {
-            return null;
-        }
-        if ("BANNED".equalsIgnoreCase(user.getStatus())) {
-            if ("TEMPORARY".equalsIgnoreCase(user.getBanType()) && user.getBanUntil() != null) {
-                return "该账号已被暂时封禁，解封时间：" + user.getBanUntil().format(UNTIL_FORMAT);
-            }
-            return "该账号已被永久封禁";
-        }
-        return message(user.getId());
+        return user == null ? null : message(user.getId());
+    }
+
+    @Transactional
+    public SysUserBan ban(Long userId, Long tenantId, Long operatorId,
+                          String banType, LocalDateTime banUntil, String reason) {
+        LocalDateTime now = LocalDateTime.now();
+        // 同一个用户同时只保留一条有效封禁记录，旧的自动标记为已解除。
+        banMapper.revokeActive(userId, now);
+        SysUserBan record = new SysUserBan();
+        record.setUserId(userId);
+        record.setTenantId(tenantId);
+        record.setOperatorId(operatorId);
+        record.setBanType(banType);
+        record.setBanUntil(banUntil);
+        record.setReason(reason);
+        record.setBannedAt(now);
+        banMapper.insert(record);
+        apply(userId, true, banUntil);
+        return record;
+    }
+
+    @Transactional
+    public void unban(Long userId) {
+        banMapper.revokeActive(userId, LocalDateTime.now());
+        apply(userId, false, null);
     }
 
     public void apply(Long userId, boolean banned, LocalDateTime until) {
@@ -154,38 +177,40 @@ public class BanServiceImpl implements BanService {
 
     public void warmCache() {
         try {
-            List<SysUser> banned = userMapper.selectList(Wrappers.<SysUser>lambdaQuery()
-                    .eq(SysUser::getStatus, "BANNED"));
+            List<SysUserBan> bans = banMapper.selectActiveBans(LocalDateTime.now());
             if (useRedis()) {
                 try {
-                    // 全量重建，避免数据库中已解封的账号残留。
+                    // 全量重建，避免已解除或已到期的封禁残留在 Redis。
                     redisTemplate.delete(banKey());
                 } catch (Exception exception) {
                     disableRedis(exception);
                 }
             }
             memory.clear();
-            for (SysUser user : banned) {
-                if (user.getBanUntil() == null || user.getBanUntil().isAfter(LocalDateTime.now())) {
-                    apply(user.getId(), true, user.getBanUntil());
-                }
+            for (SysUserBan ban : bans) {
+                apply(ban.getUserId(), true, ban.getBanUntil());
             }
-            log.info("封禁集合已同步: {} 人", banned.size());
+            log.info("封禁集合已同步: {} 人", bans.size());
         } catch (Exception exception) {
             log.warn("封禁集合同步失败: {}", exception.getMessage());
         }
     }
 
-    private String describe(Long score) {
-        if (score == null) {
-            return "该账号已被封禁";
+    private String describe(SysUserBan ban) {
+        StringBuilder text = new StringBuilder();
+        if ("TEMPORARY".equalsIgnoreCase(ban.getBanType()) && ban.getBanUntil() != null) {
+            text.append("该账号已被暂时封禁，解封时间：")
+                    .append(ban.getBanUntil().format(TIME_FORMAT));
+        } else {
+            text.append("该账号已被永久封禁");
         }
-        if (score >= PERMANENT_SCORE) {
-            return "该账号已被永久封禁";
+        if (ban.getBannedAt() != null) {
+            text.append("；封禁时间：").append(ban.getBannedAt().format(TIME_FORMAT));
         }
-        LocalDateTime until = LocalDateTime.ofInstant(
-                Instant.ofEpochMilli(score), ZoneId.systemDefault());
-        return "该账号已被暂时封禁，解封时间：" + until.format(UNTIL_FORMAT);
+        if (ban.getReason() != null && !ban.getReason().isBlank()) {
+            text.append("；原因：").append(ban.getReason().trim());
+        }
+        return text.toString();
     }
 
     private boolean isActive(long score) {
