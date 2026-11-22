@@ -25,6 +25,10 @@ public class JobTenantLineHandler implements TenantLineHandler {
     public boolean ignoreTable(String tableName) {
         return "sys_user".equalsIgnoreCase(tableName)
                 || "sys_tenant".equalsIgnoreCase(tableName)
+                // 权限表为全局字典与用户映射，无 tenant_id 列；
+                // 注册/登录阶段查询权限时也没有租户上下文。
+                || "sys_permission".equalsIgnoreCase(tableName)
+                || "sys_user_permission".equalsIgnoreCase(tableName)
                 // 授权码校验发生在登录之前，无法依赖 TenantContext。
                 || "access_token".equalsIgnoreCase(tableName)
                 || "access_token_log".equalsIgnoreCase(tableName);

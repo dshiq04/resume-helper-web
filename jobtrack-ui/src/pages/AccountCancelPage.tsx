@@ -64,6 +64,10 @@ export function AccountCancelPage() {
   const [verifyForm] = Form.useForm<VerifyValues>();
   const [confirmForm] = Form.useForm<ConfirmValues>();
   const contactType = Form.useWatch("contactType", verifyForm) ?? "phone";
+  /** 第二步验证通过后保存的联系方式与密码，最终确认时复用（第三步时验证表单已卸载）。 */
+  const [cancelContact, setCancelContact] = useState("");
+  const [cancelContactType, setCancelContactType] = useState<ContactMethod>("phone");
+  const [cancelPassword, setCancelPassword] = useState("");
 
   const loadCaptcha = useCallback(async () => {
     try {
@@ -139,6 +143,10 @@ export function AccountCancelPage() {
         contact,
         password: values.password,
       });
+      // 保存已验证的联系方式与密码，最终确认（第三步）时验证表单已卸载，不能再读取。
+      setCancelContact(contact);
+      setCancelContactType(isPhone ? "phone" : "email");
+      setCancelPassword(values.password);
       setStep(3);
       if (config?.captchaEnabled) {
         void loadCaptcha();
@@ -151,11 +159,9 @@ export function AccountCancelPage() {
   };
 
   const confirm = async (values: ConfirmValues) => {
-    const data = verifyForm.getFieldsValue();
-    const isPhone = data.contactType !== "email";
-    const contact = isPhone
-      ? joinPhone(data.countryCode, data.phone)
-      : data.email.trim();
+    // 使用第二步验证通过时保存的联系方式。
+    const isPhone = cancelContactType !== "email";
+    const contact = cancelContact;
     if (config?.captchaEnabled && (!captcha || !values.captchaCode)) {
       message.warning(t("auth.captchaPlaceholder"));
       return;
@@ -167,7 +173,7 @@ export function AccountCancelPage() {
         captchaCode: values.captchaCode ?? "",
         contactType: isPhone ? "phone" : "email",
         contact,
-        password: data.password,
+        password: cancelPassword,
       });
       // 注销成功：服务端已删除 Redis 中的令牌与权限，这里清理本地状态并回到登录页。
       message.success(t("account.cancelSuccess"));
