@@ -16,9 +16,6 @@ import com.jobtrack.system.mapper.SysTenantMapper;
 import com.jobtrack.system.mapper.SysUserMapper;
 import com.jobtrack.system.mapper.UserProfileMapper;
 import com.jobtrack.system.security.AuthPrincipal;
-import com.jobtrack.system.security.JwtService;
-import com.jobtrack.system.security.SessionInfo;
-import com.jobtrack.system.security.SessionService;
 import com.jobtrack.system.messaging.AsyncTaskPublisher;
 import com.jobtrack.system.service.ContactService;
 import com.jobtrack.system.storage.ObjectStorageService;
@@ -28,20 +25,18 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
 /**
- * 账户设置：扩展个人资料与用户名修改。
+ * 账户设置：扩展个人资料与联系方式。用户名注册后禁止修改。
  */
 @Service
 @RequiredArgsConstructor
 public class AccountServiceImpl implements AccountService {
 
-    private static final Pattern USERNAME_PATTERN = Pattern.compile("^[A-Za-z0-9_.-]{3,32}$");
     private static final Pattern EMAIL_PATTERN = Pattern.compile(
             "^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
                     + "(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$");
@@ -50,8 +45,6 @@ public class AccountServiceImpl implements AccountService {
     private final UserProfileMapper profileMapper;
     private final SysUserMapper userMapper;
     private final SysTenantMapper tenantMapper;
-    private final SessionService sessionService;
-    private final JwtService jwtService;
     private final ObjectStorageService objectStorage;
     private final AvatarService avatarService;
     private final ContactService contactService;
@@ -198,38 +191,6 @@ public class AccountServiceImpl implements AccountService {
             case "webp" -> "image/webp";
             default -> "image/jpeg";
         };
-    }
-
-    @Transactional
-    public UserView changeUsername(AuthPrincipal principal, String rawUsername) {
-        String username = rawUsername == null ? "" : rawUsername.trim();
-        if (!USERNAME_PATTERN.matcher(username).matches()) {
-            throw BusinessException.badRequest("invalid_username",
-                    "用户名只能包含字母、数字、下划线、点和短横线，长度 3-32 位");
-        }
-        SysUser user = userMapper.selectById(principal.id());
-        if (user == null) {
-            throw BusinessException.unauthorized("user_not_found", "账号不存在");
-        }
-        if (username.equalsIgnoreCase(user.getUsername())) {
-            return view(user);
-        }
-        Long existing = userMapper.selectCount(Wrappers.<SysUser>lambdaQuery()
-                .eq(SysUser::getUsername, username));
-        if (existing != null && existing > 0) {
-            throw BusinessException.conflict("username_taken", "该用户名已被占用");
-        }
-        user.setUsername(username);
-        userMapper.updateById(user);
-
-        // 同步当前会话，避免顶栏与授权信息继续显示旧用户名。
-        if (principal.sessionId() != null && !principal.sessionId().isBlank()) {
-            sessionService.save(principal.sessionId(),
-                    new SessionInfo(user.getId(), user.getTenantId(), user.getUsername(),
-                            user.getDisplayName(), user.getRole()),
-                    Duration.ofHours(jwtService.ttlHours()));
-        }
-        return view(user);
     }
 
     private UserProfileView view(UserProfile profile) {

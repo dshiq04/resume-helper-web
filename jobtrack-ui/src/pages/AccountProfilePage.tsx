@@ -55,7 +55,6 @@ export function AccountProfilePage() {
   const navigate = useNavigate();
   const [profileForm] = Form.useForm<ProfileValues>();
   const [contactForm] = Form.useForm<ContactValues>();
-  const [usernameForm] = Form.useForm<{ username: string }>();
   const [passwordForm] = Form.useForm<PasswordValues>();
   const contactType = Form.useWatch("contactType", passwordForm) ?? "phone";
   const [savingProfile, setSavingProfile] = useState(false);
@@ -64,7 +63,6 @@ export function AccountProfilePage() {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInput = useRef<HTMLInputElement>(null);
-  const [savingUsername, setSavingUsername] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
@@ -87,10 +85,6 @@ export function AccountProfilePage() {
       })
       .catch((error) => message.error(errorMessage(error)));
   }, [message, profileForm, contactForm]);
-
-  useEffect(() => {
-    usernameForm.setFieldsValue({ username: user?.username ?? "" });
-  }, [user?.username, usernameForm]);
 
   const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -157,19 +151,6 @@ export function AccountProfilePage() {
       message.error(errorMessage(error));
     } finally {
       setSavingContact(false);
-    }
-  };
-
-  const saveUsername = async (values: { username: string }) => {
-    setSavingUsername(true);
-    try {
-      await accountApi.changeUsername(values.username.trim());
-      await refreshUser();
-      message.success(t("account.usernameChanged"));
-    } catch (error) {
-      message.error(errorMessage(error));
-    } finally {
-      setSavingUsername(false);
     }
   };
 
@@ -270,28 +251,6 @@ export function AccountProfilePage() {
             <p className="setting-hint">{t("account.contactHint")}</p>
             <Button htmlType="submit" loading={savingContact}>
               {t("account.saveContact")}
-            </Button>
-          </Form>
-
-          <div className="account-divider" />
-
-          <Form form={usernameForm} layout="vertical" onFinish={saveUsername} requiredMark={false}>
-            <Form.Item
-              name="username"
-              label={t("auth.username")}
-              extra={t("account.usernameHint")}
-              rules={[
-                { required: true, message: t("auth.username") },
-                {
-                  pattern: /^[A-Za-z0-9_.-]{3,32}$/,
-                  message: t("account.usernameHint"),
-                },
-              ]}
-            >
-              <Input autoComplete="username" />
-            </Form.Item>
-            <Button htmlType="submit" loading={savingUsername}>
-              {t("account.saveUsername")}
             </Button>
           </Form>
 

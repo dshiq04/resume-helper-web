@@ -7,8 +7,6 @@ import com.jobtrack.system.pojo.ContactUpdateRequest;
 import com.jobtrack.system.pojo.TokenStatusRequest;
 import com.jobtrack.system.pojo.UserProfileRequest;
 import com.jobtrack.system.pojo.UserProfileView;
-import com.jobtrack.system.pojo.UserView;
-import com.jobtrack.system.pojo.UsernameUpdateRequest;
 import com.jobtrack.system.security.AuthPrincipal;
 import com.jobtrack.system.security.SecurityUtils;
 import com.jobtrack.system.service.AccessTokenService;
@@ -61,11 +59,6 @@ public class AccountController {
     @PostMapping("/avatar")
     public UserProfileView uploadAvatar(@RequestParam("file") MultipartFile file) {
         return accountService.uploadAvatar(SecurityUtils.current(), file);
-    }
-
-    @PutMapping("/username")
-    public UserView changeUsername(@Valid @RequestBody UsernameUpdateRequest request) {
-        return accountService.changeUsername(SecurityUtils.current(), request.getUsername());
     }
 
     @GetMapping("/tokens")

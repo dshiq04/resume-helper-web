@@ -20,6 +20,4 @@ public interface AccountService {
     UserProfileView saveContact(AuthPrincipal principal, ContactUpdateRequest request);
 
     UserProfileView uploadAvatar(AuthPrincipal principal, MultipartFile file);
-
-    UserView changeUsername(AuthPrincipal principal, String rawUsername);
 }

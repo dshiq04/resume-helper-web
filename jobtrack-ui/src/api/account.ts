@@ -24,9 +24,6 @@ export const accountApi = {
     data.append("file", file);
     return request<UserProfile>("/account/avatar", { method: "POST", data });
   },
-  changeUsername(username: string) {
-    return request<User>("/account/username", { method: "PUT", data: { username } });
-  },
   tokens() {
     return request<AccessToken[]>("/account/tokens");
   },
