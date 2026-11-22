@@ -15,7 +15,7 @@ export function AccountCancelEntryPage() {
             <h2>{t("account.cancelTitle")}</h2>
             <p className="setting-hint">{t("account.cancelEntryHint")}</p>
           </div>
-          <Button danger onClick={() => { window.location.href = "/account/cancel/flow"; }}>
+          <Button danger onClick={() => { window.open("/account/cancel/flow", "_blank"); }}>
             {t("account.cancelEntryButton")}
           </Button>
         </div>
