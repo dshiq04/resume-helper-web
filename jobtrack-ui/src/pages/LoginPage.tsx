@@ -109,46 +109,56 @@ export function LoginPage() {
 
   /** 忘记密码：先验证用户名与手机号/邮箱，验证通过后允许修改密码。 */
   const handleForgot = async (values: ForgotValues) => {
-    const isPhone = values.contactType !== "email";
-    const contact = forgotContactValue(values);
-    if (isPhone && !FULL_PHONE_PATTERN.test(contact)) {
-      message.error(t("settings.phoneInvalid"));
-      return;
-    }
-    if (!isPhone && !EMAIL_PATTERN.test(contact)) {
-      message.error(t("settings.emailInvalid"));
-      return;
-    }
-    setForgotSubmitting(true);
-    try {
-      if (forgotStep === 1) {
+    if (forgotStep === 1) {
+      const isPhone = values.contactType !== "email";
+      const contact = forgotContactValue(values);
+      if (isPhone && !FULL_PHONE_PATTERN.test(contact)) {
+        message.error(t("settings.phoneInvalid"));
+        return;
+      }
+      if (!isPhone && !EMAIL_PATTERN.test(contact)) {
+        message.error(t("settings.emailInvalid"));
+        return;
+      }
+      setForgotSubmitting(true);
+      try {
         await authApi.forgotPasswordVerify({
           username: values.username.trim(),
           contactType: isPhone ? "phone" : "email",
           contact,
         });
+        // 记住第一步已验证通过的联系方式，第二步提交时直接复用；
+        // 第二步表单只有新密码字段，不能再从表单里重新解析联系方式。
         setForgotContact(contact);
         setForgotContactType(isPhone ? "phone" : "email");
         setForgotUsername(values.username.trim());
         setForgotStep(2);
         message.success(t("auth.forgotVerified"));
-      } else {
-        if (values.newPassword !== values.confirmPassword) {
-          message.error(t("settings.passwordMismatch"));
-          return;
-        }
-        await authApi.forgotPasswordReset({
-          username: forgotUsername,
-          contactType: forgotContactType,
-          contact: forgotContact,
-          newPassword: values.newPassword,
-          confirmPassword: values.confirmPassword ?? "",
-        });
-        message.success(t("auth.forgotResetDone"));
-        // 服务端已注销该用户全部旧令牌，这里回到登录页让用户用新密码登录。
-        setForgotStep(1);
-        setMode("login");
+      } catch (error) {
+        message.error(errorMessage(error));
+      } finally {
+        setForgotSubmitting(false);
       }
+      return;
+    }
+    // 第二步：设置新密码。联系方式使用第一步验证通过时保存的值。
+    if (values.newPassword !== values.confirmPassword) {
+      message.error(t("settings.passwordMismatch"));
+      return;
+    }
+    setForgotSubmitting(true);
+    try {
+      await authApi.forgotPasswordReset({
+        username: forgotUsername,
+        contactType: forgotContactType,
+        contact: forgotContact,
+        newPassword: values.newPassword,
+        confirmPassword: values.confirmPassword ?? "",
+      });
+      message.success(t("auth.forgotResetDone"));
+      // 服务端已注销该用户全部旧令牌，这里回到登录页让用户用新密码登录。
+      setForgotStep(1);
+      setMode("login");
     } catch (error) {
       message.error(errorMessage(error));
     } finally {
@@ -398,36 +408,35 @@ export function LoginPage() {
                   </>
                 ) : (
                   <>
-                    <div className="form-grid two">
-                      <Form.Item
-                        name="newPassword"
-                        label={t("settings.newPassword")}
-                        rules={[
-                          { required: true, message: t("settings.newPasswordRequired") },
-                          { min: 6, max: 64, message: t("settings.newPasswordInvalid") },
-                        ]}
-                      >
-                        <Input.Password size="large" autoComplete="new-password" />
-                      </Form.Item>
-                      <Form.Item
-                        name="confirmPassword"
-                        label={t("settings.confirmPassword")}
-                        dependencies={["newPassword"]}
-                        rules={[
-                          { required: true, message: t("settings.confirmPasswordRequired") },
-                          ({ getFieldValue }) => ({
-                            validator(_, value) {
-                              if (!value || value === getFieldValue("newPassword")) {
-                                return Promise.resolve();
-                              }
-                              return Promise.reject(new Error(t("settings.passwordMismatch")));
-                            },
-                          }),
-                        ]}
-                      >
-                        <Input.Password size="large" autoComplete="new-password" />
-                      </Form.Item>
-                    </div>
+                    {/* 新密码与确认密码上下排列 */}
+                    <Form.Item
+                      name="newPassword"
+                      label={t("settings.newPassword")}
+                      rules={[
+                        { required: true, message: t("settings.newPasswordRequired") },
+                        { min: 6, max: 64, message: t("settings.newPasswordInvalid") },
+                      ]}
+                    >
+                      <Input.Password size="large" autoComplete="new-password" />
+                    </Form.Item>
+                    <Form.Item
+                      name="confirmPassword"
+                      label={t("settings.confirmPassword")}
+                      dependencies={["newPassword"]}
+                      rules={[
+                        { required: true, message: t("settings.confirmPasswordRequired") },
+                        ({ getFieldValue }) => ({
+                          validator(_, value) {
+                            if (!value || value === getFieldValue("newPassword")) {
+                              return Promise.resolve();
+                            }
+                            return Promise.reject(new Error(t("settings.passwordMismatch")));
+                          },
+                        }),
+                      ]}
+                    >
+                      <Input.Password size="large" autoComplete="new-password" />
+                    </Form.Item>
                     <p className="forgot-hint">{t("auth.forgotResetHint")}</p>
                   </>
                 )}
