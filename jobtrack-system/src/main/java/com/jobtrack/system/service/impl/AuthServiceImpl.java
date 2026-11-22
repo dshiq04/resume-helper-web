@@ -9,6 +9,8 @@ import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.system.pojo.AuthResponse;
 import com.jobtrack.system.pojo.ChangePasswordRequest;
+import com.jobtrack.system.pojo.ForgotPasswordResetRequest;
+import com.jobtrack.system.pojo.ForgotPasswordVerifyRequest;
 import com.jobtrack.system.pojo.LoginRequest;
 import com.jobtrack.system.pojo.OnlineStatusResponse;
 import com.jobtrack.system.pojo.ProfileRequest;
@@ -259,8 +261,85 @@ public class AuthServiceImpl implements AuthService {
         sessionService.deleteByUser(principal.id(), principal.tenantId());
     }
 
-    public void logout(AuthPrincipal principal) {
-        // 退出登录：通过 RabbitMQ 删除 Redis 中的令牌与权限信息；
+    /** 忘记密码第一步：验证用户名与保留的手机号/邮箱，验证方式与修改密码一致。 */
+    public void forgotPasswordVerify(ForgotPasswordVerifyRequest request) {
+        SysUser user = findUserForForgotPassword(request.getUsername());
+        verifyForgotContact(user, request.getContactType(), request.getContact());
+    }
+
+    @Transactional
+    public void forgotPasswordReset(ForgotPasswordResetRequest request) {
+        SysUser user = findUserForForgotPassword(request.getUsername());
+        verifyForgotContact(user, request.getContactType(), request.getContact());
+        if (request.getNewPassword() == null
+                || !request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw BusinessException.badRequest("password_mismatch", "两次输入的密码不一致");
+        }
+        if (request.getNewPassword().length() < 6 || request.getNewPassword().length() > 64) {
+            throw BusinessException.badRequest("invalid_password", "密码长度需为 6-64 位");
+        }
+        user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
+        userMapper.updateById(user);
+        // 重置成功后：通过 RabbitMQ 删除 Redis 中的令牌与权限信息并注销全部旧令牌；
+        // Broker 不可用时降级为同步删除。
+        if (!publisher.publishTokenInvalidate(user.getId(), null)) {
+            sessionService.deleteByUser(user.getId(), user.getTenantId());
+        }
+    }
+
+    private SysUser findUserForForgotPassword(String rawUsername) {
+        String username = normalizeUsername(rawUsername);
+        SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
+                .eq(SysUser::getUsername, username));
+        if (user == null) {
+            throw BusinessException.badRequest("user_not_found", "用户名不存在");
+        }
+        if (user.getStatus() != null && "CANCELLED".equalsIgnoreCase(user.getStatus())) {
+            throw BusinessException.badRequest("account_cancelled", "该账号已注销");
+        }
+        return user;
+    }
+
+    private void verifyForgotContact(SysUser user, String contactType, String contact) {
+        UserProfile profile = profileMapper.selectByUserIdIgnoreTenant(user.getId());
+        String storedPhone = profile == null ? "" : clean(profile.getPhone());
+        String storedEmail = profile == null ? "" : clean(profile.getEmail());
+        if (storedPhone.isEmpty() && storedEmail.isEmpty()) {
+            throw BusinessException.badRequest("contact_not_set",
+                    "该账号未设置手机号或邮箱，无法自助找回密码");
+        }
+        String type = clean(contactType).toLowerCase(Locale.ROOT);
+        String value = clean(contact);
+        if (value.isEmpty()) {
+            throw BusinessException.badRequest("contact_required", "请输入手机号或邮箱");
+        }
+        if ("phone".equals(type)) {
+            String contactPhone = phoneDigits(value);
+            if (!PHONE_PATTERN.matcher(contactPhone).matches()) {
+                throw BusinessException.badRequest("invalid_phone", "请输入正确的手机号");
+            }
+            if (!samePhone(value, storedPhone)) {
+                throw BusinessException.badRequest("contact_mismatch", "手机号与账号不符");
+            }
+        } else if ("email".equals(type)) {
+            if (!EMAIL_PATTERN.matcher(value).matches()) {
+                throw BusinessException.badRequest("invalid_email", "请输入正确的邮箱地址");
+            }
+            if (storedEmail.isEmpty() || !value.equalsIgnoreCase(storedEmail)) {
+                throw BusinessException.badRequest("contact_mismatch", "邮箱与账号不符");
+            }
+        } else {
+            // 未传类型时按手机号或邮箱自动识别。
+            boolean emailMatched = !storedEmail.isEmpty() && value.equalsIgnoreCase(storedEmail);
+            boolean phoneMatched = samePhone(value, storedPhone);
+            if (!emailMatched && !phoneMatched) {
+                throw BusinessException.badRequest("contact_mismatch",
+                        "手机号或邮箱与账号不符");
+            }
+        }
+    }
+
+    public void logout(AuthPrincipal principal) {        // 退出登录：通过 RabbitMQ 删除 Redis 中的令牌与权限信息；
         // Broker 不可用时降级为同步删除，保证令牌一定被注销。
         if (!publisher.publishTokenInvalidate(null, principal.sessionId())) {
             sessionService.delete(principal.sessionId());

@@ -3,6 +3,8 @@ package com.jobtrack.system.controller;
 import com.jobtrack.system.pojo.AuthResponse;
 import com.jobtrack.system.pojo.CaptchaResponse;
 import com.jobtrack.system.pojo.ChangePasswordRequest;
+import com.jobtrack.system.pojo.ForgotPasswordResetRequest;
+import com.jobtrack.system.pojo.ForgotPasswordVerifyRequest;
 import com.jobtrack.system.pojo.LoginRequest;
 import com.jobtrack.system.pojo.OnlineStatusResponse;
 import com.jobtrack.system.pojo.ProfileRequest;
@@ -70,6 +72,22 @@ public class AuthController {
     public Map<String, Object> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
         authService.changePassword(SecurityUtils.current(), request);
         return Map.of("changed", true);
+    }
+
+    /** 忘记密码第一步：验证用户名与手机号/邮箱。 */
+    @PostMapping("/forgot-password/verify")
+    public Map<String, Object> forgotPasswordVerify(
+            @Valid @RequestBody ForgotPasswordVerifyRequest request) {
+        authService.forgotPasswordVerify(request);
+        return Map.of("verified", true);
+    }
+
+    /** 忘记密码第二步：重置密码并注销全部旧令牌。 */
+    @PostMapping("/forgot-password/reset")
+    public Map<String, Object> forgotPasswordReset(
+            @Valid @RequestBody ForgotPasswordResetRequest request) {
+        authService.forgotPasswordReset(request);
+        return Map.of("reset", true);
     }
 
     @GetMapping("/online")

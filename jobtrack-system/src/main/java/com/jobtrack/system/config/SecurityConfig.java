@@ -71,6 +71,7 @@ public class SecurityConfig {
                                 "/api/auth/register",
                                 "/api/auth/status",
                                 "/api/auth/captcha",
+                                "/api/auth/forgot-password/**",
                                 "/api/tokens/validate",
                                 "/api/avatar/**",
                                 "/api/health",
