@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS sys_user (
     created_at DATETIME NULL,
     updated_at DATETIME NULL,
     PRIMARY KEY (id),
-    UNIQUE KEY uk_sys_user_username (username),
+    -- 用户名唯一性改为逻辑判断（已注销账号的用户名可被重新注册）
+    KEY idx_sys_user_username (username),
     KEY idx_sys_user_tenant (tenant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 

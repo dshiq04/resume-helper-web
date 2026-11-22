@@ -46,8 +46,11 @@ public class DataInitializer implements ApplicationRunner {
         }
 
         String username = admin.getUsername();
+        // 已注销的同名账号不计入存在性判断（用户名唯一性为逻辑判断）。
         Long existing = userMapper.selectCount(Wrappers.<SysUser>lambdaQuery()
-                .eq(SysUser::getUsername, username));
+                .eq(SysUser::getUsername, username)
+                .and(w -> w.isNull(SysUser::getStatus)
+                        .or().ne(SysUser::getStatus, "CANCELLED")));
         if (existing == null || existing == 0) {
             SysUser user = new SysUser();
             user.setTenantId(tenant.getId());

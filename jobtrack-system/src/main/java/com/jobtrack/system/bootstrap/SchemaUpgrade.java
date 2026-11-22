@@ -46,6 +46,8 @@ public class SchemaUpgrade implements ApplicationRunner {
             ensureColumn(connection, "sys_user", "status",
                     mysql ? "VARCHAR(16) NOT NULL DEFAULT 'NORMAL'"
                           : "VARCHAR(16) NOT NULL DEFAULT 'NORMAL'");
+            // 用户名唯一索引 → 普通索引（唯一性改为逻辑判断，注销后可重新注册）。
+            demoteUsernameUniqueIndex(connection, mysql);
         } catch (Exception exception) {
             log.warn("结构升级检查失败: {}", exception.getMessage());
         }
@@ -110,6 +112,59 @@ public class SchemaUpgrade implements ApplicationRunner {
         } catch (Exception exception) {
             log.warn("权限表创建或迁移失败: {}", exception.getMessage());
         }
+    }
+
+    /** 用户名唯一索引降级为普通索引：已注销账号的用户名允许被重新注册。 */
+    private void demoteUsernameUniqueIndex(Connection connection, boolean mysql) {
+        try {
+            if (!hasIndex(connection, "sys_user", "uk_sys_user_username")) {
+                return;
+            }
+            try (Statement statement = connection.createStatement()) {
+                if (mysql) {
+                    statement.execute("ALTER TABLE sys_user DROP INDEX uk_sys_user_username");
+                } else {
+                    statement.execute("ALTER TABLE sys_user DROP CONSTRAINT uk_sys_user_username");
+                }
+            }
+            log.info("已移除 sys_user.username 唯一索引（唯一性改为逻辑判断）");
+        } catch (Exception exception) {
+            log.warn("移除用户名唯一索引失败: {}", exception.getMessage());
+        }
+        try {
+            if (hasIndex(connection, "sys_user", "idx_sys_user_username")) {
+                return;
+            }
+            try (Statement statement = connection.createStatement()) {
+                statement.execute(mysql
+                        ? "ALTER TABLE sys_user ADD INDEX idx_sys_user_username (username)"
+                        : "CREATE INDEX idx_sys_user_username ON sys_user (username)");
+            }
+            log.info("已创建普通索引 idx_sys_user_username");
+        } catch (Exception exception) {
+            log.warn("创建用户名普通索引失败: {}", exception.getMessage());
+        }
+    }
+
+    private boolean hasIndex(Connection connection, String table, String indexName) throws Exception {
+        DatabaseMetaData meta = connection.getMetaData();
+        try (ResultSet indexes = meta.getIndexInfo(connection.getCatalog(), null, table, false, false)) {
+            while (indexes.next()) {
+                String name = indexes.getString("INDEX_NAME");
+                if (name != null && name.equalsIgnoreCase(indexName)) {
+                    return true;
+                }
+            }
+        }
+        try (ResultSet indexes = meta.getIndexInfo(connection.getCatalog(), null, table.toUpperCase(), false, false)) {
+            while (indexes.next()) {
+                String name = indexes.getString("INDEX_NAME");
+                if (name != null && name.equalsIgnoreCase(indexName)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     private void ensureColumn(Connection connection, String table, String column, String type) {

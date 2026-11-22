@@ -70,10 +70,13 @@ public class AuthServiceImpl implements AuthService {
         captchaService.verify(request.getCaptchaId(), request.getCaptchaCode());
         String username = normalizeUsername(request.getUsername());
         // 查询用户时直接排除已注销账号：注销账号视同不存在（返回用户名或密码错误）。
+        // 唯一性改为逻辑判断后可能存在注销+新注册同名行，取第一条有效记录。
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
                 .eq(SysUser::getUsername, username)
                 .and(w -> w.isNull(SysUser::getStatus)
-                        .or().ne(SysUser::getStatus, "CANCELLED")));
+                        .or().ne(SysUser::getStatus, "CANCELLED"))
+                .orderByAsc(SysUser::getId)
+                .last("LIMIT 1"));
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
             throw BusinessException.unauthorized("invalid_credentials", INVALID_CREDENTIALS_MESSAGE);
         }
@@ -118,8 +121,11 @@ public class AuthServiceImpl implements AuthService {
             throw BusinessException.badRequest("invalid_username",
                     "用户名只能包含字母、数字、下划线、点和短横线，长度 3-32 位");
         }
+        // 用户名唯一性逻辑判断：已注销账号的用户名允许被重新注册。
         Long existing = userMapper.selectCount(Wrappers.<SysUser>lambdaQuery()
-                .eq(SysUser::getUsername, username));
+                .eq(SysUser::getUsername, username)
+                .and(w -> w.isNull(SysUser::getStatus)
+                        .or().ne(SysUser::getStatus, "CANCELLED")));
         if (existing != null && existing > 0) {
             throw BusinessException.conflict("username_taken",
                     "该用户名已被占用，请更换其他用户名或者直接登录");
@@ -289,13 +295,15 @@ public class AuthServiceImpl implements AuthService {
 
     private SysUser findUserForForgotPassword(String rawUsername) {
         String username = normalizeUsername(rawUsername);
+        // 排除已注销账号：注销账号视同不存在，其用户名/联系方式可被重新注册。
         SysUser user = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
-                .eq(SysUser::getUsername, username));
+                .eq(SysUser::getUsername, username)
+                .and(w -> w.isNull(SysUser::getStatus)
+                        .or().ne(SysUser::getStatus, "CANCELLED"))
+                .orderByAsc(SysUser::getId)
+                .last("LIMIT 1"));
         if (user == null) {
             throw BusinessException.badRequest("user_not_found", "用户名不存在");
-        }
-        if (user.getStatus() != null && "CANCELLED".equalsIgnoreCase(user.getStatus())) {
-            throw BusinessException.badRequest("account_cancelled", "该账号已注销");
         }
         return user;
     }

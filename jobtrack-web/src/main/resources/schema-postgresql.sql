@@ -19,9 +19,10 @@ CREATE TABLE IF NOT EXISTS sys_user (
     status VARCHAR(16) NOT NULL DEFAULT 'NORMAL',
     enabled BOOLEAN NOT NULL DEFAULT TRUE,
     created_at TIMESTAMP,
-    updated_at TIMESTAMP,
-    CONSTRAINT uk_sys_user_username UNIQUE (username)
+    updated_at TIMESTAMP
 );
+-- 用户名唯一性改为逻辑判断（已注销账号的用户名可被重新注册）
+CREATE INDEX IF NOT EXISTS idx_sys_user_username ON sys_user (username);
 CREATE INDEX IF NOT EXISTS idx_sys_user_tenant ON sys_user (tenant_id);
 
 CREATE TABLE IF NOT EXISTS sys_permission (
