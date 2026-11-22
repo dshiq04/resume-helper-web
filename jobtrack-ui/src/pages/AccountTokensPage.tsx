@@ -234,7 +234,7 @@ export function AccountTokensPage() {
           if (!expiresOn) {
             return <Tag>{t("tokens.permanent")}</Tag>;
           }
-          const expired = dayjs(expiresOn).endOf("day").isBefore(dayjs());
+          const expired = dayjs(expiresOn).startOf("day").isBefore(dayjs());
           return expired ? (
             <Tag color="red">{t("tokens.expired")}</Tag>
           ) : (

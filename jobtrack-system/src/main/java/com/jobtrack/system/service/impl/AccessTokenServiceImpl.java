@@ -80,8 +80,8 @@ public class AccessTokenServiceImpl implements AccessTokenService {
             throw BusinessException.badRequest("invalid_scope", "权限范围仅支持 read / write / readwrite");
         }
         LocalDate expiresOn = request.getExpiresOn();
-        if (expiresOn != null && expiresOn.isBefore(LocalDate.now())) {
-            throw BusinessException.badRequest("invalid_expiry", "有效期不能早于今天");
+        if (expiresOn != null && !expiresOn.isAfter(LocalDate.now())) {
+            throw BusinessException.badRequest("invalid_expiry", "有效期必须晚于今天");
         }
 
         AccessToken token = new AccessToken();
@@ -146,7 +146,7 @@ public class AccessTokenServiceImpl implements AccessTokenService {
         touch.setLastUsedAt(LocalDateTime.now());
         tokenMapper.updateById(touch);
 
-        if (token.getExpiresOn() != null && token.getExpiresOn().isBefore(LocalDate.now())) {
+        if (token.getExpiresOn() != null && !token.getExpiresOn().isAfter(LocalDate.now())) {
             logUse(token, null, "expired", code, ip, userAgent);
             return TokenValidationVO.invalid("expired");
         }
@@ -186,7 +186,7 @@ public class AccessTokenServiceImpl implements AccessTokenService {
         AccessToken token = loadToken(code);
         if (token == null
                 || Boolean.FALSE.equals(token.getEnabled())
-                || (token.getExpiresOn() != null && token.getExpiresOn().isBefore(LocalDate.now()))) {
+                || (token.getExpiresOn() != null && !token.getExpiresOn().isAfter(LocalDate.now()))) {
             return null;
         }
         SysUser user = userMapper.selectById(token.getUserId());
@@ -280,10 +280,13 @@ public class AccessTokenServiceImpl implements AccessTokenService {
             if (token.getExpiresOn() == null) {
                 redisTemplate.persist(key);
             } else {
+                // 有效期与授权码一致：到 expiresOn 当天 00:00 整自动失效。
                 Duration ttl = Duration.between(LocalDateTime.now(),
-                        token.getExpiresOn().plusDays(1).atStartOfDay());
+                        token.getExpiresOn().atStartOfDay());
                 if (ttl.isNegative() || ttl.isZero()) {
-                    ttl = Duration.ofMinutes(1);
+                    // 已过有效期：缓存立即移除，校验时自然按未命中拒绝。
+                    redisTemplate.delete(key);
+                    return;
                 }
                 redisTemplate.expire(key, ttl);
             }
