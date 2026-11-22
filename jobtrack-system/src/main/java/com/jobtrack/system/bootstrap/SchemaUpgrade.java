@@ -42,6 +42,10 @@ public class SchemaUpgrade implements ApplicationRunner {
                     ? "TINYINT(1) NOT NULL DEFAULT 0" : "BOOLEAN NOT NULL DEFAULT FALSE");
             tokenColumns.forEach((column, type) -> ensureColumn(connection, "access_token", column, type));
             ensureColumn(connection, "access_token_log", "resources", "VARCHAR(200)");
+            // 用户状态：NORMAL 正常 / CANCELLED 已注销，默认正常。
+            ensureColumn(connection, "sys_user", "status",
+                    mysql ? "VARCHAR(16) NOT NULL DEFAULT 'NORMAL'"
+                          : "VARCHAR(16) NOT NULL DEFAULT 'NORMAL'");
         } catch (Exception exception) {
             log.warn("结构升级检查失败: {}", exception.getMessage());
         }

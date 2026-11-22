@@ -75,6 +75,9 @@ public class AuthServiceImpl implements AuthService {
         if (!Boolean.TRUE.equals(user.getEnabled())) {
             throw BusinessException.forbidden("account_disabled", "该账号已被停用");
         }
+        if (user.getStatus() != null && "CANCELLED".equalsIgnoreCase(user.getStatus())) {
+            throw BusinessException.forbidden("account_cancelled", "该账号已注销");
+        }
         return session(user);
     }
 
@@ -119,7 +122,8 @@ public class AuthServiceImpl implements AuthService {
             throw BusinessException.conflict("username_taken",
                     "该用户名已被占用，请更换其他用户名或者直接登录");
         }
-        for (UserProfile saved : profileMapper.selectContactsIgnoreTenant()) {
+        // 已注销账号占用的手机号/邮箱允许被重新注册，这里只检查未注销账号。
+        for (UserProfile saved : profileMapper.selectActiveContactsIgnoreTenant()) {
             if (!phone.isEmpty() && samePhone(fullPhone(request.getCountryCode(), phone), saved.getPhone())) {
                 throw BusinessException.conflict("contact_taken", CONTACT_TAKEN_MESSAGE);
             }
@@ -301,8 +305,15 @@ public class AuthServiceImpl implements AuthService {
         String avatarUrl = profile == null ? null
                 : avatarService.url(user.getId(), profile.getAvatarUrl());
         return new UserView(user.getId(), user.getTenantId(), user.getUsername(),
-                user.getDisplayName(), user.getRole(), tenant == null ? "" : tenant.getName(),
+                user.getDisplayName(), user.getRole(), statusOf(user),
+                tenant == null ? "" : tenant.getName(),
                 avatarUrl);
+    }
+
+    /** 空状态按正常处理，兼容历史数据。 */
+    private String statusOf(SysUser user) {
+        return user.getStatus() == null || user.getStatus().isBlank()
+                ? "NORMAL" : user.getStatus();
     }
 
     private String normalizeUsername(String value) {

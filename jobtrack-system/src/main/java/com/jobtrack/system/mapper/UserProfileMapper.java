@@ -21,4 +21,12 @@ public interface UserProfileMapper extends BaseMapper<UserProfile> {
     @InterceptorIgnore(tenantLine = "true")
     @Select("SELECT tenant_id, user_id, phone, email FROM user_profile WHERE phone IS NOT NULL OR email IS NOT NULL")
     List<UserProfile> selectContactsIgnoreTenant();
+
+    /** 只取未注销账号的手机号/邮箱：已注销账号的联系方式允许被重新注册使用。 */
+    @InterceptorIgnore(tenantLine = "true")
+    @Select("SELECT up.tenant_id, up.user_id, up.phone, up.email FROM user_profile up "
+            + "JOIN sys_user u ON u.id = up.user_id "
+            + "WHERE (up.phone IS NOT NULL OR up.email IS NOT NULL) "
+            + "AND (u.status IS NULL OR u.status <> 'CANCELLED')")
+    List<UserProfile> selectActiveContactsIgnoreTenant();
 }

@@ -10,6 +10,7 @@
         <result column="password_hash" property="passwordHash"/>
         <result column="display_name" property="displayName"/>
         <result column="role" property="role"/>
+        <result column="status" property="status"/>
         <result column="enabled" property="enabled"/>
         <result column="created_at" property="createdAt"/>
         <result column="updated_at" property="updatedAt"/>

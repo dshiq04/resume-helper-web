@@ -18,6 +18,7 @@ CREATE TABLE IF NOT EXISTS sys_user (
     password_hash VARCHAR(255) NOT NULL,
     display_name VARCHAR(128) NULL,
     role VARCHAR(32) NOT NULL DEFAULT 'USER',
+    status VARCHAR(16) NOT NULL DEFAULT 'NORMAL',
     enabled TINYINT(1) NOT NULL DEFAULT 1,
     created_at DATETIME NULL,
     updated_at DATETIME NULL,

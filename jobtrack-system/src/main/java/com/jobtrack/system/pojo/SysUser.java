@@ -33,6 +33,9 @@ public class SysUser {
 
     private String role;
 
+    /** 账号状态：NORMAL 正常 / CANCELLED 已注销。 */
+    private String status;
+
     private Boolean enabled;
 
     @TableField(fill = FieldFill.INSERT)

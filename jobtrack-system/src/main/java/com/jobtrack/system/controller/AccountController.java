@@ -3,6 +3,7 @@ package com.jobtrack.system.controller;
 import com.jobtrack.system.pojo.AccessTokenCreateRequest;
 import com.jobtrack.system.pojo.AccessTokenLogPage;
 import com.jobtrack.system.pojo.AccessTokenView;
+import com.jobtrack.system.pojo.ContactUpdateRequest;
 import com.jobtrack.system.pojo.TokenStatusRequest;
 import com.jobtrack.system.pojo.UserProfileRequest;
 import com.jobtrack.system.pojo.UserProfileView;
@@ -49,6 +50,12 @@ public class AccountController {
     @PutMapping("/profile")
     public UserProfileView saveProfile(@Valid @RequestBody UserProfileRequest request) {
         return accountService.saveProfile(SecurityUtils.current(), request);
+    }
+
+    /** 账号与安全 · 保存联系方式：占用检查通过后才能修改。 */
+    @PutMapping("/contact")
+    public UserProfileView saveContact(@Valid @RequestBody ContactUpdateRequest request) {
+        return accountService.saveContact(SecurityUtils.current(), request);
     }
 
     @PostMapping("/avatar")

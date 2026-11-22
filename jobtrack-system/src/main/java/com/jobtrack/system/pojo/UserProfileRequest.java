@@ -19,12 +19,6 @@ public class UserProfileRequest {
 
     private LocalDate birthday;
 
-    @Size(max = 32)
-    private String phone;
-
-    @Size(max = 128)
-    private String email;
-
     @Size(max = 64)
     private String location;
 
