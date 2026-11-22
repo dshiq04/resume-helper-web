@@ -221,7 +221,7 @@ export function AccountCancelPage() {
               </ReactMarkdown>
             </div>
             <div className="cancel-actions">
-              <Button icon={<CloseOutlined />} onClick={() => navigate("/account/tokens")}>
+              <Button icon={<CloseOutlined />} onClick={() => navigate("/account/cancel")}>
                 {t("account.cancelClose")}
               </Button>
               <Button type="primary" danger onClick={() => setStep(1)}>

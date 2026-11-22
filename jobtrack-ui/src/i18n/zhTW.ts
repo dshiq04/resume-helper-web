@@ -463,6 +463,7 @@ export const zhTW: Record<string, string> = {
 
   // 用户注销
   "account.cancelTitle": "使用者註銷",
+  "account.cancelTab": "使用者註銷",
   "account.cancelEntryHint": "註銷後帳號不可恢復，保留的手機號/電子郵件將被釋放。",
   "account.cancelEntryButton": "申請註銷",
   "account.cancelStepAgreement": "註銷協議",

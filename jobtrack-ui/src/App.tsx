@@ -8,6 +8,7 @@ import { ApplicationDetailPage } from "./pages/ApplicationDetailPage";
 import { AccountPage } from "./pages/AccountPage";
 import { AccountProfilePage } from "./pages/AccountProfilePage";
 import { AccountTokensPage } from "./pages/AccountTokensPage";
+import { AccountCancelEntryPage } from "./pages/AccountCancelEntryPage";
 import { AccountCancelPage } from "./pages/AccountCancelPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { LoginPage } from "./pages/LoginPage";
@@ -108,8 +109,10 @@ function AppShell() {
           <Route index element={<Navigate to="profile" replace />} />
           <Route path="profile" element={<AccountProfilePage />} />
           <Route path="tokens" element={<AccountTokensPage />} />
+          <Route path="cancel" element={<AccountCancelEntryPage />} />
         </Route>
-        <Route path="account/cancel" element={<AccountCancelPage />} />
+        {/* 申请注销：独立整页流程，不显示账户设置的页签外壳。 */}
+        <Route path="account/cancel/flow" element={<AccountCancelPage />} />
         <Route path="applications/:id" element={<ApplicationDetailPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Route>

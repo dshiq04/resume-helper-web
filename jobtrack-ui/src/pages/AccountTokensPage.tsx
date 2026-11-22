@@ -26,7 +26,6 @@ import {
 } from "@ant-design/icons";
 import dayjs, { type Dayjs } from "dayjs";
 import { accountApi } from "../api/account";
-import { useNavigate } from "react-router-dom";
 import type { AccessToken, AccessTokenLog, TokenResource, TokenScope } from "../api/types";
 import { useI18n } from "../i18n";
 import { errorMessage } from "../utils/errors";
@@ -57,7 +56,6 @@ const ALL_RESOURCES: TokenResource[] = ["applications", "resumes", "statistics",
 export function AccountTokensPage() {
   const { t } = useI18n();
   const { message } = AntdApp.useApp();
-  const navigate = useNavigate();
   const [form] = Form.useForm<CreateValues>();
   const [tokens, setTokens] = useState<AccessToken[]>([]);
   const [loading, setLoading] = useState(true);
@@ -449,18 +447,6 @@ export function AccountTokensPage() {
             ),
           }}
         />
-      </section>
-
-      <section className="setting-card account-cancel-entry-card">
-        <div className="account-tokens-head">
-          <div>
-            <h2>{t("account.cancelTitle")}</h2>
-            <p className="setting-hint">{t("account.cancelEntryHint")}</p>
-          </div>
-          <Button danger onClick={() => navigate("/account/cancel")}>
-            {t("account.cancelEntryButton")}
-          </Button>
-        </div>
       </section>
 
       <section className="setting-card token-api-card">

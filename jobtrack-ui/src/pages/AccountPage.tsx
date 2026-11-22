@@ -10,7 +10,12 @@ export function AccountPage() {
   const { t } = useI18n();
   const navigate = useNavigate();
   const location = useLocation();
-  const activeKey = location.pathname.endsWith("/tokens") ? "tokens" : "profile";
+  const path = location.pathname;
+  const activeKey = path.includes("/account/cancel")
+    ? "cancel"
+    : path.endsWith("/tokens")
+      ? "tokens"
+      : "profile";
 
   return (
     <>
@@ -26,6 +31,7 @@ export function AccountPage() {
         items={[
           { key: "profile", label: t("account.profileTab") },
           { key: "tokens", label: t("account.tokensTab") },
+          { key: "cancel", label: t("account.cancelTab") },
         ]}
       />
       <Outlet />

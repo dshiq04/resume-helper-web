@@ -462,6 +462,7 @@ export const ja: Record<string, string> = {
 
   // アカウント削除
   "account.cancelTitle": "アカウント削除",
+  "account.cancelTab": "アカウント削除",
   "account.cancelEntryHint": "削除後のアカウントは元に戻せず、保存された電話番号・メールアドレスは解放されます。",
   "account.cancelEntryButton": "削除を申請",
   "account.cancelStepAgreement": "削除規約",
@@ -963,6 +964,7 @@ export const ko: Record<string, string> = {
 
   // 계정 탈퇴
   "account.cancelTitle": "계정 탈퇴",
+  "account.cancelTab": "계정 탈퇴",
   "account.cancelEntryHint": "탈퇴 후 계정은 복구할 수 없으며, 등록된 휴대전화번호/이메일은 해제됩니다.",
   "account.cancelEntryButton": "탈퇴 신청",
   "account.cancelStepAgreement": "탈퇴 약관",
@@ -1464,6 +1466,7 @@ export const ru: Record<string, string> = {
 
   // Удаление аккаунта
   "account.cancelTitle": "Удаление аккаунта",
+  "account.cancelTab": "Удаление аккаунта",
   "account.cancelEntryHint": "После удаления аккаунт нельзя восстановить; сохранённые телефон и эл. почта будут освобождены.",
   "account.cancelEntryButton": "Подать заявку на удаление",
   "account.cancelStepAgreement": "Соглашение об удалении",

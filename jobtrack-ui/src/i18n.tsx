@@ -356,6 +356,7 @@ const zh: Record<string, string> = {
   "account.saveUsername": "保存用户名",
   "account.usernameChanged": "用户名已更新",
   "account.cancelTitle": "用户注销",
+  "account.cancelTab": "用户注销",
   "account.cancelEntryHint": "注销后账号不可恢复，保留的手机号/邮箱将被释放。",
   "account.cancelEntryButton": "申请注销",
   "account.cancelStepAgreement": "注销协议",
@@ -1001,6 +1002,7 @@ const en: Record<string, string> = {
 
   // Account cancellation
   "account.cancelTitle": "Cancel account",
+  "account.cancelTab": "Cancel account",
   "account.cancelEntryHint": "A cancelled account cannot be restored; the retained phone/email will be released.",
   "account.cancelEntryButton": "Request cancellation",
   "account.cancelStepAgreement": "Cancellation agreement",
