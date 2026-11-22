@@ -23,6 +23,24 @@ CREATE TABLE IF NOT EXISTS sys_user (
 );
 CREATE INDEX IF NOT EXISTS idx_sys_user_tenant ON sys_user (tenant_id);
 
+CREATE TABLE IF NOT EXISTS sys_permission (
+    id BIGSERIAL PRIMARY KEY,
+    code VARCHAR(32) NOT NULL,
+    name VARCHAR(64) NOT NULL,
+    description VARCHAR(255),
+    created_at TIMESTAMP,
+    CONSTRAINT uk_sys_permission_code UNIQUE (code)
+);
+
+CREATE TABLE IF NOT EXISTS sys_user_permission (
+    id BIGSERIAL PRIMARY KEY,
+    user_id BIGINT NOT NULL,
+    permission_id BIGINT NOT NULL,
+    created_at TIMESTAMP,
+    CONSTRAINT uk_sys_user_permission UNIQUE (user_id, permission_id)
+);
+CREATE INDEX IF NOT EXISTS idx_sys_user_permission_user ON sys_user_permission (user_id);
+
 CREATE TABLE IF NOT EXISTS tenant_setting (
     id BIGSERIAL PRIMARY KEY,
     tenant_id BIGINT NOT NULL,

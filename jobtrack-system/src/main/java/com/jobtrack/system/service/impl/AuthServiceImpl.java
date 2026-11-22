@@ -1,5 +1,6 @@
 package com.jobtrack.system.service.impl;
 
+import com.jobtrack.system.service.PermissionService;
 import com.jobtrack.system.service.AuthService;
 import com.jobtrack.system.service.CaptchaService;
 import com.jobtrack.system.service.AvatarService;
@@ -25,6 +26,7 @@ import com.jobtrack.system.security.AuthPrincipal;
 import com.jobtrack.system.security.JwtService;
 import com.jobtrack.system.security.SessionInfo;
 import com.jobtrack.system.security.SessionService;
+import com.jobtrack.system.messaging.AsyncTaskPublisher;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
 import java.util.regex.Pattern;
@@ -58,6 +61,8 @@ public class AuthServiceImpl implements AuthService {
     private final UserProfileMapper profileMapper;
     private final UserAgreementMapper agreementMapper;
     private final AvatarService avatarService;
+    private final PermissionService permissionService;
+    private final AsyncTaskPublisher publisher;
 
     public AuthResponse login(LoginRequest request) {
         captchaService.verify(request.getCaptchaId(), request.getCaptchaCode());
@@ -146,6 +151,8 @@ public class AuthServiceImpl implements AuthService {
         user.setRole("USER");
         user.setEnabled(true);
         userMapper.insert(user);
+        // 普通用户权限写入用户权限对应表。
+        permissionService.grant(user.getId(), "USER");
         // 注册成功即记录该用户已同意协议。
         agreementMapper.insertIgnoreTenant(tenant.getId(), user.getId(), LocalDateTime.now());
 
@@ -249,7 +256,11 @@ public class AuthServiceImpl implements AuthService {
     }
 
     public void logout(AuthPrincipal principal) {
-        sessionService.delete(principal.sessionId());
+        // 退出登录：通过 RabbitMQ 删除 Redis 中的令牌与权限信息；
+        // Broker 不可用时降级为同步删除，保证令牌一定被注销。
+        if (!publisher.publishTokenInvalidate(null, principal.sessionId())) {
+            sessionService.delete(principal.sessionId());
+        }
     }
 
     public OnlineStatusResponse online(AuthPrincipal principal) {
@@ -264,8 +275,18 @@ public class AuthServiceImpl implements AuthService {
 
     private AuthResponse session(SysUser user, SysTenant tenant) {
         Duration ttl = Duration.ofHours(jwtService.ttlHours());
-        String sessionId = sessionService.create(new SessionInfo(user.getId(), user.getTenantId(),
-                user.getUsername(), user.getDisplayName(), user.getRole()), ttl);
+        // 登录通过后，从数据库查询权限，与令牌一起写入 Redis（过期时间与令牌一致）。
+        List<String> permissions = permissionService.permissionsOf(user.getId());
+        if (permissions.isEmpty()) {
+            // 兼容旧数据：权限对应表缺失时按 role 兜底授予普通用户权限。
+            permissionService.grant(user.getId(), "USER".equalsIgnoreCase(user.getRole())
+                    ? "USER" : user.getRole());
+            permissions = permissionService.permissionsOf(user.getId());
+        }
+        String role = PermissionService.roleOf(permissions);
+        SessionInfo info = new SessionInfo(user.getId(), user.getTenantId(),
+                user.getUsername(), user.getDisplayName(), role, permissions);
+        String sessionId = sessionService.create(info, ttl);
         JwtService.IssuedToken issued = jwtService.issue(user, sessionId);
         return new AuthResponse(issued.token(), issued.expiresAt(), view(user, tenant));
     }

@@ -2,6 +2,7 @@ package com.jobtrack.system.security;
 
 import com.jobtrack.common.context.TenantContext;
 import com.jobtrack.system.service.AccessTokenService;
+import com.jobtrack.system.service.PermissionService;
 import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -63,16 +64,35 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         try {
             AuthPrincipal principal = jwtService.parse(token);
             Duration ttl = Duration.ofHours(jwtService.ttlHours());
+            // 先查 Redis：令牌不存在（已退出/已注销/过期）时不再认证，
+            // 由 RestAuthenticationEntryPoint 返回 401「用户未登录」。
             SessionInfo session = sessionService.resolve(principal.sessionId(), ttl);
             if (session != null) {
+                // 将 Redis 中的权限与用户名整合进 Spring Security 上下文。
+                List<String> permissions = session.getPermissions() == null
+                        ? List.of() : session.getPermissions();
+                List<GrantedAuthority> authorities = new ArrayList<>();
+                // 网页端登录用户拥有全部读写权限。
+                authorities.add(new SimpleGrantedAuthority("SCOPE_read"));
+                authorities.add(new SimpleGrantedAuthority("SCOPE_write"));
+                authorities.add(new SimpleGrantedAuthority("SCOPE_readwrite"));
+                // Redis 权限映射为 ROLE_* 权限。
+                for (String permission : permissions) {
+                    if (permission != null && !permission.isBlank()) {
+                        authorities.add(new SimpleGrantedAuthority("ROLE_" + permission.trim()));
+                    }
+                }
+                if (permissions.isEmpty()) {
+                    authorities.add(new SimpleGrantedAuthority("ROLE_" + principal.role()));
+                }
+                // 用户名与角色以 Redis 会话为准（与权限保持一致）。
                 AuthPrincipal authenticated = new AuthPrincipal(
                         session.getUserId(), session.getTenantId(), session.getUsername(),
-                        session.getDisplayName(), session.getRole(), principal.sessionId());
-                // 网页端登录用户拥有全部读写权限。
-                bind(authenticated, token, List.of(
-                        new SimpleGrantedAuthority("SCOPE_read"),
-                        new SimpleGrantedAuthority("SCOPE_write"),
-                        new SimpleGrantedAuthority("SCOPE_readwrite")));
+                        session.getDisplayName(),
+                        permissions.isEmpty() ? principal.role()
+                                : PermissionService.roleOf(permissions),
+                        principal.sessionId());
+                bind(authenticated, token, authorities);
             }
         } catch (JwtException | IllegalArgumentException exception) {
             SecurityContextHolder.clearContext();

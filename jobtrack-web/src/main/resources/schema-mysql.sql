@@ -26,6 +26,26 @@ CREATE TABLE IF NOT EXISTS sys_user (
     KEY idx_sys_user_tenant (tenant_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+CREATE TABLE IF NOT EXISTS sys_permission (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    code VARCHAR(32) NOT NULL,
+    name VARCHAR(64) NOT NULL,
+    description VARCHAR(255) NULL,
+    created_at DATETIME NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_sys_permission_code (code)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS sys_user_permission (
+    id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+    user_id BIGINT UNSIGNED NOT NULL,
+    permission_id BIGINT UNSIGNED NOT NULL,
+    created_at DATETIME NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_sys_user_permission (user_id, permission_id),
+    KEY idx_sys_user_permission_user (user_id)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 CREATE TABLE IF NOT EXISTS tenant_setting (
     id BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
     tenant_id BIGINT UNSIGNED NOT NULL,

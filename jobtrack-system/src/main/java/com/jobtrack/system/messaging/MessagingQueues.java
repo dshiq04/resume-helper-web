@@ -5,6 +5,7 @@ public final class MessagingQueues {
 
     public static final String FILE_CLEANUP = "jobtrack.file.cleanup";
     public static final String TOKEN_LOG = "jobtrack.token.log";
+    public static final String TOKEN_INVALIDATE = "jobtrack.token.invalidate";
 
     private MessagingQueues() {
     }

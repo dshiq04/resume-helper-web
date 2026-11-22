@@ -6,6 +6,7 @@ import com.jobtrack.system.pojo.SysTenant;
 import com.jobtrack.system.pojo.SysUser;
 import com.jobtrack.system.mapper.SysTenantMapper;
 import com.jobtrack.system.mapper.SysUserMapper;
+import com.jobtrack.system.service.PermissionService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
@@ -27,6 +28,7 @@ public class DataInitializer implements ApplicationRunner {
     private final SysTenantMapper tenantMapper;
     private final SysUserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
+    private final PermissionService permissionService;
 
     @Override
     @Transactional
@@ -55,6 +57,8 @@ public class DataInitializer implements ApplicationRunner {
             user.setRole("ADMIN");
             user.setEnabled(true);
             userMapper.insert(user);
+            // 管理员权限写入用户权限对应表。
+            permissionService.grant(user.getId(), "ADMIN");
             log.info("已创建默认账号: {} / {}", username, admin.getPassword());
         }
     }
