@@ -1,1 +1,0 @@
-import{n as e}from"./errors-BmMAm8FH-CIOF3xpK.js";function t(t){if(t>25165824)throw new e(`MEMORY_LIMIT`,`This document is too large to display.`)}var n=16777216,r=16384;function i(e,t,i){let a=Math.max(1,e),o=Math.max(1,t);return Math.min(Math.max(i,.01),Math.sqrt(n/(a*o)),r/Math.max(a,o))}export{t as n,i as t};

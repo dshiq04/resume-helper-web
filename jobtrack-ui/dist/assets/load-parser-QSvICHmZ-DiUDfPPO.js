@@ -1,1 +1,0 @@
-import{n as e}from"./errors-BmMAm8FH-CIOF3xpK.js";async function t(t,n){try{return await n()}catch(n){throw new e(`PARSE_ERROR`,`Could not load the "${t}" package required to open this document. Make sure it is installed in your app: npm install ${t}`,{cause:n})}}export{t};

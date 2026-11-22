@@ -1,1 +1,0 @@
-function e(e){return(t,n)=>n===`src`?/^\s*(?:data:|#)/i.test(t)?t:``:e(t)}export{e as t};

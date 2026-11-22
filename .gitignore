@@ -6,6 +6,8 @@ target/
 node_modules/
 frontend/node_modules/
 frontend/dist/
+jobtrack-ui/node_modules/
+jobtrack-ui/dist/
 
 # Runtime data
 data/*
