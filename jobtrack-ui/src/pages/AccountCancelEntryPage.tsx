@@ -1,5 +1,4 @@
 import { Button } from "antd";
-import { useNavigate } from "react-router-dom";
 import { useI18n } from "../i18n";
 
 /**
@@ -7,7 +6,6 @@ import { useI18n } from "../i18n";
  */
 export function AccountCancelEntryPage() {
   const { t } = useI18n();
-  const navigate = useNavigate();
 
   return (
     <div className="account-layout">
@@ -17,7 +15,7 @@ export function AccountCancelEntryPage() {
             <h2>{t("account.cancelTitle")}</h2>
             <p className="setting-hint">{t("account.cancelEntryHint")}</p>
           </div>
-          <Button danger onClick={() => navigate("/account/cancel/flow")}>
+          <Button danger onClick={() => { window.location.href = "/account/cancel/flow"; }}>
             {t("account.cancelEntryButton")}
           </Button>
         </div>
