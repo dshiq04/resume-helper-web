@@ -133,11 +133,14 @@ export function AccountProfilePage() {
     }
     setSavingContact(true);
     try {
-      const phone = joinPhone(values.countryCode, values.phone);
+      // 手机号输入框只保留本地号码：若把带区号的完整号码填了进来，先拆掉区号，
+      // 区号以左侧「国家/地区」下拉的选项为准；保存前把区号与号码整合成完整号码。
+      const local = splitPhone(values.phone).phone;
+      const phone = local ? joinPhone(values.countryCode, local) : "";
       const saved = await accountApi.saveContact({
         countryCode: values.countryCode,
-        phone: values.phone.trim() ? phone : "",
-        email: values.email.trim(),
+        phone: local ? phone : "",
+        email: values.email.trim() || undefined,
       });
       setProfileSnapshot(saved);
       const fallback = splitPhone(saved.phone);
@@ -156,8 +159,9 @@ export function AccountProfilePage() {
 
   const changePassword = async (values: PasswordValues) => {
     const isPhone = values.contactType !== "email";
+    // 同样只取本地号码，与左侧选择的区号整合后再提交。
     const contact = isPhone
-      ? joinPhone(values.countryCode, values.phone)
+      ? joinPhone(values.countryCode, splitPhone(values.phone).phone)
       : values.email.trim();
     // 格式不正确时只提示用户修改，不发送请求。
     if (isPhone && !FULL_PHONE_PATTERN.test(contact)) {

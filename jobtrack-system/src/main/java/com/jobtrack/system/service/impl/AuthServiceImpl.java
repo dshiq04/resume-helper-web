@@ -419,7 +419,13 @@ public class AuthServiceImpl implements AuthService {
         if (!code.startsWith("+")) {
             code = "+" + code;
         }
-        return code + phone.replaceAll("[\\s-]", "");
+        String value = phone.replaceAll("[\\s-]", "");
+        // 用户把带区号的完整号码填进了手机号输入框：去掉与所选区号重复的部分，
+        // 保证入库/查询的都是「区号 + 本地号码」各一份的完整号码。
+        if (code.length() > 1 && value.startsWith(code)) {
+            value = value.substring(code.length());
+        }
+        return code + value;
     }
 
     private String normalizePhone(String value) {
