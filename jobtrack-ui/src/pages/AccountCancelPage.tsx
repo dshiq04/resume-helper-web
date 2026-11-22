@@ -365,13 +365,15 @@ export function AccountCancelPage() {
               requiredMark={false}
             >
               {config?.captchaEnabled && (
-                <Form.Item
-                  name="captchaCode"
-                  label={t("auth.captcha")}
-                  rules={[{ required: true, message: t("auth.captchaPlaceholder") }]}
-                >
+                <Form.Item label={t("auth.captcha")} required>
                   <div className="captcha-row">
-                    <Input size="large" placeholder={t("auth.captchaPlaceholder")} maxLength={8} />
+                    <Form.Item
+                      name="captchaCode"
+                      noStyle
+                      rules={[{ required: true, message: t("auth.captchaPlaceholder") }]}
+                    >
+                      <Input size="large" placeholder={t("auth.captchaPlaceholder")} maxLength={8} />
+                    </Form.Item>
                     <button
                       type="button"
                       className="captcha-image"

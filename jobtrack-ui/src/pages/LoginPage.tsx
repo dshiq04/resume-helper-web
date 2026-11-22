@@ -294,13 +294,16 @@ export function LoginPage() {
         </div>
 
         <div className="login-form-wrap">
-          <div className="login-heading">
-            <span className="eyebrow">
-              {mode === "login" ? t("auth.signInEyebrow") : t("auth.createAccountEyebrow")}
-            </span>
-            <h2>{mode === "login" ? t("auth.loginTitle") : t("auth.registerTitle")}</h2>
-            {mode === "login" && <p>{t("auth.loginSubtitle")}</p>}
-          </div>
+          {/* 忘记密码有自己的标题，这里隐藏共享标题，避免同时出现两个 heading。 */}
+          {mode !== "forgot" && (
+            <div className="login-heading">
+              <span className="eyebrow">
+                {mode === "login" ? t("auth.signInEyebrow") : t("auth.createAccountEyebrow")}
+              </span>
+              <h2>{mode === "login" ? t("auth.loginTitle") : t("auth.registerTitle")}</h2>
+              {mode === "login" && <p>{t("auth.loginSubtitle")}</p>}
+            </div>
+          )}
 
           <div className="auth-switch">
             <button
@@ -588,13 +591,17 @@ export function LoginPage() {
             )}
 
             {config?.captchaEnabled && (
-              <Form.Item
-                name="captchaCode"
-                label={t("auth.captcha")}
-                rules={[{ required: true, message: t("auth.captchaPlaceholder") }]}
-              >
+              <Form.Item label={t("auth.captcha")} required>
+                {/* 验证码输入与图片同行：内层 noStyle 的 Form.Item 直接包住 Input，
+                    否则 value/onChange 会注入到外层 div 上导致表单状态丢失。 */}
                 <div className="captcha-row">
-                  <Input size="large" placeholder={t("auth.captchaPlaceholder")} maxLength={8} />
+                  <Form.Item
+                    name="captchaCode"
+                    noStyle
+                    rules={[{ required: true, message: t("auth.captchaPlaceholder") }]}
+                  >
+                    <Input size="large" placeholder={t("auth.captchaPlaceholder")} maxLength={8} />
+                  </Form.Item>
                   <button
                     type="button"
                     className="captcha-image"
