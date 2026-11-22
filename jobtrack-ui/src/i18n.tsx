@@ -991,6 +991,47 @@ const en: Record<string, string> = {
   "auth.createAccountEyebrow": "CREATE ACCOUNT",
   "dash.startDate": "Start date",
   "dash.endDate": "End date",
+
+  // User status
+  "account.statusLabel": "User status",
+  "account.statusNormal": "Active",
+  "account.statusCancelled": "Cancelled",
+
+  // Account cancellation
+  "account.cancelTitle": "Cancel account",
+  "account.cancelEntryHint": "A cancelled account cannot be restored; the retained phone/email will be released.",
+  "account.cancelEntryButton": "Request cancellation",
+  "account.cancelStepAgreement": "Cancellation agreement",
+  "account.cancelStepCheck": "Condition check",
+  "account.cancelStepVerify": "Identity verification",
+  "account.cancelStepConfirm": "Confirm cancellation",
+  "account.cancelClose": "Close",
+  "account.cancelNext": "Next",
+  "account.cancelConditionPass": "Met",
+  "account.cancelRefresh": "Refresh check",
+  "account.cancelGoApplications": "Clear in the list",
+  "account.cancelExport": "Export application ledger",
+  "account.cancelExported": "Application ledger exported",
+  "account.cancelGoResumes": "Delete in the resume list",
+  "account.cancelCondApplications": "Applications cleared ({count} left, including trash)",
+  "account.cancelCondResumes": "Resume library deleted ({count} left)",
+  "account.cancelCondPermission": "No permissions beyond a normal user",
+  "account.cancelPermissionHint": "You hold permissions such as administrator. Give them up in the administrator list first, then come back to continue the cancellation.",
+  "account.cancelVerifyLead": "Verify the retained phone or email together with your password to continue to the final step.",
+  "account.cancelConfirmButton": "Confirm cancellation",
+  "account.cancelSuccess": "Account cancelled",
+
+  // Forgot password
+  "auth.forgotLink": "Forgot password?",
+  "auth.forgotEyebrow": "RECOVER PASSWORD",
+  "auth.forgotTitle": "Recover password",
+  "auth.forgotSubtitle": "Verify your username and the retained phone or email, then set a new password.",
+  "auth.forgotVerify": "Verify identity",
+  "auth.forgotReset": "Reset password",
+  "auth.forgotVerified": "Identity verified. Please set a new password",
+  "auth.forgotResetDone": "Password reset. Sign in with the new password",
+  "auth.forgotResetHint": "After the reset, all your previously signed-in devices will be signed out.",
+  "auth.forgotBack": "Back to sign in",
 };
 
 const dictionaries: Record<Lang, Record<string, string>> = {
