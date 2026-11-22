@@ -57,6 +57,8 @@ public interface AdminService {
 
     List<PermissionVO> permissions();
 
+    List<String> userPermissions(Long userId);
+
     AdminUserVO grantPermission(Long operatorId, Long userId, String code);
 
     AdminUserVO revokePermission(Long operatorId, Long userId, String code);

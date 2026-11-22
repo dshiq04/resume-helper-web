@@ -19,6 +19,9 @@ public interface PermissionService {
     /** 权限字典中的全部权限。 */
     List<SysPermission> listPermissions();
 
+    /** 确保权限字典中存在指定权限，返回已存在或新建的权限。 */
+    SysPermission ensurePermission(String code, String name, String description);
+
     /** 授予用户一个权限（幂等）。 */
     void grant(Long userId, String code);
 
