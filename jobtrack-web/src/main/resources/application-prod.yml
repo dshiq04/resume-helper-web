@@ -1,46 +1,53 @@
-# 生产环境：默认 PostgreSQL，前端构建产物由 Nginx 等静态服务器托管。
-# JWT_SECRET / STORAGE_SECRET 必须通过环境变量显式提供，缺失时启动失败。
+# 开发环境：本机 MySQL + 本机 Redis，前端由 Vite 开发服务器代理。
+# 数据库账号密码请按需修改（或使用环境变量 DB_* 覆盖）。
 server:
-  address: ${SERVER_ADDRESS:0.0.0.0}
-  port: ${SERVER_PORT:18080}
+  port: 18080
 
 spring:
   datasource:
-    driver-class-name: org.postgresql.Driver
-    url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_NAME:jobtrack}?sslmode=${DB_SSL_MODE:disable}
-    username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://192.168.150.10:3306/jobtrack?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: tomori
     hikari:
-      maximum-pool-size: ${DB_MAX_POOL_SIZE:20}
-      minimum-idle: 2
+      maximum-pool-size: 10
+      minimum-idle: 1
       connection-timeout: 10000
       validation-timeout: 3000
       connection-test-query: SELECT 1
-  # 使用 MySQL 时：替换上面的 datasource 为下面注释块，并改用 schema-mysql.sql。
+  # 切换 PostgreSQL 时：替换上面的 datasource 为下面注释块，并改用 schema-postgresql.sql。
   # datasource:
-  #   driver-class-name: com.mysql.cj.jdbc.Driver
-  #   url: jdbc:mysql://${DB_HOST:127.0.0.1}:${DB_PORT:3306}/${DB_NAME:jobtrack}?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
-  #   username: ${DB_USERNAME:root}
+  #   driver-class-name: org.postgresql.Driver
+  #   url: jdbc:postgresql://${DB_HOST:127.0.0.1}:${DB_PORT:5432}/${DB_NAME:jobtrack}?sslmode=disable
+  #   username: ${DB_USERNAME:postgres}
   #   password: ${DB_PASSWORD:}
   sql:
     init:
-      schema-locations: classpath:schema-postgresql.sql
-      # schema-locations: classpath:schema-mysql.sql
+      schema-locations: classpath:schema-mysql.sql
+      # schema-locations: classpath:schema-postgresql.sql
+  rabbitmq:
+    host: 192.168.150.10
+    port: 5672
+    username: resume-helper
+    password: tomori
+    virtual-host: /resume-helper
+    connection-timeout: 2s
   data:
     redis:
-      host: ${REDIS_HOST:127.0.0.1}
-      port: ${REDIS_PORT:6379}
-      password: ${REDIS_PASSWORD:}
-      database: ${REDIS_DATABASE:0}
+      host: 192.168.150.10
+      port: 6379
+      password: tomori
+      database: 1
       timeout: 2s
       connect-timeout: 2s
 
+# 应用级 Redis 开关：在线状态与验证码都依赖它。
 redis:
   enabled: true
-  host: ${REDIS_HOST:127.0.0.1}
-  port: ${REDIS_PORT:6379}
-  password: ${REDIS_PASSWORD:}
-  database: ${REDIS_DATABASE:0}
+  host: 192.168.150.10
+  port: 6379
+  password: tomori
+  database: 1
   key-prefix: "jobtrack:"
   timeout: 2s
 
@@ -59,17 +66,27 @@ app:
   log-dir: ./log
   seed-demo: false
   cors:
-    # 前后端分离部署时填写前端站点地址，逗号分隔；* 表示不限制。
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:*}
+    allowed-origins:
+      - http://127.0.0.1:5173
+      - http://localhost:5173
   jwt:
-    secret: ${JWT_SECRET}
-    ttl-hours: ${JWT_TTL_HOURS:72}
+    secret: ${JWT_SECRET:jobtrack-local-dev-secret-change-me-0123456789abcdef}
+    ttl-hours: 72
   storage:
-    secret: ${STORAGE_SECRET}
-    max-file-size-mb: ${MAX_FILE_SIZE_MB:50}
+    secret: ${STORAGE_SECRET:jobtrack-file-encryption-secret-change-me-0123456789}
+    max-file-size-mb: 50
+    type: s3
+    endpoint: http://192.168.150.10:9000
+    region: us-east-1
+    bucket: resume-helper
+    access-key: FJcxHESr9gAjJxGw3s1Y
+    secret-key: H3pVVhaqQLuLRcDAcpDWz1tbX2qskujJRAWtbr8k
+    path-style: true
+    public-read: true
+    public-base-url: http://192.168.150.10:9000/resume-helper
   admin:
-    username: ${ADMIN_USERNAME:admin}
-    password: ${ADMIN_PASSWORD:123456}
+    username: admin
+    password: 123456
     display-name: 管理员
     tenant-name: 默认工作区
 
