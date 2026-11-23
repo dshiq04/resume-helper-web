@@ -137,8 +137,7 @@ deploy-backend:
     - |
       docker run -d \
         --name "$BACKEND_CONTAINER" \
-        --restart unless-stopped \
-        --network host \
+        --network dshiq04 \
         -e TZ=Asia/Shanghai \
         -e SPRING_PROFILES_ACTIVE=prod \
         -e JWT_SECRET="${JWT_SECRET:?请在 GitLab CI/CD Variables 中配置 JWT_SECRET}" \
@@ -156,6 +155,7 @@ deploy-backend:
         -e ADMIN_PASSWORD="${ADMIN_PASSWORD:-123456}" \
         -v "$DEPLOY_HOST_DIR/backend/data:/app/data" \
         -v "$DEPLOY_HOST_DIR/backend/log:/app/log" \
+        -p 18080:18080
         "$BACKEND_IMAGE:latest"
 
     - echo "== 等待后端启动并健康检查 =="
