@@ -9,7 +9,7 @@
 #   2. build-backend    构建后端 jar（JDK 21）
 #   2. build-frontend   构建前端 dist（与后端并行）
 #   3. deploy-backend   构建 Docker 镜像并运行后端容器（JRE 21 Alpine，最小体积）
-#   3. deploy-frontend  dist 重命名为 resume-helper → 发送到 nginx → 重启 nginx
+#   3. deploy-frontend  dist 发布到宿主机 nginx 静态目录 → 更新配置 → reload nginx
 #
 # Runner 前置要求（openEuler 宿主机）：
 #   1. /srv/gitlab-runner/config/config.toml 中给 runner 追加：
@@ -38,10 +38,11 @@ stages:
 variables:
   BACKEND_IMAGE: "jobtrack-backend"                 # 后端镜像名
   BACKEND_CONTAINER: "jobtrack-backend"             # 后端容器名
-  NGINX_CONTAINER: "jobtrack-nginx"                 # 前端 nginx 容器名
+  NGINX_HTML_DIR: "/usr/share/nginx/html"           # 宿主机 nginx 静态根目录（前端产物发布到这里）
+  NGINX_CONF_DIR: "/etc/nginx/conf.d"               # 宿主机 nginx 配置目录
   DEPLOY_HOST_DIR: "/opt/resume-helper"             # 宿主机部署根目录
   FRONTEND_DIR_NAME: "resume-helper"                # 前端产物目录名（dist 重命名后的名字）
-  BACKEND_UPSTREAM: "http://172.17.0.1:18080"       # nginx 容器访问后端地址（docker0 网关；nginx 容器为 host 网络时改成 http://127.0.0.1:18080）
+  BACKEND_UPSTREAM: "http://127.0.0.1:18080"        # 宿主机 nginx 访问后端地址（后端容器为 host 网络，直接走本机回环）
   GIT_STRATEGY: clone
 
 # =====================================================================
@@ -56,11 +57,11 @@ cleanup-old:
     - docker rm -f "$BACKEND_CONTAINER" 2>/dev/null || echo "后端容器不存在，跳过"
     - echo "== 删除旧后端镜像 =="
     - docker rmi "$BACKEND_IMAGE:latest" 2>/dev/null || echo "后端镜像不存在，跳过"
-    - echo "== 删除宿主机上的旧前端文件 =="
+    - echo "== 删除宿主机 nginx 目录中的旧前端文件 =="
     - |
       docker run --rm \
-        -v "$DEPLOY_HOST_DIR/frontend:/target" \
-        alpine:3.20 sh -c "rm -rf /target/$FRONTEND_DIR_NAME && mkdir -p /target"
+        -v "$NGINX_HTML_DIR:/target" \
+        alpine:3.20 sh -c "rm -rf /target/$FRONTEND_DIR_NAME"
     - echo "== 清理完成 =="
 
 # =====================================================================
@@ -170,9 +171,9 @@ deploy-backend:
       done
 
 # =====================================================================
-# 3. 部署前端：
-#    删除宿主机旧文件（已在 cleanup 完成）→ dist 复制到宿主机并重命名为
-#    resume-helper → 发送到 nginx 容器 → 更新配置 → 重启 nginx
+# 3. 部署前端（宿主机直装 nginx，runner 为 docker executor）：
+#    通过 docker bind mount 操作宿主机路径：dist 发布到 nginx 静态目录 →
+#    写入配置 → nginx -t 校验 → systemctl reload nginx → 验证页面
 # =====================================================================
 deploy-frontend:
   stage: deploy
@@ -180,29 +181,38 @@ deploy-frontend:
   tags: [docker]
   dependencies: [build-frontend]
   script:
-    - echo "== 1. 将 dist 复制到宿主机并重命名为 $FRONTEND_DIR_NAME =="
+    # 注意：docker executor 下不能直接写宿主机文件，因此统一通过
+    # `docker run -v 宿主机路径:...` 让宿主机上的 docker daemon 代为操作。
+    # 用 tar 管道传文件（而不是 -v 挂载 CI_PROJECT_DIR）：
+    # bind mount 源路径由宿主机 daemon 解析，job 容器内的路径挂不进去。
+    - echo "== 1. 将 dist 发布到宿主机 nginx 静态目录（$NGINX_HTML_DIR/$FRONTEND_DIR_NAME）=="
+    - |
+      tar -C jobtrack-ui/dist -cf - . | docker run --rm -i \
+        -v "$NGINX_HTML_DIR:/target" \
+        alpine:3.20 sh -c "rm -rf /target/$FRONTEND_DIR_NAME && mkdir -p /target/$FRONTEND_DIR_NAME && tar -C /target/$FRONTEND_DIR_NAME -xf -"
+
+    - echo "== 2. 生成 nginx 配置并写入宿主机 $NGINX_CONF_DIR =="
+    - |
+      sed "s|__BACKEND_UPSTREAM__|$BACKEND_UPSTREAM|g" deploy/nginx/resume-helper.conf \
+        | docker run --rm -i -v "$NGINX_CONF_DIR:/conf" \
+        alpine:3.20 sh -c "cat > /conf/resume-helper.conf"
+
+    - echo "== 3. 校验 nginx 配置（用 nginx:alpine 挂载宿主机配置做 nginx -t）=="
     - |
       docker run --rm \
-        -v "$CI_PROJECT_DIR/jobtrack-ui/dist:/src:ro" \
-        -v "$DEPLOY_HOST_DIR/frontend:/target" \
-        alpine:3.20 sh -c "cp -a /src/. /target/$FRONTEND_DIR_NAME/"
+        -v /etc/nginx/nginx.conf:/etc/nginx/nginx.conf:ro \
+        -v "$NGINX_CONF_DIR":/etc/nginx/conf.d:ro \
+        nginx:alpine nginx -t
 
-    - echo "== 2. 更新 nginx 容器内的前端文件 =="
-    - docker exec "$NGINX_CONTAINER" rm -rf "/usr/share/nginx/html/$FRONTEND_DIR_NAME"
-    - docker exec "$NGINX_CONTAINER" mkdir -p "/usr/share/nginx/html/$FRONTEND_DIR_NAME"
-    - docker cp "jobtrack-ui/dist/." "$NGINX_CONTAINER:/usr/share/nginx/html/$FRONTEND_DIR_NAME/"
+    - echo "== 4. 重载宿主机 nginx（nsenter 进入宿主机命名空间执行 reload）=="
+    - |
+      docker run --rm --privileged --pid=host alpine:3.20 sh -c \
+        "apk add --no-cache util-linux >/dev/null 2>&1; nsenter -t 1 -m -n -- nginx -t && nsenter -t 1 -m -n -- systemctl reload nginx"
 
-    - echo "== 3. 更新 nginx 配置并复制进容器 =="
-    - sed "s|__BACKEND_UPSTREAM__|$BACKEND_UPSTREAM|g" deploy/nginx/resume-helper.conf > resume-helper.conf
-    - docker cp resume-helper.conf "$NGINX_CONTAINER:/etc/nginx/conf.d/resume-helper.conf"
-
-    - echo "== 4. 校验配置并重启 nginx =="
-    - docker exec "$NGINX_CONTAINER" nginx -t
-    - docker restart "$NGINX_CONTAINER"
-
-    - echo "== 5. 验证前端页面与后端代理 =="
-    - sleep 3
-    - docker exec "$NGINX_CONTAINER" wget -qO- http://127.0.0.1:81/index.html | head -c 200
+    - echo "== 5. 验证前端页面与后端代理（--net=host 访问宿主机端口）=="
+    - |
+      docker run --rm --net=host alpine:3.20 sh -c \
+        "wget -qO- http://127.0.0.1:81/index.html | head -c 200"
     - echo "前端部署完成：http://<虚拟机IP>:81"
 
 # =====================================================================
