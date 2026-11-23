@@ -43,6 +43,7 @@ variables:
   DEPLOY_HOST_DIR: "/opt/resume-helper"             # 宿主机部署根目录
   FRONTEND_DIR_NAME: "resume-helper"                # 前端产物目录名（dist 重命名后的名字）
   BACKEND_UPSTREAM: "http://127.0.0.1:18080"        # 宿主机 nginx 访问后端地址（后端容器 -p 18080:18080 映射到宿主机）
+  CORS_ALLOWED_ORIGINS: "http://192.168.150.10:81,http://localhost:5173,http://127.0.0.1:5173"  # 后端 CORS 白名单（逗号分隔）
   GIT_STRATEGY: clone
 
 # =====================================================================
