@@ -1,0 +1,231 @@
+# =====================================================================
+# 履途 ResumeTrail —— GitLab CI/CD 部署流水线
+#
+# 部署环境：openEuler（欧拉）虚拟机，GitLab 与 GitLab Runner 均以 Docker
+#           容器方式运行，Runner 使用 docker executor + 挂载 docker.sock。
+#
+# 执行顺序：
+#   1. cleanup-old      先删除旧的容器/镜像，并删除宿主机上的旧前端文件
+#   2. build-backend    构建后端 jar（JDK 21）
+#   2. build-frontend   构建前端 dist（与后端并行）
+#   3. deploy-backend   构建 Docker 镜像并运行后端容器（JRE 21 Alpine，最小体积）
+#   3. deploy-frontend  dist 发布到宿主机 nginx 静态目录 → 更新配置 → reload nginx
+#
+# Runner 前置要求（openEuler 宿主机）：
+#   1. /srv/gitlab-runner/config/config.toml 中给 runner 追加：
+#        [runners.docker]
+#          volumes = ["/var/run/docker.sock:/var/run/docker.sock", "/cache"]
+#   2. 注册 runner 时 executor 选 docker，并打上标签：docker
+#   3. 在 GitLab → 项目 → Settings → CI/CD → Variables 中配置必需变量：
+#        JWT_SECRET、STORAGE_SECRET（必填，缺失后端启动即失败）
+#        以及可选的 DB_*、REDIS_*、ADMIN_* 等（见 deploy-backend 一节）
+# =====================================================================
+
+workflow:
+  rules:
+    # 仅 main 分支自动执行，其他分支请在流水线页面手动触发
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_PIPELINE_SOURCE == "web"
+
+stages:
+  - cleanup
+  - build
+  - deploy
+
+# ---------------------------------------------------------------------
+# 全局变量（按实际环境修改）
+# ---------------------------------------------------------------------
+variables:
+  BACKEND_IMAGE: "jobtrack-backend"                 # 后端镜像名
+  BACKEND_CONTAINER: "jobtrack-backend"             # 后端容器名
+  NGINX_HTML_DIR: "/usr/share/nginx/html"           # 宿主机 nginx 静态根目录（前端产物发布到这里）
+  NGINX_CONF_DIR: "/etc/nginx/conf.d"               # 宿主机 nginx 配置目录
+  DEPLOY_HOST_DIR: "/opt/resume-helper"             # 宿主机部署根目录
+  FRONTEND_DIR_NAME: "resume-helper"                # 前端产物目录名（dist 重命名后的名字）
+  BACKEND_UPSTREAM: "http://127.0.0.1:18080"        # 宿主机 nginx 访问后端地址（后端容器 -p 18080:18080 映射到宿主机）
+  CORS_ALLOWED_ORIGINS: "http://192.168.150.10:81,http://localhost:5173,http://127.0.0.1:5173"  # 后端 CORS 白名单（逗号分隔）
+  GIT_STRATEGY: clone
+
+# =====================================================================
+# 1. 清理：先删除旧的容器与镜像，再删除宿主机上的旧前端文件
+# =====================================================================
+cleanup-old:
+  stage: cleanup
+  image: docker:27-cli
+  tags: [docker]
+  script:
+    - echo "== 删除旧后端容器 =="
+    - docker rm -f "$BACKEND_CONTAINER" 2>/dev/null || echo "后端容器不存在，跳过"
+    - echo "== 删除旧后端镜像 =="
+    - docker rmi "$BACKEND_IMAGE:latest" 2>/dev/null || echo "后端镜像不存在，跳过"
+    - echo "== 删除宿主机 nginx 目录中的旧前端文件 =="
+    - |
+      docker run --rm \
+        -v "$NGINX_HTML_DIR:/target" \
+        alpine:3.20 sh -c "rm -rf /target/$FRONTEND_DIR_NAME"
+    - echo "== 清理完成 =="
+
+# =====================================================================
+# 2. 构建后端（多模块 Maven，JDK 21）
+# =====================================================================
+build-backend:
+  stage: build
+  image: maven:3.9-eclipse-temurin-21
+  tags: [docker]
+  cache:
+    key: maven-repo
+    paths:
+      - .m2/repository
+  script:
+    - mvn -B -ntp -DskipTests -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository package
+    - ls -lh jobtrack-web/target/jobtrack.jar
+  artifacts:
+    expire_in: 1h
+    paths:
+      - jobtrack-web/target/jobtrack.jar
+      - deploy/Dockerfile
+
+# =====================================================================
+# 2. 构建前端（Vite，Node 22），构建完成后清理 node_modules
+# =====================================================================
+build-frontend:
+  stage: build
+  image: node:22-alpine
+  tags: [docker]
+  cache:
+    key:
+      files:
+        - jobtrack-ui/package-lock.json
+    paths:
+      - .npm-cache
+  script:
+    - cd jobtrack-ui
+    - npm ci --cache=$CI_PROJECT_DIR/.npm-cache
+    - npm run build
+    - ls -lh dist
+    # 清理 node_modules（产物通过 artifacts 传递，无需依赖它）
+    - rm -rf node_modules
+  artifacts:
+    expire_in: 1h
+    paths:
+      - jobtrack-ui/dist/
+      - deploy/nginx/resume-helper.conf
+
+# =====================================================================
+# 3. 部署后端：构建镜像并启动容器（--network host 以访问本机 PG/Redis）
+# =====================================================================
+deploy-backend:
+  stage: deploy
+  image: docker:27-cli
+  tags: [docker]
+  dependencies: [build-backend]
+  script:
+    # 兜底清理（若 cleanup 与本次之间有其他流水线操作）
+    - docker rm -f "$BACKEND_CONTAINER" 2>/dev/null || true
+    - docker rmi "$BACKEND_IMAGE:latest" 2>/dev/null || true
+
+    - echo "== 构建后端镜像 =="
+    - docker build -f deploy/Dockerfile -t "$BACKEND_IMAGE:latest" .
+
+    - echo "== 在宿主机上准备数据/日志目录 =="
+    - |
+      docker run --rm \
+        -v "$DEPLOY_HOST_DIR/backend:/base" \
+        alpine:3.20 sh -c "mkdir -p /base/data /base/log"
+
+    - echo "== 启动后端容器 =="
+    # 必填变量在 GitLab CI/CD Variables 中配置，缺失则直接报错退出
+    - |
+      docker run -d \
+        --name "$BACKEND_CONTAINER" \
+        --network dshiq04 \
+        --add-host host.docker.internal:host-gateway \
+        -e TZ=Asia/Shanghai \
+        -e SPRING_PROFILES_ACTIVE=prod \
+        -e JWT_SECRET="${JWT_SECRET:?请在 GitLab CI/CD Variables 中配置 JWT_SECRET}" \
+        -e STORAGE_SECRET="${STORAGE_SECRET:?请在 GitLab CI/CD Variables 中配置 STORAGE_SECRET}" \
+        -e DB_HOST="${DB_HOST:-host.docker.internal}" \
+        -e DB_PORT="${DB_PORT:-5432}" \
+        -e DB_NAME="${DB_NAME:-jobtrack}" \
+        -e DB_USERNAME="${DB_USERNAME:-postgres}" \
+        -e DB_PASSWORD="${DB_PASSWORD:-}" \
+        -e REDIS_HOST="${REDIS_HOST:-host.docker.internal}" \
+        -e REDIS_PORT="${REDIS_PORT:-6379}" \
+        -e REDIS_PASSWORD="${REDIS_PASSWORD:-}" \
+        -e CORS_ALLOWED_ORIGINS="${CORS_ALLOWED_ORIGINS:-*}" \
+        -e ADMIN_USERNAME="${ADMIN_USERNAME:-admin}" \
+        -e ADMIN_PASSWORD="${ADMIN_PASSWORD:-123456}" \
+        -v "$DEPLOY_HOST_DIR/backend/data:/app/data" \
+        -v "$DEPLOY_HOST_DIR/backend/log:/app/log" \
+        -p 18080:18080 \
+        "$BACKEND_IMAGE:latest"
+
+    - echo "== 等待后端启动并健康检查 =="
+    - |
+      for i in $(seq 1 30); do
+        if docker logs "$BACKEND_CONTAINER" 2>&1 | grep -q "Started JobTrackApplication"; then
+          echo "后端启动成功"; break
+        fi
+        if [ "$i" -eq 30 ]; then
+          docker logs --tail 100 "$BACKEND_CONTAINER"; exit 1
+        fi
+        sleep 2
+      done
+
+# =====================================================================
+# 3. 部署前端（宿主机直装 nginx，runner 为 docker executor）：
+#    通过 docker bind mount 操作宿主机路径：dist 发布到 nginx 静态目录 →
+#    写入配置 → nginx -t 校验 → systemctl reload nginx → 验证页面
+# =====================================================================
+deploy-frontend:
+  stage: deploy
+  image: docker:27-cli
+  tags: [docker]
+  dependencies: [build-frontend]
+  script:
+    # 注意：docker executor 下不能直接写宿主机文件，因此统一通过
+    # `docker run -v 宿主机路径:...` 让宿主机上的 docker daemon 代为操作。
+    # 用 tar 管道传文件（而不是 -v 挂载 CI_PROJECT_DIR）：
+    # bind mount 源路径由宿主机 daemon 解析，job 容器内的路径挂不进去。
+    - echo "== 1. 将 dist 发布到宿主机 nginx 静态目录（$NGINX_HTML_DIR/$FRONTEND_DIR_NAME）=="
+    - |
+      tar -C jobtrack-ui/dist -cf - . | docker run --rm -i \
+        -v "$NGINX_HTML_DIR:/target" \
+        alpine:3.20 sh -c "rm -rf /target/$FRONTEND_DIR_NAME && mkdir -p /target/$FRONTEND_DIR_NAME && tar -C /target/$FRONTEND_DIR_NAME -xf -"
+
+    - echo "== 2. 生成 nginx 配置并写入宿主机 $NGINX_CONF_DIR =="
+    - |
+      sed "s|__BACKEND_UPSTREAM__|$BACKEND_UPSTREAM|g" deploy/nginx/resume-helper.conf \
+        | docker run --rm -i -v "$NGINX_CONF_DIR:/conf" \
+        alpine:3.20 sh -c "cat > /conf/resume-helper.conf"
+
+    - echo "== 3. 校验 nginx 配置（用 nginx:alpine 挂载宿主机配置做 nginx -t）=="
+    - |
+      docker run --rm \
+        -v /etc/nginx/nginx.conf:/etc/nginx/nginx.conf:ro \
+        -v "$NGINX_CONF_DIR":/etc/nginx/conf.d:ro \
+        nginx:alpine nginx -t
+
+    - echo "== 4. 重载宿主机 nginx（nsenter 进入宿主机命名空间执行 reload）=="
+    - |
+      docker run --rm --privileged --pid=host alpine:3.20 sh -c \
+        "apk add --no-cache util-linux >/dev/null 2>&1; nsenter -t 1 -m -n -- nginx -t && nsenter -t 1 -m -n -- systemctl reload nginx"
+
+    - echo "== 5. 验证前端页面与后端代理（--net=host 访问宿主机端口）=="
+    - |
+      docker run --rm --net=host alpine:3.20 sh -c \
+        "wget -qO- http://127.0.0.1:81/index.html | head -c 200"
+    - echo "前端部署完成：http://<虚拟机IP>:81"
+
+# =====================================================================
+# 4. 兜底清理：node_modules
+#    docker executor 下构建容器即用即弃，node_modules 不会残留到宿主机；
+#    若改用 shell executor，此任务也能清掉工作区里的 node_modules。
+# =====================================================================
+cleanup-node_modules:
+  stage: .post
+  image: node:22-alpine
+  tags: [docker]
+  when: always
+  script:
+    - rm -rf jobtrack-ui/node_modules

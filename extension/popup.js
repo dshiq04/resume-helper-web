@@ -196,19 +196,6 @@ function fillFromQuery() {
   }
 }
 
-async function prefillActiveTab() {
-  if ($("link").value) return;
-  try {
-    const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-    if (tab && tab.url && /^https?:/i.test(tab.url) && !isAppUrl(tab.url)) {
-      $("link").value = tab.url;
-      if (!$("company").value) $("company").value = guessCompany(tab.title || "");
-    }
-  } catch {
-    // 忽略：在独立窗口中无法读取当前标签页。
-  }
-}
-
 async function suggestCompanies(keyword) {
   try {
     const query = keyword ? `?search=${encodeURIComponent(keyword)}` : "";
@@ -235,7 +222,6 @@ async function startEntry() {
   applyScope();
   showView("entry");
   await loadDefaults();
-  await prefillActiveTab();
   await suggestCompanies("");
   const focusTarget = state.info && state.info.scope === "read" ? $("link") : $("company");
   focusTarget.focus();
@@ -332,7 +318,6 @@ async function handleSubmit(event) {
     $("company").value = "";
     $("link").value = "";
     $("company").focus();
-    await prefillActiveTab();
   } catch {
     setToast("无法连接服务端", true);
   } finally {
