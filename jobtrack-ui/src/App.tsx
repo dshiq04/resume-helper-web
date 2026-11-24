@@ -17,6 +17,7 @@ import { ResumesPage } from "./pages/ResumesPage";
 import { SettingsPage } from "./pages/SettingsPage";
 import { StatisticsPage } from "./pages/StatisticsPage";
 import { TrashPage } from "./pages/TrashPage";
+import { APP_NAME } from "./utils/appInfo";
 import { AdminOnlinePage } from "./pages/admin/AdminOnlinePage";
 import { AdminOperationsPage } from "./pages/admin/AdminOperationsPage";
 import { AdminPage } from "./pages/admin/AdminPage";
@@ -129,7 +130,7 @@ function AppShell() {
 
   const body = loading ? (
     <div className="boot-screen">
-      <img className="boot-logo" src="/logo.svg" alt="ResumeTrail" />
+      <img className="boot-logo" src="/logo.svg" alt={APP_NAME} />
       <Spin size="large" />
       <p>{t("common.loading")}</p>
     </div>

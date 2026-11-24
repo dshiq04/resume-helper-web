@@ -247,8 +247,6 @@ export interface CaptchaResponse {
 }
 
 export interface PublicConfig {
-  name: string;
-  version: string;
   categories: Category[];
   statuses: Status[];
   timelineStatuses: Status[];
@@ -472,7 +470,6 @@ export interface DatabaseTestResult {
 }
 
 export interface SystemInfo {
-  version: string;
   javaVersion: string;
   driver: string;
   database: string;

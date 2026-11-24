@@ -42,7 +42,6 @@ const DAYJS_LOCALE_DATA: Record<string, unknown> = {
 export type Lang = "zh-CN" | "zh-TW" | "en" | "ja" | "ko" | "ru";
 
 const zh: Record<string, string> = {
-  "app.name": "履途 ResumeTrail",
   "app.tagline": "把每一次投递，记成一条清晰的线索。",
   "app.desc": "履途 ResumeTrail 是一个多用户、可自托管的求职投递台账。公司、链接、时间线、简历与统计，全部收在一处。",
   "common.loading": "正在加载",
@@ -545,7 +544,6 @@ const zh: Record<string, string> = {
 };
 
 const en: Record<string, string> = {
-  "app.name": "履途 ResumeTrail",
   "app.tagline": "Every application, kept on one clear thread.",
   "app.desc": "ResumeTrail is a self-hosted, multi-user job application ledger. Companies, links, timelines, resumes and stats in one place.",
   "common.loading": "Loading",

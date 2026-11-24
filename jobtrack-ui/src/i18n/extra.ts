@@ -1,5 +1,4 @@
 export const ja: Record<string, string> = {
-  "app.name": "履途 ResumeTrail",
   "app.tagline": "すべての応募を、一本の線に。",
   "app.desc": "履途 ResumeTrail は、セルフホスト可能な多人数向け応募管理ツールです。企業、リンク、履歴、履歴書、統計を一か所にまとめます。",
   "common.loading": "読み込み中",
@@ -507,7 +506,6 @@ export const ja: Record<string, string> = {
 };
 
 export const ko: Record<string, string> = {
-  "app.name": "履途 ResumeTrail",
   "app.tagline": "모든 지원을 하나의 선으로.",
   "app.desc": "履途 ResumeTrail은 셀프 호스팅이 가능한 다중 사용자 지원 관리 도구입니다. 기업, 링크, 타임라인, 이력서, 통계를 한곳에 모읍니다.",
   "common.loading": "불러오는 중",
@@ -1015,7 +1013,6 @@ export const ko: Record<string, string> = {
 };
 
 export const ru: Record<string, string> = {
-  "app.name": "履途 ResumeTrail",
   "app.tagline": "Каждый отклик — на одной чистой линии.",
   "app.desc": "履途 ResumeTrail — самостоятельный многопользовательский журнал откликов. Компании, ссылки, таймлайн, резюме и статистика в одном месте.",
   "common.loading": "Загрузка",

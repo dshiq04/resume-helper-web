@@ -186,8 +186,8 @@ Vite 默认监听 `0.0.0.0:5173`，同一局域网内的手机/平板可通过�
 
 | 变量 | 说明 | 默认值 |
 | --- | --- | --- |
-| `VITE_APP_TITLE` | 浏览器标题 | `履途 ResumeTrail` |
-| `VITE_APP_VERSION` | 前端兜底版本号 | `1.2.1` |
+| `VITE_APP_TITLE` | 应用名称（浏览器标题、登录页/侧边栏品牌） | `履途 ResumeTrail` |
+| `VITE_APP_VERSION` | 应用版本号（登录页与设置页展示，可填 `1.2.1` 或 `V1.2.1`） | `V1.2.1` |
 | `VITE_APP_DEFAULT_LANGUAGE` | 默认界面语言 | `zh-CN` |
 | `VITE_SHOW_DEVELOPMENT_WATERMARK` | 是否显示「开发中品质，请谅解」水印 | `true` |
 | `VITE_API_BASE_URL` | 后端接口地址 | `/api` |
@@ -438,7 +438,7 @@ Content-Type: application/json
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `GET` | `/api/health` | 健康检查 |
-| `GET` | `/api/config` | 公共配置（选项、版本、验证码开关、在线存储类型） |
+| `GET` | `/api/config` | 公共配置（选项、验证码开关、在线存储类型） |
 | `GET` | `/api/auth/status` | 登录状态 |
 | `GET` | `/api/auth/captcha` | 获取图形验证码（需开启验证码） |
 | `POST` | `/api/auth/login` | 登录 |
@@ -470,7 +470,7 @@ Content-Type: application/json
 | `GET` | `/api/stats/daily` | 每日投递趋势 |
 | `GET` | `/api/stats/funnel` | 转化漏斗 |
 | `GET/PUT` | `/api/system/preferences` | 闲置锁定偏好 |
-| `GET` | `/api/system/info` | 版本、数据库、运行环境、数据目录 |
+| `GET` | `/api/system/info` | Java 版本、数据库、运行环境、数据目录 |
 | `GET` | `/api/system/database` | 当前数据库配置、运行环境与配置文件（只读） |
 | `GET` | `/api/system/database/test` | 测试当前数据库连接 |
 | `GET` | `/api/system/quick-entry/defaults` | 扩展默认类型与服务器时间 |

@@ -31,7 +31,6 @@ public class SystemController {
     public Result<Map<String, Object>> health() {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("status", "ok");
-        result.put("version", appProperties.getVersion());
         result.put("time", LocalDateTime.now());
         return Result.success(result);
     }
@@ -40,7 +39,6 @@ public class SystemController {
     public Result<Map<String, Object>> info() {
         SecurityUtils.requireAdmin();
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("version", appProperties.getVersion());
         result.put("javaVersion", System.getProperty("java.version"));
         result.put("profile", activeProfile());
         result.put("dataDir", appProperties.dataPath().toString());

@@ -14,6 +14,7 @@ import { useAuth } from "../context/AuthContext";
 import { LANGUAGES, useI18n } from "../i18n";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { toggleTheme } from "../store/slices/uiSlice";
+import { APP_NAME, appVersionLabel } from "../utils/appInfo";
 import { COUNTRY_CODES, joinPhone } from "../utils/countryCodes";
 import { getTimeZone } from "../utils/clientInfo";
 import { errorMessage } from "../utils/errors";
@@ -260,9 +261,9 @@ export function LoginPage() {
     <div className="login-page">
       <section className="login-editorial">
         <div className="login-brand">
-          <img className="brand-logo is-large" src="/logo.svg" alt="ResumeTrail" />
+          <img className="brand-logo is-large" src="/logo.svg" alt={APP_NAME} />
           <div>
-            <strong>{t("app.name")}</strong>
+            <strong>{APP_NAME}</strong>
             <span>RESUMETRAIL</span>
           </div>
         </div>
@@ -279,7 +280,7 @@ export function LoginPage() {
         </div>
         <div className="editorial-foot">
           <span>{t("login.selfHosted")}</span>
-          <span>V{config?.version ?? import.meta.env.VITE_APP_VERSION ?? "1.2.1"}</span>
+          <span>{appVersionLabel()}</span>
         </div>
       </section>
 

@@ -1,6 +1,5 @@
 // 繁體中文（由簡體中文經 OpenCC s2twp 轉換）
 export const zhTW: Record<string, string> = {
-  "app.name": "履途 ResumeTrail",
   "app.tagline": "把每一次投遞，記成一條清晰的線索。",
   "app.desc": "履途 ResumeTrail 是一個多使用者、可自託管的求職投遞臺賬。公司、連結、時間線、履歷與統計，全部收在一處。",
   "common.loading": "正在載入",

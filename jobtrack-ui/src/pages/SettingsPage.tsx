@@ -13,9 +13,7 @@ import {
 import { CopyOutlined, InfoCircleOutlined, LogoutOutlined, UserOutlined } from "@ant-design/icons";
 import { authApi } from "../api/auth";
 import { databaseApi } from "../api/database";
-import { configApi } from "../api/config";
-import { systemApi } from "../api/system";
-import type { DatabaseInfo, PublicConfig, SystemInfo } from "../api/types";
+import type { DatabaseInfo } from "../api/types";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../context/AuthContext";
 import { LANGUAGES, useI18n } from "../i18n";
@@ -23,6 +21,7 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { savePreferences } from "../store/slices/metaSlice";
 import { setTheme } from "../store/slices/uiSlice";
 import { errorMessage } from "../utils/errors";
+import { APP_NAME, appVersionLabel } from "../utils/appInfo";
 import { copyText, getClientInfo, getDeviceId, type ClientInfo } from "../utils/clientInfo";
 
 interface ProfileValues {
@@ -40,8 +39,6 @@ export function SettingsPage() {
   const [idleEnabled, setIdleEnabled] = useState(preferences?.idleLockEnabled ?? false);
   const [idleMinutes, setIdleMinutes] = useState(preferences?.idleLockMinutes ?? 15);
   const [savingIdle, setSavingIdle] = useState(false);
-  const [systemInfo, setSystemInfo] = useState<SystemInfo | null>(null);
-  const [config, setConfig] = useState<PublicConfig | null>(null);
   const [dbInfo, setDbInfo] = useState<DatabaseInfo | null>(null);
   const [dbTesting, setDbTesting] = useState(false);
   const [dbMessage, setDbMessage] = useState<{ ok: boolean; text: string } | null>(null);
@@ -63,13 +60,10 @@ export function SettingsPage() {
   }, [preferences]);
 
   useEffect(() => {
-    void configApi.get().then(setConfig).catch(() => setConfig(null));
     if (!isAdmin) {
-      setSystemInfo(null);
       setDbInfo(null);
       return;
     }
-    void systemApi.info().then(setSystemInfo).catch(() => setSystemInfo(null));
     void databaseApi
       .info()
       .then(setDbInfo)
@@ -269,12 +263,12 @@ export function SettingsPage() {
             </span>
             <h2>{t("settings.about")}</h2>
             <span className="about-version">
-              {t("settings.versionLabel")} V{systemInfo?.version ?? config?.version ?? "—"}
+              {t("settings.versionLabel")} {appVersionLabel()}
             </span>
           </div>
 
           <div className="about-intro">
-            <h3>{t("app.name")}</h3>
+            <h3>{APP_NAME}</h3>
             <p>{t("settings.aboutDesc")}</p>
           </div>
 
