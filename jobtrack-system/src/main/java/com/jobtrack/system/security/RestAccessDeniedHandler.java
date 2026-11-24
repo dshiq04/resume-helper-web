@@ -1,10 +1,9 @@
 package com.jobtrack.system.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobtrack.common.api.Result;
+import com.jobtrack.common.util.JsonUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.web.access.AccessDeniedHandler;
@@ -14,10 +13,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 
 @Component
-@RequiredArgsConstructor
 public class RestAccessDeniedHandler implements AccessDeniedHandler {
-
-    private final ObjectMapper objectMapper;
 
     @Override
     public void handle(HttpServletRequest request, HttpServletResponse response,
@@ -25,7 +21,7 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        objectMapper.writeValue(response.getWriter(),
-                Result.error(HttpServletResponse.SC_FORBIDDEN, "没有权限执行该操作"));
+        response.getWriter().write(JsonUtils.toJson(
+                Result.error(HttpServletResponse.SC_FORBIDDEN, "没有权限执行该操作")));
     }
 }

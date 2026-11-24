@@ -1,8 +1,8 @@
 package com.jobtrack.system.security;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jobtrack.common.api.Result;
 import com.jobtrack.common.context.TenantContext;
+import com.jobtrack.common.util.JsonUtils;
 import com.jobtrack.system.service.AccessTokenService;
 import com.jobtrack.system.service.BanService;
 import com.jobtrack.system.service.PermissionService;
@@ -49,7 +49,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final SessionService sessionService;
     private final AccessTokenService accessTokenService;
     private final BanService banService;
-    private final ObjectMapper objectMapper;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response,
@@ -161,8 +160,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         String safe = message == null ? "该账号已被封禁" : message;
-        objectMapper.writeValue(response.getWriter(),
-                Result.error(HttpServletResponse.SC_FORBIDDEN, safe));
+        response.getWriter().write(JsonUtils.toJson(
+                Result.error(HttpServletResponse.SC_FORBIDDEN, safe)));
     }
 
     private String resolveToken(HttpServletRequest request) {
