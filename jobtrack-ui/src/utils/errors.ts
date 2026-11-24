@@ -23,13 +23,3 @@ export function errorMessage(error: unknown): string {
   }
   return "操作失败，请稍后再试";
 }
-
-/** 判断是否为指定错误码，兼容 ApiError 与 Redux 序列化后的普通对象。 */
-export function isApiErrorCode(error: unknown, code: string): boolean {
-  return (
-    (error instanceof ApiError && error.code === code) ||
-    (!!error &&
-      typeof error === "object" &&
-      (error as { code?: unknown }).code === code)
-  );
-}

@@ -29,7 +29,6 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -74,7 +73,6 @@ public class AdminUserDataController {
 
     /** 管理员代目标用户新增投递，复用普通用户的创建逻辑。 */
     @PostMapping("/applications")
-    @ResponseStatus(HttpStatus.CREATED)
     public ApplicationRecord createApplication(@PathVariable Long userId,
                                                @Valid @RequestBody ApplicationDTO request) {
         SysUser user = requireUser(userId);
@@ -99,7 +97,6 @@ public class AdminUserDataController {
 
     /** 管理员代目标用户补全状态时间线。 */
     @PostMapping("/applications/{applicationId}/history")
-    @ResponseStatus(HttpStatus.CREATED)
     public Map<String, Object> appendApplicationHistory(@PathVariable Long userId,
                                                         @PathVariable Long applicationId,
                                                         @RequestBody Map<String, String> body) {
@@ -150,7 +147,6 @@ public class AdminUserDataController {
 
     /** 管理员代目标用户上传简历。 */
     @PostMapping("/resumes")
-    @ResponseStatus(HttpStatus.CREATED)
     public ResumeVO createResume(@PathVariable Long userId,
                                  @RequestParam(required = false) String name,
                                  @RequestParam(required = false) String tags,

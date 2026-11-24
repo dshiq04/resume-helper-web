@@ -16,7 +16,7 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { toggleTheme } from "../store/slices/uiSlice";
 import { COUNTRY_CODES, joinPhone } from "../utils/countryCodes";
 import { getTimeZone } from "../utils/clientInfo";
-import { errorMessage, isApiErrorCode } from "../utils/errors";
+import { errorMessage } from "../utils/errors";
 import { EMAIL_PATTERN, FULL_PHONE_PATTERN, LOCAL_PHONE_PATTERN } from "../utils/validation";
 
 type Mode = "login" | "register" | "forgot";
@@ -246,11 +246,7 @@ export function LoginPage() {
       }
     } catch (error) {
       // 登录失败统一提示，避免显示通用错误或暴露账号是否存在。
-      message.error(
-        isApiErrorCode(error, "invalid_credentials")
-          ? t("auth.invalidCredentials")
-          : errorMessage(error),
-      );
+      message.error(errorMessage(error));
       form.setFieldValue("captchaCode", "");
       if (currentConfig.captchaEnabled) {
         void loadCaptcha();

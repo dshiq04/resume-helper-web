@@ -78,13 +78,20 @@ async function api(path, options = {}) {
     headers.Authorization = `Bearer ${state.accessCode}`;
   }
   const response = await fetch(`${state.serverUrl}/api${path}`, { ...options, headers });
-  let data = null;
+  let payload = null;
   try {
-    data = await response.json();
+    payload = await response.json();
   } catch {
-    data = null;
+    payload = null;
   }
-  return { ok: response.ok, status: response.status, data };
+  const envelope = payload && typeof payload.code === "number" ? payload : null;
+  return {
+    ok: response.ok,
+    status: response.status,
+    code: envelope ? envelope.code : response.status,
+    message: envelope ? envelope.message : null,
+    data: envelope ? (envelope.data ?? null) : payload,
+  };
 }
 
 async function validateCode(code) {
@@ -93,16 +100,25 @@ async function validateCode(code) {
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ code }),
   });
-  let data = null;
+  let payload = null;
   try {
-    data = await response.json();
+    payload = await response.json();
   } catch {
-    data = null;
+    payload = null;
   }
-  return { status: response.status, data };
+  const envelope = payload && typeof payload.code === "number" ? payload : null;
+  return {
+    status: response.status,
+    code: envelope ? envelope.code : response.status,
+    message: envelope ? envelope.message : null,
+    data: envelope ? (envelope.data ?? null) : payload,
+  };
 }
 
 function validateMessage(result) {
+  if (result.message) {
+    return result.message;
+  }
   if (result.data && result.data.reason === "banned") {
     return result.data.message || "该账号已被封禁";
   }
@@ -308,9 +324,9 @@ async function handleSubmit(event) {
         setToast("授权码已失效，请重新校验", true);
         showConnectView("授权码已失效，请重新校验");
       } else if (result.status === 403) {
-        setToast((result.data && result.data.error) || "授权码权限不足，无法录入", true);
+        setToast(result.message || (result.data && result.data.error) || "授权码权限不足，无法录入", true);
       } else {
-        setToast((result.data && result.data.error) || "提交失败", true);
+        setToast(result.message || (result.data && result.data.error) || "提交失败", true);
       }
       return;
     }
