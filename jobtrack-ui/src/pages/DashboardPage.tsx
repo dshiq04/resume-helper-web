@@ -10,7 +10,7 @@ import {
   ThunderboltOutlined,
 } from "@ant-design/icons";
 import { applicationApi } from "../api/applications";
-import type { Application, Category, Status } from "../api/types";
+import type { Application, ApplicationUpdate, Category, Status } from "../api/types";
 import { ApplicationCards } from "../components/ApplicationCards";
 import { ApplicationFormDrawer } from "../components/ApplicationFormDrawer";
 import { ApplicationTable } from "../components/ApplicationTable";
@@ -47,6 +47,36 @@ function seasonCategory(): Category {
   if (month >= 8 && month <= 11) return "autumn";
   if (month >= 2 && month <= 5) return "spring";
   return "internship";
+}
+
+/**
+ * 列表内联修改只改动单个字段，但后端校验要求企业名称、状态等必填项齐全。
+ * 因此把当前行数据一并带上，避免出现“企业名称/状态不能为空”的误报。
+ */
+function buildUpdatePayload(
+  record: Application,
+  patch: ApplicationUpdate,
+): ApplicationUpdate {
+  return {
+    category: record.category,
+    companyName: record.companyName,
+    link: record.link,
+    year: record.year,
+    position: record.position,
+    status: record.status,
+    channel: record.channel,
+    city: record.city,
+    salary: record.salary,
+    contact: record.contact,
+    contactInfo: record.contactInfo,
+    workMode: record.workMode,
+    priority: record.priority,
+    interviewRound: record.interviewRound,
+    nextActionAt: record.nextActionAt,
+    notes: record.notes,
+    pinned: record.pinned,
+    ...patch,
+  };
 }
 
 export function DashboardPage({ category }: { category: Category | "all" }) {
@@ -140,7 +170,10 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
 
   const handlePin = async (record: Application) => {
     try {
-      await applicationApi.update(record.id, { pinned: !record.pinned });
+      await applicationApi.update(
+        record.id,
+        buildUpdatePayload(record, { pinned: !record.pinned }),
+      );
       refresh();
     } catch (error) {
       message.error(errorMessage(error));
@@ -149,7 +182,7 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
 
   const handleStatus = async (record: Application, status: Status) => {
     try {
-      await applicationApi.update(record.id, { status });
+      await applicationApi.update(record.id, buildUpdatePayload(record, { status }));
       refresh();
     } catch (error) {
       message.error(errorMessage(error));
@@ -162,7 +195,7 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
     value: string,
   ) => {
     try {
-      await applicationApi.update(record.id, { [field]: value });
+      await applicationApi.update(record.id, buildUpdatePayload(record, { [field]: value }));
       refresh();
     } catch (error) {
       message.error(errorMessage(error));
