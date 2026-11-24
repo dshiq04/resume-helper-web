@@ -109,6 +109,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 : PermissionService.roleOf(permissions),
                         principal.sessionId());
                 bind(authenticated, token, authorities, true);
+            } else if (sessionService.degraded()) {
+                // Redis 异常冷却期间无法确认会话是否仍然有效：
+                // 返回 503 表示服务暂时不可用，而不是误导用户“未登录”。
+                writeUnavailable(response);
+                return false;
             }
             return true;
         } catch (JwtException | IllegalArgumentException exception) {
@@ -162,6 +167,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String safe = message == null ? "该账号已被封禁" : message;
         response.getWriter().write(JsonUtils.toJson(
                 Result.error(HttpServletResponse.SC_FORBIDDEN, safe)));
+    }
+
+    private void writeUnavailable(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write(JsonUtils.toJson(Result.error(
+                HttpServletResponse.SC_SERVICE_UNAVAILABLE, "服务暂时不可用，请稍后重试")));
     }
 
     private String resolveToken(HttpServletRequest request) {

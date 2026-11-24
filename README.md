@@ -1,6 +1,6 @@
 # 履途 ResumeTrail
 
-一个自托管、多用户的求职投递管理服务。后端使用 **Spring Boot 4.2 + MyBatis-Plus**，前端使用 **React + Ant Design + Redux Toolkit**，通过 MyBatis-Plus 多租户拦截器按账号隔离数据。前后端完全分离：后端只提供 REST 接口，前端构建产物输出到 `frontend/dist`，由 Nginx 等静态服务器托管。
+一个自托管、多用户的求职投递管理服务。后端使用 **Spring Boot 4.2 + MyBatis-Plus**，前端使用 **React + Ant Design + Redux Toolkit**，通过 MyBatis-Plus 多租户拦截器按账号隔离数据。前后端完全分离：后端只提供 REST 接口，前端构建产物输出到 `jobtrack-ui/dist`，由 Nginx 等静态服务器托管。
 
 - 默认账号：`admin`
 - 默认密码：`123456`
@@ -15,7 +15,7 @@
 - **多年度投递**：每条记录带年度字段，列表与统计都支持按年度筛选，春招/秋招/实习/社招可以跨年归档。
 - **只必填两项**：公司名称与投递链接必填，其余字段全部选填。
 - **更完整的字段**：岗位、年度、状态、渠道、城市、薪资、联系人、联系方式、工作方式、优先级、面试轮次、下次跟进、备注。
-- **置顶与内联编辑**：置顶记录优先展示；公司名称、投递链接、状态可以直接在表格中修改。
+- **置顶与内联编辑**：置顶记录优先展示；宽屏表格中公司名称、投递链接、状态可直接修改，窄屏（≤1180px）卡片视图仅状态可内联修改，公司名称与投递链接需进入编辑抽屉。
 - **批量操作**：批量修改状态、投递类型、批量删除。
 - **状态时间线**：初筛 → 笔试 → 面试 → Offer/淘汰，记录每个阶段的日期、间隔与停留天数；历史缺失时可以补全。
 - **回收站**：删除先进入回收站，支持恢复、永久删除与清空。
@@ -36,9 +36,9 @@
 - 服务启动时自动执行对应建表脚本，并在空库中创建默认工作区与 `admin / 123456`。
 - 设置页的「数据库连接」只做信息展示与连通性测试；修改数据库请编辑对应环境文件后重启。
 
-### 五种界面语言
+### 六种界面语言
 
-- 简体中文、English、日本語、한국어、Русский，登录页与设置页都可以切换。
+- 简体中文、繁體中文、English、日本語、한국어、Русский，登录页与设置页都可以切换。
 
 ### 统计
 
@@ -62,7 +62,7 @@
   - 投递列表、统计、年度选项优先从 Redis 读取，未命中再查数据库；
   - 公共配置与账号偏好使用 Redis 缓存；
   - 支持图形验证码。
-- Redis 临时不可用时会自动退回进程内存储，不影响登录与业务读写。
+- Redis 临时不可用时会自动退回进程内副本并带退避自动重试，不会永久降级；本实例已登录会话保留，Redis 恢复后自动回填。
 
 ---
 
@@ -96,7 +96,7 @@ resume-helper-web/
 
 ### 前端请求拆分
 
-`frontend/src/api/client.ts` 只保留 axios 实例、token、错误处理与通用请求方法。接口按后端 Controller 拆分：
+`jobtrack-ui/src/api/client.ts` 只保留 axios 实例、token、错误处理与通用请求方法。接口按后端 Controller 拆分：
 
 | 文件 | 对应 Controller |
 | --- | --- |
@@ -144,8 +144,8 @@ resume-helper-web/
 ### 手动启动
 
 ```bash
-# 1. 前端（产物输出到 frontend/dist）
-cd frontend
+# 1. 前端（产物输出到 jobtrack-ui/dist）
+cd jobtrack-ui
 npm install
 npm run build
 
@@ -172,22 +172,22 @@ export SPRING_PROFILES_ACTIVE=test
 mvn -pl jobtrack-web -am spring-boot:run
 
 # 终端 2：前端（Vite 代理 /api 到 18080）
-cd frontend
+cd jobtrack-ui
 npm run dev
 ```
 
-Vite 默认监听 `0.0.0.0:5173`，同一局域网内的手机/平板可通过终端输出的 `Network` 地址访问。若只允许本机访问，在 `frontend/.env.development` 中设置 `VITE_DEV_HOST=127.0.0.1`。
+Vite 默认监听 `0.0.0.0:5173`，同一局域网内的手机/平板可通过终端输出的 `Network` 地址访问。若只允许本机访问，在 `jobtrack-ui/.env.development` 中设置 `VITE_DEV_HOST=127.0.0.1`。
 
 ---
 
 ## 前端 .env
 
-前端构建环境变量位于 `frontend/.env`：
+前端构建环境变量位于 `jobtrack-ui/.env`：
 
 | 变量 | 说明 | 默认值 |
 | --- | --- | --- |
 | `VITE_APP_TITLE` | 浏览器标题 | `履途 ResumeTrail` |
-| `VITE_APP_VERSION` | 前端兜底版本号 | `1.2` |
+| `VITE_APP_VERSION` | 前端兜底版本号 | `1.2.1` |
 | `VITE_APP_DEFAULT_LANGUAGE` | 默认界面语言 | `zh-CN` |
 | `VITE_SHOW_DEVELOPMENT_WATERMARK` | 是否显示「开发中品质，请谅解」水印 | `true` |
 | `VITE_API_BASE_URL` | 后端接口地址 | `/api` |
@@ -300,7 +300,7 @@ app:
 ### Redis 与验证码
 
 - dev / test / prod 三个环境默认都开启 Redis 与图形验证码（`redis.enabled: true`、`captcha.enabled: true`）。
-- 启动前请确保 Redis 可用；验证码写入 Redis 失败时会返回 503，在线状态会自动退回进程内存储。
+- 启动前请确保 Redis 可用；验证码写入 Redis 失败时会返回 503，在线状态与会话会自动退回进程内副本并定时重试 Redis。
 - 如确实不需要，可在对应 yml 中把二者改为 `false`（验证码依赖 Redis，不能只开验证码不开 Redis，否则服务拒绝启动）。
 - 验证码类型支持 `char`（字母数字）和 `math`（算术）。
 
@@ -308,7 +308,7 @@ app:
 
 ## 前端部署
 
-前端构建产物位于 `frontend/dist`，可以放到任意静态服务器。Nginx 同域部署示例：
+前端构建产物位于 `jobtrack-ui/dist`，可以放到任意静态服务器。Nginx 同域部署示例：
 
 ```nginx
 server {
@@ -456,7 +456,7 @@ Content-Type: application/json
 | `POST` | `/api/applications/import` | 导入 Excel |
 | `POST` | `/api/applications` | 新增投递 |
 | `GET` | `/api/application/{id}` | 投递详情 |
-| `PUT` | `/api/application/{id}` | 局部更新 |
+| `PUT` | `/api/application/{id}` | 更新投递（必填字段必须提供，选填字段为 `null` 时保持不变） |
 | `DELETE` | `/api/application/{id}` | 删除（进入回收站） |
 | `GET/POST` | `/api/application/{id}/history` | 状态时间线 / 补全阶段 |
 | `GET` | `/api/applications/companies` | 公司名补全 |

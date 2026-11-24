@@ -1,5 +1,6 @@
 package com.jobtrack.system.pojo.dto;
 
+import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
 
@@ -15,6 +16,7 @@ public class UserProfileDTO {
     private String realName;
 
     @Size(max = 16)
+    @Pattern(regexp = "^(male|female|other)?$", message = "性别取值不正确")
     private String gender;
 
     private LocalDate birthday;
@@ -44,9 +46,11 @@ public class UserProfileDTO {
     private String expectedSalary;
 
     @Size(max = 16)
+    @Pattern(regexp = "^(onsite|hybrid|remote)?$", message = "工作方式取值不正确")
     private String workMode;
 
     @Size(max = 16)
+    @Pattern(regexp = "^(looking|employed|student)?$", message = "求职状态取值不正确")
     private String jobStatus;
 
     private LocalDate availableDate;

@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { App as AntdApp, Button, Form, Input, Modal, Select } from "antd";
+import { App as AntdApp, Button, Form, Input, InputNumber, Modal, Select } from "antd";
 import { applicationApi } from "../api/applications";
 import { configApi } from "../api/config";
+import { quickEntryApi } from "../api/quickEntry";
 import type { Category, PublicConfig } from "../api/types";
 import { useI18n } from "../i18n";
 import { errorMessage } from "../utils/errors";
@@ -19,7 +20,12 @@ interface Values {
   companyName: string;
   link: string;
   category: Category;
+  year: number;
   position?: string;
+}
+
+function currentYear() {
+  return new Date().getFullYear();
 }
 
 export function QuickEntryModal({ open, defaultCategory, onClose, onSaved }: Props) {
@@ -32,7 +38,18 @@ export function QuickEntryModal({ open, defaultCategory, onClose, onSaved }: Pro
   useEffect(() => {
     if (open) {
       form.setFieldValue("category", defaultCategory);
+      form.setFieldValue("year", currentYear());
       void configApi.get().then(setConfig).catch(() => setConfig(null));
+      // 年度以服务端时间为准，避免本机时钟偏差把跨年度补录归错年度。
+      void quickEntryApi
+        .defaults()
+        .then((defaults) => {
+          const year = Number(defaults.serverTime?.slice(0, 4));
+          if (Number.isInteger(year) && year > 0) {
+            form.setFieldValue("year", year);
+          }
+        })
+        .catch(() => undefined);
     }
   }, [defaultCategory, form, open]);
 
@@ -42,13 +59,13 @@ export function QuickEntryModal({ open, defaultCategory, onClose, onSaved }: Pro
       await applicationApi.create({
         ...values,
         status: "screening",
-        year: new Date().getFullYear(),
       });
       message.success(t("quick.success"));
       notifyDataChanged();
       onSaved();
       form.resetFields();
       form.setFieldValue("category", defaultCategory);
+      form.setFieldValue("year", currentYear());
     } catch (error) {
       message.error(errorMessage(error));
     } finally {
@@ -89,10 +106,17 @@ export function QuickEntryModal({ open, defaultCategory, onClose, onSaved }: Pro
               )}
             />
           </Form.Item>
-          <Form.Item name="position" label={t("field.position")}>
-            <Input placeholder={t("common.optional")} />
+          <Form.Item
+            name="year"
+            label={t("field.year")}
+            rules={[{ required: true, message: t("form.yearRequired") }]}
+          >
+            <InputNumber min={2000} max={2100} precision={0} style={{ width: "100%" }} />
           </Form.Item>
         </div>
+        <Form.Item name="position" label={t("field.position")}>
+          <Input placeholder={t("common.optional")} />
+        </Form.Item>
         <div className="modal-actions">
           <Button onClick={onClose}>{t("common.close")}</Button>
           <Button type="primary" htmlType="submit" loading={saving}>

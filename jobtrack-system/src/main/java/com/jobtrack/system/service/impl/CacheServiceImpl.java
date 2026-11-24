@@ -28,28 +28,34 @@ import java.util.function.Supplier;
 @RequiredArgsConstructor
 public class CacheServiceImpl implements CacheService {
 
+    private static final long REDIS_RETRY_BASE_MS = 5_000;
+    private static final long REDIS_RETRY_MAX_MS = 60_000;
+
     private final RedisSettings redisSettings;
     private final StringRedisTemplate redisTemplate;
 
     private final Map<String, MemoryEntry> memory = new ConcurrentHashMap<>();
     private final AtomicLong epoch = new AtomicLong();
-    private volatile boolean redisAvailable;
+    private final AtomicLong redisFailures = new AtomicLong();
+    private volatile boolean redisEnabled;
+    private volatile long redisRetryAt;
 
     @PostConstruct
     void init() {
-        redisAvailable = redisSettings.isEnabled() && redisTemplate != null;
-        log.info("共享配置缓存: {}", redisAvailable ? "Redis" : "进程内");
+        redisEnabled = redisSettings.isEnabled() && redisTemplate != null;
+        log.info("共享配置缓存: {}", redisEnabled ? "Redis" : "进程内");
     }
 
     public String getString(String key) {
         if (useRedis()) {
             try {
                 String value = redisTemplate.opsForValue().get(redisKey(key));
+                recordRedisSuccess();
                 if (value != null) {
                     return value;
                 }
             } catch (Exception exception) {
-                disableRedis(exception);
+                recordRedisFailure(exception);
             }
         }
         MemoryEntry entry = memory.get(key);
@@ -70,9 +76,10 @@ public class CacheServiceImpl implements CacheService {
         if (useRedis()) {
             try {
                 redisTemplate.opsForValue().set(redisKey(key), value, ttl);
+                recordRedisSuccess();
                 return;
             } catch (Exception exception) {
-                disableRedis(exception);
+                recordRedisFailure(exception);
             }
         }
         memory.put(key, new MemoryEntry(value, Instant.now().plus(ttl)));
@@ -82,8 +89,9 @@ public class CacheServiceImpl implements CacheService {
         if (useRedis()) {
             try {
                 redisTemplate.delete(redisKey(key));
+                recordRedisSuccess();
             } catch (Exception exception) {
-                disableRedis(exception);
+                recordRedisFailure(exception);
             }
         }
         memory.remove(key);
@@ -121,13 +129,24 @@ public class CacheServiceImpl implements CacheService {
     }
 
     private boolean useRedis() {
-        return redisAvailable && redisTemplate != null;
+        return redisEnabled && redisTemplate != null
+                && System.currentTimeMillis() >= redisRetryAt;
     }
 
-    private void disableRedis(Exception exception) {
-        if (redisAvailable) {
-            log.warn("Redis 不可用，共享配置临时切换到进程内缓存: {}", exception.getMessage());
-            redisAvailable = false;
+    /** 故障后冷却并自动重试，避免一次异常永久降级为进程内缓存。 */
+    private void recordRedisFailure(Exception exception) {
+        long failures = redisFailures.incrementAndGet();
+        long delay = Math.min(REDIS_RETRY_MAX_MS,
+                REDIS_RETRY_BASE_MS << Math.min(failures - 1, 4));
+        redisRetryAt = System.currentTimeMillis() + delay;
+        log.warn("Redis 访问失败，{} ms 后重试；共享配置本次使用进程内缓存: {}",
+                delay, exception.getMessage());
+    }
+
+    private void recordRedisSuccess() {
+        redisRetryAt = 0;
+        if (redisFailures.getAndSet(0) > 0) {
+            log.info("Redis 已恢复，共享配置重新写入 Redis");
         }
     }
 

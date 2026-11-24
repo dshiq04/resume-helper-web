@@ -221,6 +221,8 @@ export const zhTW: Record<string, string> = {
   "trash.clearConfirm": "確定清空回收站？所有記錄將被永久刪除。",
   "trash.deleteConfirm": "確定永久刪除「{name}」？",
   "trash.restored": "已恢復",
+  "trash.deleted": "已永久刪除",
+  "trash.cleared": "回收站已清空",
   "settings.title": "設定",
   "settings.subtitle": "賬號、安全、外觀與資料。",
   "settings.account": "賬號",

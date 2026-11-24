@@ -114,9 +114,9 @@ async function validate(silent = false) {
     return true;
   } catch {
     if (!silent) {
-      showError("无法连接服务端，请检查服务器与端口");
+      showError("暂时无法连接到服务器");
     }
-    setStatus("无法连接服务端", false);
+    setStatus("暂时无法连接到服务器", false);
     return false;
   }
 }

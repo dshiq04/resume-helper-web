@@ -18,6 +18,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 在线会话存储。
@@ -34,13 +35,19 @@ public class SessionService {
     private final RedisSettings redisSettings;
     private final StringRedisTemplate redisTemplate;
 
+    private static final long REDIS_RETRY_BASE_MS = 5_000;
+    private static final long REDIS_RETRY_MAX_MS = 60_000;
+
     private final Map<String, MemorySession> memory = new ConcurrentHashMap<>();
-    private volatile boolean redisAvailable;
+    private final AtomicLong redisFailures = new AtomicLong();
+    /** Redis 是否在配置中启用；运行期不再永久关闭，只做冷却重试。 */
+    private volatile boolean redisEnabled;
+    private volatile long redisRetryAt;
 
     @PostConstruct
     void init() {
-        redisAvailable = redisSettings.isEnabled() && redisTemplate != null;
-        log.info("在线状态存储: {}", redisAvailable ? "Redis" : "进程内");
+        redisEnabled = redisSettings.isEnabled() && redisTemplate != null;
+        log.info("在线状态存储: {}", redisEnabled ? "Redis" : "进程内");
     }
 
     public String create(SessionInfo info, Duration ttl) {
@@ -50,15 +57,18 @@ public class SessionService {
     }
 
     public void save(String sid, SessionInfo info, Duration ttl) {
+        // 始终保留一份进程内副本：Redis 短暂异常时，本实例已登录用户不会立刻掉线。
+        MemorySession session = new MemorySession(info, Instant.now().plus(ttl), false);
+        memory.put(sid, session);
         if (useRedis()) {
             try {
                 writeRedis(sid, info, ttl);
-                return;
+                session.redisBacked = true;
+                recordRedisSuccess();
             } catch (Exception exception) {
-                disableRedis(exception);
+                recordRedisFailure(exception);
             }
         }
-        memory.put(sid, new MemorySession(info, Instant.now().plus(ttl)));
     }
 
     /**
@@ -71,14 +81,40 @@ public class SessionService {
         if (useRedis()) {
             try {
                 SessionInfo info = readRedis(sid);
+                recordRedisSuccess();
                 if (info != null) {
                     touchRedis(sid, info, ttl);
+                    memory.put(sid, new MemorySession(info, Instant.now().plus(ttl), true));
+                    return info;
                 }
-                return info;
+                // Redis 是权威来源：已有会话被踢出/退出后不能在内存中复活。
+                // 只有“故障期间只写入内存”的会话才回填 Redis。
+                MemorySession local = memory.get(sid);
+                if (local != null && local.expiresAt.isBefore(Instant.now())) {
+                    memory.remove(sid);
+                    local = null;
+                }
+                if (local != null && !local.redisBacked) {
+                    try {
+                        writeRedis(sid, local.info, ttl);
+                        local.redisBacked = true;
+                        local.expiresAt = Instant.now().plus(ttl);
+                        return local.info;
+                    } catch (Exception exception) {
+                        recordRedisFailure(exception);
+                    }
+                } else if (local != null) {
+                    memory.remove(sid);
+                }
+                return null;
             } catch (Exception exception) {
-                disableRedis(exception);
+                recordRedisFailure(exception);
             }
         }
+        return resolveMemory(sid, ttl);
+    }
+
+    private SessionInfo resolveMemory(String sid, Duration ttl) {
         MemorySession session = memory.get(sid);
         if (session == null) {
             return null;
@@ -95,6 +131,8 @@ public class SessionService {
         if (sid == null || sid.isBlank()) {
             return;
         }
+        // 内存副本必须先清理，避免 Redis 异常时旧会话在内存中复活。
+        memory.remove(sid);
         if (useRedis()) {
             try {
                 SessionInfo info = readRedis(sid);
@@ -109,12 +147,11 @@ public class SessionService {
                                 String.valueOf(info.getUserId()));
                     }
                 }
-                return;
+                recordRedisSuccess();
             } catch (Exception exception) {
-                disableRedis(exception);
+                recordRedisFailure(exception);
             }
         }
-        memory.remove(sid);
     }
 
     /**
@@ -137,8 +174,9 @@ public class SessionService {
                 if (tenantId != null) {
                     redisTemplate.opsForZSet().remove(tenantKey(tenantId), String.valueOf(userId));
                 }
+                recordRedisSuccess();
             } catch (Exception exception) {
-                disableRedis(exception);
+                recordRedisFailure(exception);
             }
         }
         memory.entrySet().removeIf(entry -> userId.equals(entry.getValue().info.getUserId()));
@@ -149,7 +187,8 @@ public class SessionService {
      * 该方法不按租户过滤，管理员可以看到全部工作区的会话。
      */
     public List<OnlineSession> listSessions() {
-        List<OnlineSession> result = new ArrayList<>();
+        Map<String, OnlineSession> merged = new java.util.LinkedHashMap<>();
+        boolean redisRead = false;
         if (useRedis()) {
             String prefix = redisSettings.getKeyPrefix() + "session:";
             try (Cursor<String> cursor = redisTemplate.scan(ScanOptions.scanOptions()
@@ -163,27 +202,33 @@ public class SessionService {
                     try {
                         SessionInfo info = JsonUtils.fromJson(value, SessionInfo.class);
                         Long ttl = redisTemplate.getExpire(key);
-                        result.add(new OnlineSession(key.substring(prefix.length()), info,
+                        String sid = key.substring(prefix.length());
+                        merged.put(sid, new OnlineSession(sid, info,
                                 ttl == null ? 0 : Math.max(0, ttl)));
                     } catch (IllegalArgumentException exception) {
                         redisTemplate.delete(key);
                     }
                 }
-                return result;
+                recordRedisSuccess();
+                redisRead = true;
             } catch (Exception exception) {
-                disableRedis(exception);
+                recordRedisFailure(exception);
             }
         }
         Instant now = Instant.now();
+        boolean redisAuthoritative = redisRead;
         memory.forEach((sid, session) -> {
             if (session.expiresAt.isAfter(now)) {
-                result.add(new OnlineSession(sid, session.info,
-                        Duration.between(now, session.expiresAt).toSeconds()));
+                // Redis 可读时只补充异常期间尚未写入 Redis 的会话，避免已踢出的会话重新出现。
+                if (!redisAuthoritative || !session.redisBacked) {
+                    merged.putIfAbsent(sid, new OnlineSession(sid, session.info,
+                            Duration.between(now, session.expiresAt).toSeconds()));
+                }
             } else {
                 memory.remove(sid);
             }
         });
-        return result;
+        return new ArrayList<>(merged.values());
     }
 
     public long countOnline(Long tenantId) {
@@ -195,9 +240,10 @@ public class SessionService {
                 String key = tenantKey(tenantId);
                 redisTemplate.opsForZSet().removeRangeByScore(key, 0, System.currentTimeMillis());
                 Long count = redisTemplate.opsForZSet().zCard(key);
+                recordRedisSuccess();
                 return count == null ? 0 : count;
             } catch (Exception exception) {
-                disableRedis(exception);
+                recordRedisFailure(exception);
             }
         }
         Instant now = Instant.now();
@@ -216,14 +262,36 @@ public class SessionService {
         return useRedis() ? "redis" : "memory";
     }
 
-    private boolean useRedis() {
-        return redisAvailable && redisTemplate != null;
+    /**
+     * Redis 因异常进入冷却期时为 true。此时无法确认会话是否仍然有效，
+     * 调用方应返回 503 而不是把用户误判为“未登录”。
+     */
+    public boolean degraded() {
+        return redisEnabled && redisTemplate != null && !useRedis();
     }
 
-    private void disableRedis(Exception exception) {
-        if (redisAvailable) {
-            log.warn("Redis 不可用，在线状态临时切换到进程内存储: {}", exception.getMessage());
-            redisAvailable = false;
+    private boolean useRedis() {
+        return redisEnabled && redisTemplate != null
+                && System.currentTimeMillis() >= redisRetryAt;
+    }
+
+    /**
+     * Redis 故障后只进入短暂冷却，带指数退避自动重试；不再永久关闭，
+     * 也不丢弃已经写入 Redis 的会话。冷却期间读写回退到进程内副本。
+     */
+    private void recordRedisFailure(Exception exception) {
+        long failures = redisFailures.incrementAndGet();
+        long delay = Math.min(REDIS_RETRY_MAX_MS,
+                REDIS_RETRY_BASE_MS << Math.min(failures - 1, 4));
+        redisRetryAt = System.currentTimeMillis() + delay;
+        log.warn("Redis 访问失败，{} ms 后重试；本次使用进程内存储: {}",
+                delay, exception.getMessage());
+    }
+
+    private void recordRedisSuccess() {
+        redisRetryAt = 0;
+        if (redisFailures.getAndSet(0) > 0) {
+            log.info("Redis 已恢复，在线状态重新写入 Redis");
         }
     }
 
@@ -283,10 +351,13 @@ public class SessionService {
     private static final class MemorySession {
         private final SessionInfo info;
         private Instant expiresAt;
+        /** 是否已成功写入 Redis；用于区分故障期间仅存内存的会话。 */
+        private boolean redisBacked;
 
-        private MemorySession(SessionInfo info, Instant expiresAt) {
+        private MemorySession(SessionInfo info, Instant expiresAt, boolean redisBacked) {
             this.info = info;
             this.expiresAt = expiresAt;
+            this.redisBacked = redisBacked;
         }
     }
 }

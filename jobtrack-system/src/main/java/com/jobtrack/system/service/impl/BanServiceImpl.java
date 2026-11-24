@@ -19,6 +19,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * 封禁集合：Redis ZSet + 进程内兜底，封禁详情来自 sys_user_ban 记录表。
@@ -30,6 +31,8 @@ public class BanServiceImpl implements BanService {
 
     private static final String BAN_KEY = "ban:users";
     private static final long PERMANENT_SCORE = Long.MAX_VALUE;
+    private static final long REDIS_RETRY_BASE_MS = 5_000;
+    private static final long REDIS_RETRY_MAX_MS = 60_000;
     private static final DateTimeFormatter TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
     private final RedisSettings redisSettings;
@@ -37,12 +40,14 @@ public class BanServiceImpl implements BanService {
     private final SysUserBanMapper banMapper;
 
     private final Map<Long, Long> memory = new ConcurrentHashMap<>();
-    private volatile boolean redisAvailable;
+    private final AtomicLong redisFailures = new AtomicLong();
+    private volatile boolean redisEnabled;
+    private volatile long redisRetryAt;
 
     @PostConstruct
     void init() {
-        redisAvailable = redisSettings.isEnabled() && redisTemplate != null;
-        log.info("封禁集合存储: {}", redisAvailable ? "Redis" : "进程内");
+        redisEnabled = redisSettings.isEnabled() && redisTemplate != null;
+        log.info("封禁集合存储: {}", redisEnabled ? "Redis" : "进程内");
     }
 
     public SysUserBan activeBan(Long userId) {
@@ -74,6 +79,7 @@ public class BanServiceImpl implements BanService {
         if (useRedis()) {
             try {
                 Double score = redisTemplate.opsForZSet().score(banKey(), String.valueOf(userId));
+                recordRedisSuccess();
                 if (score == null) {
                     memory.remove(userId);
                     return false;
@@ -87,7 +93,7 @@ public class BanServiceImpl implements BanService {
                 redisTemplate.opsForZSet().remove(banKey(), String.valueOf(userId));
                 return false;
             } catch (Exception exception) {
-                disableRedis(exception);
+                recordRedisFailure(exception);
             }
         }
         Long memoryScore = memory.get(userId);
@@ -156,8 +162,9 @@ public class BanServiceImpl implements BanService {
             if (useRedis()) {
                 try {
                     redisTemplate.opsForZSet().remove(banKey(), String.valueOf(userId));
+                    recordRedisSuccess();
                 } catch (Exception exception) {
-                    disableRedis(exception);
+                    recordRedisFailure(exception);
                 }
             }
             return;
@@ -169,8 +176,9 @@ public class BanServiceImpl implements BanService {
         if (useRedis()) {
             try {
                 redisTemplate.opsForZSet().add(banKey(), String.valueOf(userId), score);
+                recordRedisSuccess();
             } catch (Exception exception) {
-                disableRedis(exception);
+                recordRedisFailure(exception);
             }
         }
     }
@@ -182,8 +190,9 @@ public class BanServiceImpl implements BanService {
                 try {
                     // 全量重建，避免已解除或已到期的封禁残留在 Redis。
                     redisTemplate.delete(banKey());
+                    recordRedisSuccess();
                 } catch (Exception exception) {
-                    disableRedis(exception);
+                    recordRedisFailure(exception);
                 }
             }
             memory.clear();
@@ -218,13 +227,24 @@ public class BanServiceImpl implements BanService {
     }
 
     private boolean useRedis() {
-        return redisAvailable && redisTemplate != null;
+        return redisEnabled && redisTemplate != null
+                && System.currentTimeMillis() >= redisRetryAt;
     }
 
-    private void disableRedis(Exception exception) {
-        if (redisAvailable) {
-            log.warn("Redis 不可用，封禁集合临时切换到进程内存储: {}", exception.getMessage());
-            redisAvailable = false;
+    /** 故障后冷却并自动重试，避免一次异常永久降级为进程内存储。 */
+    private void recordRedisFailure(Exception exception) {
+        long failures = redisFailures.incrementAndGet();
+        long delay = Math.min(REDIS_RETRY_MAX_MS,
+                REDIS_RETRY_BASE_MS << Math.min(failures - 1, 4));
+        redisRetryAt = System.currentTimeMillis() + delay;
+        log.warn("Redis 访问失败，{} ms 后重试；封禁集合本次使用进程内存储: {}",
+                delay, exception.getMessage());
+    }
+
+    private void recordRedisSuccess() {
+        redisRetryAt = 0;
+        if (redisFailures.getAndSet(0) > 0) {
+            log.info("Redis 已恢复，封禁集合重新同步到 Redis");
         }
     }
 

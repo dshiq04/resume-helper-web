@@ -3,6 +3,7 @@ const DEFAULT_PORT = "18080";
 const SERVER_KEY = "jobtrack.serverUrl";
 const CODE_KEY = "jobtrack.accessCode";
 const CATEGORY_KEY = "jobtrack.defaultCategory";
+const OFFLINE_MESSAGE = "暂时无法连接到服务器";
 
 const state = {
   serverUrl: `${DEFAULT_HOST}:${DEFAULT_PORT}`,
@@ -10,6 +11,7 @@ const state = {
   info: null,
   defaults: null,
   category: "spring",
+  serverYear: null,
 };
 
 const $ = (id) => document.getElementById(id);
@@ -50,6 +52,48 @@ function showError(element, message) {
   element.hidden = false;
 }
 
+function setOffline(offline) {
+  const banner = $("offline-banner");
+  if (!banner) return;
+  banner.textContent = offline ? OFFLINE_MESSAGE : "";
+  banner.hidden = !offline;
+}
+
+function serverYearFrom(value) {
+  const match = /^(\d{4})/.exec(String(value || ""));
+  if (!match) return null;
+  const year = Number(match[1]);
+  return Number.isInteger(year) && year > 0 ? year : null;
+}
+
+async function refreshServerClock() {
+  try {
+    const response = await fetch(`${state.serverUrl}/api/health`, {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      setOffline(true);
+      return null;
+    }
+    let payload = null;
+    try {
+      payload = await response.json();
+    } catch {
+      payload = null;
+    }
+    const data = payload && typeof payload.code === "number" ? payload.data : payload;
+    const year = serverYearFrom(data && data.time);
+    if (year) {
+      state.serverYear = year;
+      setOffline(false);
+    }
+    return year;
+  } catch {
+    setOffline(true);
+    return null;
+  }
+}
+
 function setToast(message, isError = false) {
   const toast = $("toast");
   toast.textContent = message;
@@ -77,7 +121,14 @@ async function api(path, options = {}) {
   if (state.accessCode) {
     headers.Authorization = `Bearer ${state.accessCode}`;
   }
-  const response = await fetch(`${state.serverUrl}/api${path}`, { ...options, headers });
+  let response;
+  try {
+    response = await fetch(`${state.serverUrl}/api${path}`, { ...options, headers });
+    setOffline(false);
+  } catch (error) {
+    setOffline(true);
+    throw error;
+  }
   let payload = null;
   try {
     payload = await response.json();
@@ -95,11 +146,18 @@ async function api(path, options = {}) {
 }
 
 async function validateCode(code) {
-  const response = await fetch(`${state.serverUrl}/api/tokens/validate`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ code }),
-  });
+  let response;
+  try {
+    response = await fetch(`${state.serverUrl}/api/tokens/validate`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+    setOffline(false);
+  } catch (error) {
+    setOffline(true);
+    throw error;
+  }
   let payload = null;
   try {
     payload = await response.json();
@@ -169,6 +227,10 @@ async function loadDefaults() {
     if (result.ok && result.data) {
       state.defaults = result.data;
       selectCategory(result.data.defaultCategory);
+      const year = serverYearFrom(result.data.serverTime);
+      if (year) {
+        state.serverYear = year;
+      }
     }
   } catch {
     applyCategory();
@@ -273,7 +335,8 @@ async function handleConnect(event) {
     });
     await startEntry();
   } catch {
-    showError(error, "无法连接服务端，请检查服务器与端口");
+    setOffline(true);
+    showError(error, OFFLINE_MESSAGE);
   } finally {
     button.disabled = false;
   }
@@ -307,12 +370,19 @@ async function handleSubmit(event) {
     }
     state.info = checked.data;
     applyScope();
+    // 年度以服务器时间为准；提交前重新获取，避免本机时钟偏差或跨年时归错年度。
+    await refreshServerClock();
+    if (!state.serverYear) {
+      setOffline(true);
+      setToast(OFFLINE_MESSAGE, true);
+      return;
+    }
     const payload = {
       companyName: company,
       link,
       category: state.category,
       status: "screening",
-      year: new Date().getFullYear(),
+      year: state.serverYear,
     };
     const result = await api("/applications", {
       method: "POST",
@@ -335,7 +405,8 @@ async function handleSubmit(event) {
     $("link").value = "";
     $("company").focus();
   } catch {
-    setToast("无法连接服务端", true);
+    setOffline(true);
+    setToast(OFFLINE_MESSAGE, true);
   } finally {
     button.disabled = false;
   }
@@ -348,11 +419,20 @@ function showConnectView(message) {
 }
 
 async function init() {
-  await loadSettings();
-  fillFromQuery();
+  try {
+    await loadSettings();
+    fillFromQuery();
+  } catch {
+    fillFromQuery();
+    setOffline(true);
+    showConnectView(OFFLINE_MESSAGE);
+    return;
+  }
 
   if (!state.accessCode) {
     showView("connect");
+    // 打开弹窗时先探测服务器，无法连接时明确提示，而不是留下空白内容。
+    await refreshServerClock();
     return;
   }
   try {
@@ -365,7 +445,8 @@ async function init() {
     }
     showConnectView(validateMessage(result));
   } catch {
-    showConnectView("无法连接服务端，请检查服务器与端口");
+    setOffline(true);
+    showConnectView(OFFLINE_MESSAGE);
   }
 }
 

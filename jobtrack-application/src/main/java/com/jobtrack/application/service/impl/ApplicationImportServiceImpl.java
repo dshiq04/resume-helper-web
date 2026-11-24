@@ -187,12 +187,17 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
 
     private String mapCategory(String raw) {
         String value = trim(raw).toLowerCase(Locale.ROOT);
+        if (value.isEmpty()) {
+            throw BusinessException.badRequest("category_required",
+                    "投递类型不能为空，请填写：春招、秋招、实习、社招");
+        }
         return switch (value) {
             case "spring", "春招" -> DomainConstants.CATEGORY_SPRING;
             case "autumn", "秋招" -> DomainConstants.CATEGORY_AUTUMN;
             case "internship", "实习" -> DomainConstants.CATEGORY_INTERNSHIP;
             case "social", "社招", "社会招聘" -> DomainConstants.CATEGORY_SOCIAL;
-            default -> DomainConstants.CATEGORY_SPRING;
+            default -> throw BusinessException.badRequest("category_invalid",
+                    "投递类型不存在，请填写：春招、秋招、实习、社招");
         };
     }
 

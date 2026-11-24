@@ -19,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -291,11 +290,17 @@ public class StatsServiceImpl implements StatsService {
 
     private List<ApplicationRecord> applications(Range range) {
         var query = Wrappers.<ApplicationRecord>lambdaQuery();
-        if (range.from != null) {
-            query.ge(ApplicationRecord::getAppliedAt, range.from);
-        }
-        if (range.to != null) {
-            query.le(ApplicationRecord::getAppliedAt, range.to);
+        if (range.year != null) {
+            // 年度筛选与投递列表保持一致，按记录自身的 apply_year 过滤，
+            // 而不是把年度换算成 applied_at 的起止时间。
+            query.eq(ApplicationRecord::getApplyYear, range.year);
+        } else {
+            if (range.from != null) {
+                query.ge(ApplicationRecord::getAppliedAt, range.from);
+            }
+            if (range.to != null) {
+                query.le(ApplicationRecord::getAppliedAt, range.to);
+            }
         }
         query.orderByAsc(ApplicationRecord::getAppliedAt).orderByAsc(ApplicationRecord::getId);
         return applicationMapper.selectList(query);
@@ -304,14 +309,12 @@ public class StatsServiceImpl implements StatsService {
     private Range range(String from, String to, Integer year) {
         LocalDateTime fromTime = parse(from);
         LocalDateTime toTime = parse(to);
-        if (fromTime == null && toTime == null && year != null) {
-            fromTime = LocalDate.of(year, 1, 1).atStartOfDay();
-            toTime = LocalDate.of(year, 12, 31).atTime(23, 59, 59, 999_000_000);
-        }
         if (fromTime != null && toTime != null && toTime.isBefore(fromTime)) {
             throw BusinessException.badRequest("invalid_range", "结束时间必须晚于开始时间");
         }
-        return new Range(fromTime, toTime);
+        // 只有未指定自定义时间范围时才使用年度筛选；两者互斥，年度优先按 apply_year。
+        Integer yearFilter = fromTime == null && toTime == null ? year : null;
+        return new Range(fromTime, toTime, yearFilter);
     }
 
     private Integer normalizeYear(Integer year) {
@@ -358,7 +361,7 @@ public class StatsServiceImpl implements StatsService {
         return Math.round(value * 10.0) / 10.0;
     }
 
-    private record Range(LocalDateTime from, LocalDateTime to) {
+    private record Range(LocalDateTime from, LocalDateTime to, Integer year) {
     }
 
     private static final class CompanyStat {
