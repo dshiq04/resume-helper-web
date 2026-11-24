@@ -1,5 +1,7 @@
 package com.jobtrack.system.controller;
 
+import com.jobtrack.common.api.Result;
+
 import com.jobtrack.system.pojo.dto.AccessTokenCreateDTO;
 import com.jobtrack.system.pojo.dto.AdminPasswordDTO;
 import com.jobtrack.system.pojo.dto.AdminStatusDTO;
@@ -43,98 +45,98 @@ public class AdminUserController {
     private final AdminService adminService;
 
     @GetMapping
-    public AdminUserPageVO list(
+    public Result<AdminUserPageVO> list(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
-        return adminService.listUsers(search, status, page, pageSize);
+        return Result.success(adminService.listUsers(search, status, page, pageSize));
     }
 
     @GetMapping("/{id}")
-    public AdminUserDetailVO detail(@PathVariable Long id) {
-        return adminService.detail(id);
+    public Result<AdminUserDetailVO> detail(@PathVariable Long id) {
+        return Result.success(adminService.detail(id));
     }
 
     /** 管理端查看用户协议签署记录与签署信息，用于展示与导出。 */
     @GetMapping("/{id}/agreement")
-    public UserAgreementVO agreement(@PathVariable Long id) {
-        return adminService.userAgreement(id);
+    public Result<UserAgreementVO> agreement(@PathVariable Long id) {
+        return Result.success(adminService.userAgreement(id));
     }
 
     @PutMapping("/{id}")
-    public AdminUserVO update(@PathVariable Long id,
+    public Result<AdminUserVO> update(@PathVariable Long id,
                               @Valid @RequestBody AdminUserUpdateDTO request) {
-        return adminService.updateUser(id, request);
+        return Result.success(adminService.updateUser(id, request));
     }
 
     @PutMapping("/{id}/profile")
-    public UserProfileVO saveProfile(@PathVariable Long id,
+    public Result<UserProfileVO> saveProfile(@PathVariable Long id,
                                      @Valid @RequestBody UserProfileDTO request) {
-        return adminService.saveProfile(id, request);
+        return Result.success(adminService.saveProfile(id, request));
     }
 
     @PutMapping("/{id}/contact")
-    public UserProfileVO saveContact(@PathVariable Long id,
+    public Result<UserProfileVO> saveContact(@PathVariable Long id,
                                      @Valid @RequestBody ContactUpdateDTO request) {
-        return adminService.saveContact(id, request);
+        return Result.success(adminService.saveContact(id, request));
     }
 
     @PostMapping("/{id}/avatar")
-    public UserProfileVO uploadAvatar(@PathVariable Long id,
+    public Result<UserProfileVO> uploadAvatar(@PathVariable Long id,
                                       @RequestParam("file") MultipartFile file) {
-        return adminService.uploadAvatar(id, file);
+        return Result.success(adminService.uploadAvatar(id, file));
     }
 
     @PostMapping("/{id}/password")
-    public AdminUserVO resetPassword(@PathVariable Long id,
+    public Result<AdminUserVO> resetPassword(@PathVariable Long id,
                                      @Valid @RequestBody AdminPasswordDTO request) {
-        return adminService.resetPassword(id, request);
+        return Result.success(adminService.resetPassword(id, request));
     }
 
     @PutMapping("/{id}/status")
-    public AdminUserVO updateStatus(@PathVariable Long id,
+    public Result<AdminUserVO> updateStatus(@PathVariable Long id,
                                     @Valid @RequestBody AdminStatusDTO request) {
-        return adminService.updateStatus(SecurityUtils.currentUserId(), id, request);
+        return Result.success(adminService.updateStatus(SecurityUtils.currentUserId(), id, request));
     }
 
     @DeleteMapping("/{id}")
-    public Map<String, Object> delete(@PathVariable Long id) {
+    public Result<Map<String, Object>> delete(@PathVariable Long id) {
         adminService.deleteUser(SecurityUtils.currentUserId(), id);
-        return Map.of("deleted", true);
+        return Result.success(Map.of("deleted", true));
     }
 
     @GetMapping("/{id}/tokens")
-    public List<AccessTokenVO> tokens(@PathVariable Long id) {
-        return adminService.tokens(id);
+    public Result<List<AccessTokenVO>> tokens(@PathVariable Long id) {
+        return Result.success(adminService.tokens(id));
     }
 
     @PostMapping("/{id}/tokens")
-    public AccessTokenVO createToken(@PathVariable Long id,
+    public Result<AccessTokenVO> createToken(@PathVariable Long id,
                                      @Valid @RequestBody AccessTokenCreateDTO request) {
-        return adminService.createToken(id, request);
+        return Result.success(adminService.createToken(id, request));
     }
 
     @PutMapping("/{id}/tokens/{tokenId}/enabled")
-    public AccessTokenVO updateTokenStatus(@PathVariable Long id,
+    public Result<AccessTokenVO> updateTokenStatus(@PathVariable Long id,
                                            @PathVariable Long tokenId,
                                            @Valid @RequestBody TokenStatusDTO request) {
-        return adminService.setTokenEnabled(id, tokenId, request.getEnabled());
+        return Result.success(adminService.setTokenEnabled(id, tokenId, request.getEnabled()));
     }
 
     @DeleteMapping("/{id}/tokens/{tokenId}")
-    public Map<String, Object> deleteToken(@PathVariable Long id, @PathVariable Long tokenId) {
+    public Result<Map<String, Object>> deleteToken(@PathVariable Long id, @PathVariable Long tokenId) {
         adminService.deleteToken(id, tokenId);
-        return Map.of("deleted", true);
+        return Result.success(Map.of("deleted", true));
     }
 
     @GetMapping("/{id}/tokens/logs")
-    public AccessTokenLogPageVO tokenLogs(
+    public Result<AccessTokenLogPageVO> tokenLogs(
             @PathVariable Long id,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String result) {
-        return adminService.tokenLogs(id, page, pageSize, name, result);
+        return Result.success(adminService.tokenLogs(id, page, pageSize, name, result));
     }
 }

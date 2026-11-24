@@ -1,5 +1,7 @@
 package com.jobtrack.system.controller;
 
+import com.jobtrack.common.api.Result;
+
 import com.jobtrack.system.pojo.dto.AccessTokenCreateDTO;
 import com.jobtrack.system.pojo.vo.AccessTokenLogPageVO;
 import com.jobtrack.system.pojo.vo.AccessTokenVO;
@@ -39,55 +41,55 @@ public class AccountController {
     private final AccessTokenService accessTokenService;
 
     @GetMapping("/profile")
-    public UserProfileVO profile() {
-        return accountService.profile(SecurityUtils.current());
+    public Result<UserProfileVO> profile() {
+        return Result.success(accountService.profile(SecurityUtils.current()));
     }
 
     @PutMapping("/profile")
-    public UserProfileVO saveProfile(@Valid @RequestBody UserProfileDTO request) {
-        return accountService.saveProfile(SecurityUtils.current(), request);
+    public Result<UserProfileVO> saveProfile(@Valid @RequestBody UserProfileDTO request) {
+        return Result.success(accountService.saveProfile(SecurityUtils.current(), request));
     }
 
     /** 账号与安全 · 保存联系方式：占用检查通过后才能修改。 */
     @PutMapping("/contact")
-    public UserProfileVO saveContact(@Valid @RequestBody ContactUpdateDTO request) {
-        return accountService.saveContact(SecurityUtils.current(), request);
+    public Result<UserProfileVO> saveContact(@Valid @RequestBody ContactUpdateDTO request) {
+        return Result.success(accountService.saveContact(SecurityUtils.current(), request));
     }
 
     @PostMapping("/avatar")
-    public UserProfileVO uploadAvatar(@RequestParam("file") MultipartFile file) {
-        return accountService.uploadAvatar(SecurityUtils.current(), file);
+    public Result<UserProfileVO> uploadAvatar(@RequestParam("file") MultipartFile file) {
+        return Result.success(accountService.uploadAvatar(SecurityUtils.current(), file));
     }
 
     @GetMapping("/tokens")
-    public List<AccessTokenVO> tokens() {
-        return accessTokenService.list(SecurityUtils.currentUserId());
+    public Result<List<AccessTokenVO>> tokens() {
+        return Result.success(accessTokenService.list(SecurityUtils.currentUserId()));
     }
 
     @PostMapping("/tokens")
-    public AccessTokenVO createToken(@Valid @RequestBody AccessTokenCreateDTO request) {
+    public Result<AccessTokenVO> createToken(@Valid @RequestBody AccessTokenCreateDTO request) {
         AuthPrincipal principal = SecurityUtils.current();
-        return accessTokenService.create(principal.tenantId(), principal.id(), request);
+        return Result.success(accessTokenService.create(principal.tenantId(), principal.id(), request));
     }
 
     @DeleteMapping("/tokens/{id}")
-    public Map<String, Object> deleteToken(@PathVariable Long id) {
+    public Result<Map<String, Object>> deleteToken(@PathVariable Long id) {
         accessTokenService.delete(SecurityUtils.currentUserId(), id);
-        return Map.of("deleted", true);
+        return Result.success(Map.of("deleted", true));
     }
 
     @PutMapping("/tokens/{id}/enabled")
-    public AccessTokenVO updateTokenStatus(@PathVariable Long id,
+    public Result<AccessTokenVO> updateTokenStatus(@PathVariable Long id,
                                              @Valid @RequestBody TokenStatusDTO request) {
-        return accessTokenService.setEnabled(SecurityUtils.currentUserId(), id, request.getEnabled());
+        return Result.success(accessTokenService.setEnabled(SecurityUtils.currentUserId(), id, request.getEnabled()));
     }
 
     @GetMapping("/tokens/logs")
-    public AccessTokenLogPageVO tokenLogs(
+    public Result<AccessTokenLogPageVO> tokenLogs(
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize,
             @RequestParam(required = false) String name,
             @RequestParam(required = false) String result) {
-        return accessTokenService.logs(SecurityUtils.currentUserId(), page, pageSize, name, result);
+        return Result.success(accessTokenService.logs(SecurityUtils.currentUserId(), page, pageSize, name, result));
     }
 }

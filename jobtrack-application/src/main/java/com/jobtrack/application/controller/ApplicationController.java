@@ -1,5 +1,7 @@
 package com.jobtrack.application.controller;
 
+import com.jobtrack.common.api.Result;
+
 import com.jobtrack.application.pojo.vo.ApplicationChangeVO;
 import com.jobtrack.application.pojo.dto.ApplicationDTO;
 import com.jobtrack.application.pojo.dto.ApplicationUpdateDTO;
@@ -12,12 +14,10 @@ import com.jobtrack.application.pojo.vo.ImportResultVO;
 import com.jobtrack.application.service.ApplicationImportService;
 import com.jobtrack.application.service.ApplicationService;
 import com.jobtrack.common.api.PageResult;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 
@@ -41,7 +42,7 @@ public class ApplicationController {
     private final ApplicationImportService applicationImportService;
 
     @GetMapping("/applications")
-    public PageResult<ApplicationRecord> list(
+    public Result<PageResult<ApplicationRecord>> list(
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String category,
             @RequestParam(required = false) String status,
@@ -52,95 +53,94 @@ public class ApplicationController {
             @RequestParam(required = false) String to,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
-        return applicationService.list(search, category, status, channel, priority,
-                year, from, to, page, pageSize);
+        return Result.success(applicationService.list(search, category, status, channel, priority,
+                year, from, to, page, pageSize));
     }
 
     @GetMapping("/applications/template")
-    public ResponseEntity<byte[]> template() {
-        byte[] content = applicationImportService.template();
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"resume-trail-import-template.xlsx\"")
-                .contentType(MediaType.parseMediaType(
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                .body(content);
+    public void template(HttpServletResponse response) throws IOException {
+        writeFile(response, applicationImportService.template(),
+                "resume-trail-import-template.xlsx");
     }
 
     @PostMapping("/applications/import")
-    public ImportResultVO importApplications(@RequestParam("file") MultipartFile file) {
-        return applicationImportService.importFile(file);
+    public Result<ImportResultVO> importApplications(@RequestParam("file") MultipartFile file) {
+        return Result.success(applicationImportService.importFile(file));
     }
 
     /** 按导入模板的列导出当前工作区的全部投递记录（注销账号前可用）。 */
     @GetMapping("/applications/export")
-    public ResponseEntity<byte[]> exportApplications() {
-        byte[] content = applicationImportService.exportAll();
-        return ResponseEntity.ok()
-                .header(HttpHeaders.CONTENT_DISPOSITION,
-                        "attachment; filename=\"resume-trail-applications.xlsx\"")
-                .contentType(MediaType.parseMediaType(
-                        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
-                .body(content);
+    public void exportApplications(HttpServletResponse response) throws IOException {
+        writeFile(response, applicationImportService.exportAll(),
+                "resume-trail-applications.xlsx");
+    }
+
+    private void writeFile(HttpServletResponse response, byte[] content, String fileName)
+            throws IOException {
+        response.setContentType(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        response.setHeader("Content-Disposition", "attachment; filename=\"" + fileName + "\"");
+        response.setContentLength(content.length);
+        response.getOutputStream().write(content);
     }
 
     @GetMapping("/applications/years")
-    public com.jobtrack.application.pojo.vo.YearListVO years() {
-        return applicationService.years();
+    public Result<com.jobtrack.application.pojo.vo.YearListVO> years() {
+        return Result.success(applicationService.years());
     }
 
     @PostMapping("/applications")
-    public ApplicationRecord create(@Valid @RequestBody ApplicationDTO request) {
-        return applicationService.create(request);
+    public Result<ApplicationRecord> create(@Valid @RequestBody ApplicationDTO request) {
+        return Result.success(applicationService.create(request));
     }
 
     @GetMapping("/application/{id}")
-    public ApplicationRecord get(@PathVariable Long id) {
-        return applicationService.get(id);
+    public Result<ApplicationRecord> get(@PathVariable Long id) {
+        return Result.success(applicationService.get(id));
     }
 
     @PutMapping("/application/{id}")
-    public ApplicationRecord update(@PathVariable Long id,
+    public Result<ApplicationRecord> update(@PathVariable Long id,
                                     @Valid @RequestBody ApplicationUpdateDTO request) {
-        return applicationService.update(id, request);
+        return Result.success(applicationService.update(id, request));
     }
 
     @DeleteMapping("/application/{id}")
-    public Map<String, Object> delete(@PathVariable Long id) {
+    public Result<Map<String, Object>> delete(@PathVariable Long id) {
         applicationService.delete(id);
-        return Map.of("deleted", 1);
+        return Result.success(Map.of("deleted", 1));
     }
 
     @PostMapping("/applications/batch-delete")
-    public Map<String, Object> batchDelete(@Valid @RequestBody IdsDTO request) {
-        return Map.of("deleted", applicationService.batchDelete(request.getIds()));
+    public Result<Map<String, Object>> batchDelete(@Valid @RequestBody IdsDTO request) {
+        return Result.success(Map.of("deleted", applicationService.batchDelete(request.getIds())));
     }
 
     @PatchMapping("/applications/batch-status")
-    public Map<String, Object> batchStatus(@Valid @RequestBody BatchStatusDTO request) {
-        return Map.of("updated", applicationService.batchStatus(request.getIds(), request.getStatus()));
+    public Result<Map<String, Object>> batchStatus(@Valid @RequestBody BatchStatusDTO request) {
+        return Result.success(Map.of("updated", applicationService.batchStatus(request.getIds(), request.getStatus())));
     }
 
     @PatchMapping("/applications/batch-category")
-    public Map<String, Object> batchCategory(@Valid @RequestBody BatchCategoryDTO request) {
-        return Map.of("updated", applicationService.batchCategory(request.getIds(), request.getCategory()));
+    public Result<Map<String, Object>> batchCategory(@Valid @RequestBody BatchCategoryDTO request) {
+        return Result.success(Map.of("updated", applicationService.batchCategory(request.getIds(), request.getCategory())));
     }
 
     @GetMapping("/applications/companies")
-    public Map<String, Object> companies(@RequestParam(required = false) String search) {
-        return Map.of("items", applicationService.companySuggestions(search));
+    public Result<Map<String, Object>> companies(@RequestParam(required = false) String search) {
+        return Result.success(Map.of("items", applicationService.companySuggestions(search)));
     }
 
     @GetMapping("/application/{id}/history")
-    public HistoryVO history(@PathVariable Long id) {
-        return applicationService.history(id);
+    public Result<HistoryVO> history(@PathVariable Long id) {
+        return Result.success(applicationService.history(id));
     }
 
     @PostMapping("/application/{id}/history")
-    public Map<String, Object> appendHistory(@PathVariable Long id,
+    public Result<Map<String, Object>> appendHistory(@PathVariable Long id,
                                              @RequestBody Map<String, String> body) {
         List<ApplicationChangeVO> items = applicationService.appendHistory(
                 id, body.get("status"), body.get("changedAt"));
-        return Map.of("items", items);
+        return Result.success(Map.of("items", items));
     }
 }

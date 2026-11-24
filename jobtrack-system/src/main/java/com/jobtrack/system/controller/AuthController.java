@@ -1,5 +1,7 @@
 package com.jobtrack.system.controller;
 
+import com.jobtrack.common.api.Result;
+
 import com.jobtrack.system.pojo.vo.AuthVO;
 import com.jobtrack.system.pojo.vo.CaptchaVO;
 import com.jobtrack.system.pojo.vo.UserAgreementVO;
@@ -41,43 +43,43 @@ public class AuthController {
      * 页面启动时调用：账号体系始终启用，authenticated 表示当前 token 是否有效。
      */
     @GetMapping("/status")
-    public Map<String, Object> status() {
-        return Map.of("enabled", true, "authenticated", SecurityUtils.authenticated());
+    public Result<Map<String, Object>> status() {
+        return Result.success(Map.of("enabled", true, "authenticated", SecurityUtils.authenticated()));
     }
 
     @GetMapping("/captcha")
-    public CaptchaVO captcha() {
-        return captchaService.generate();
+    public Result<CaptchaVO> captcha() {
+        return Result.success(captchaService.generate());
     }
 
     @PostMapping("/login")
-    public AuthVO login(@Valid @RequestBody LoginDTO request) {
-        return authService.login(request);
+    public Result<AuthVO> login(@Valid @RequestBody LoginDTO request) {
+        return Result.success(authService.login(request));
     }
 
     @PostMapping("/register")
-    public AuthVO register(@Valid @RequestBody RegisterDTO request) {
-        return authService.register(request);
+    public Result<AuthVO> register(@Valid @RequestBody RegisterDTO request) {
+        return Result.success(authService.register(request));
     }
 
     @GetMapping("/me")
-    public UserVO me() {
-        return authService.me(SecurityUtils.current());
+    public Result<UserVO> me() {
+        return Result.success(authService.me(SecurityUtils.current()));
     }
 
     /** 当前账号的用户协议签署状态，登录后用于判断是否需要补签。 */
     @GetMapping("/agreement")
-    public UserAgreementVO agreement() {
-        return agreementService.find(SecurityUtils.currentUserId());
+    public Result<UserAgreementVO> agreement() {
+        return Result.success(agreementService.find(SecurityUtils.currentUserId()));
     }
 
     /** 登录后补签用户协议，同时上传签署语言、时区、地点与来源 IP。 */
     @PostMapping("/agreement")
-    public UserAgreementVO acceptAgreement(
+    public Result<UserAgreementVO> acceptAgreement(
             @Valid @RequestBody AgreementAcceptDTO request,
             HttpServletRequest servletRequest) {
-        return agreementService.accept(SecurityUtils.current(), request,
-                clientIp(servletRequest));
+        return Result.success(agreementService.accept(SecurityUtils.current(), request,
+                clientIp(servletRequest)));
     }
 
     private String clientIp(HttpServletRequest request) {
@@ -93,40 +95,40 @@ public class AuthController {
     }
 
     @PutMapping("/me")
-    public UserVO updateProfile(@Valid @RequestBody ProfileDTO request) {
-        return authService.updateProfile(SecurityUtils.current(), request);
+    public Result<UserVO> updateProfile(@Valid @RequestBody ProfileDTO request) {
+        return Result.success(authService.updateProfile(SecurityUtils.current(), request));
     }
 
     @PostMapping("/change-password")
-    public Map<String, Object> changePassword(@Valid @RequestBody ChangePasswordDTO request) {
+    public Result<Map<String, Object>> changePassword(@Valid @RequestBody ChangePasswordDTO request) {
         authService.changePassword(SecurityUtils.current(), request);
-        return Map.of("changed", true);
+        return Result.success(Map.of("changed", true));
     }
 
     /** 忘记密码第一步：验证用户名与手机号/邮箱。 */
     @PostMapping("/forgot-password/verify")
-    public Map<String, Object> forgotPasswordVerify(
+    public Result<Map<String, Object>> forgotPasswordVerify(
             @Valid @RequestBody ForgotPasswordVerifyDTO request) {
         authService.forgotPasswordVerify(request);
-        return Map.of("verified", true);
+        return Result.success(Map.of("verified", true));
     }
 
     /** 忘记密码第二步：重置密码并注销全部旧令牌。 */
     @PostMapping("/forgot-password/reset")
-    public Map<String, Object> forgotPasswordReset(
+    public Result<Map<String, Object>> forgotPasswordReset(
             @Valid @RequestBody ForgotPasswordResetDTO request) {
         authService.forgotPasswordReset(request);
-        return Map.of("reset", true);
+        return Result.success(Map.of("reset", true));
     }
 
     @GetMapping("/online")
-    public OnlineStatusVO online() {
-        return authService.online(SecurityUtils.current());
+    public Result<OnlineStatusVO> online() {
+        return Result.success(authService.online(SecurityUtils.current()));
     }
 
     @PostMapping("/logout")
-    public Map<String, Object> logout() {
+    public Result<Map<String, Object>> logout() {
         authService.logout(SecurityUtils.current());
-        return Map.of("loggedOut", true);
+        return Result.success(Map.of("loggedOut", true));
     }
 }

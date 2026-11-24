@@ -1,5 +1,7 @@
 package com.jobtrack.application.controller;
 
+import com.jobtrack.common.api.Result;
+
 import com.jobtrack.application.pojo.dto.CancelConfirmDTO;
 import com.jobtrack.application.pojo.vo.CancelStatusVO;
 import com.jobtrack.application.pojo.dto.CancelVerifyDTO;
@@ -28,23 +30,23 @@ public class AccountCancelController {
 
     /** 注销条件检查：投递已清除、简历库已删除、没有普通用户以外的权限。 */
     @GetMapping("/status")
-    public CancelStatusVO status() {
-        return cancelService.status(SecurityUtils.current());
+    public Result<CancelStatusVO> status() {
+        return Result.success(cancelService.status(SecurityUtils.current()));
     }
 
     /** 验证保留的手机号或邮箱与密码。 */
     @PostMapping("/verify")
-    public Map<String, Object> verify(@Valid @RequestBody CancelVerifyDTO request) {
+    public Result<Map<String, Object>> verify(@Valid @RequestBody CancelVerifyDTO request) {
         AuthPrincipal principal = SecurityUtils.current();
         cancelService.verify(principal, request);
-        return Map.of("verified", true);
+        return Result.success(Map.of("verified", true));
     }
 
     /** 最终确认注销：验证码 + 身份验证，通过后把状态改成注销。 */
     @PostMapping("/confirm")
-    public Map<String, Object> confirm(@Valid @RequestBody CancelConfirmDTO request) {
+    public Result<Map<String, Object>> confirm(@Valid @RequestBody CancelConfirmDTO request) {
         AuthPrincipal principal = SecurityUtils.current();
         cancelService.confirm(principal, request);
-        return Map.of("cancelled", true);
+        return Result.success(Map.of("cancelled", true));
     }
 }

@@ -1,5 +1,7 @@
 package com.jobtrack.controller;
 
+import com.jobtrack.common.api.Result;
+
 import com.jobtrack.system.config.AppProperties;
 import com.jobtrack.system.security.SecurityUtils;
 import com.jobtrack.system.security.SessionService;
@@ -26,16 +28,16 @@ public class SystemController {
     private final Environment environment;
 
     @GetMapping("/health")
-    public Map<String, Object> health() {
+    public Result<Map<String, Object>> health() {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("status", "ok");
         result.put("version", appProperties.getVersion());
         result.put("time", LocalDateTime.now());
-        return result;
+        return Result.success(result);
     }
 
     @GetMapping("/system/info")
-    public Map<String, Object> info() {
+    public Result<Map<String, Object>> info() {
         SecurityUtils.requireAdmin();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("version", appProperties.getVersion());
@@ -53,7 +55,7 @@ public class SystemController {
             result.put("database", "");
             result.put("location", "");
         }
-        return result;
+        return Result.success(result);
     }
 
     private String activeProfile() {

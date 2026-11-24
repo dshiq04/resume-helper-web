@@ -1,5 +1,7 @@
 package com.jobtrack.system.controller;
 
+import com.jobtrack.common.api.Result;
+
 import com.jobtrack.system.pojo.vo.OnlineUserVO;
 import com.jobtrack.system.security.SecurityUtils;
 import com.jobtrack.system.service.AdminService;
@@ -24,13 +26,13 @@ public class AdminOnlineController {
     private final AdminService adminService;
 
     @GetMapping
-    public List<OnlineUserVO> online() {
-        return adminService.onlineUsers();
+    public Result<List<OnlineUserVO>> online() {
+        return Result.success(adminService.onlineUsers());
     }
 
     @PostMapping("/{userId}/kick")
-    public Map<String, Object> kick(@PathVariable Long userId) {
+    public Result<Map<String, Object>> kick(@PathVariable Long userId) {
         int sessions = adminService.kick(SecurityUtils.currentUserId(), userId);
-        return Map.of("kicked", true, "sessions", sessions);
+        return Result.success(Map.of("kicked", true, "sessions", sessions));
     }
 }

@@ -5,9 +5,9 @@ import com.jobtrack.system.pojo.dto.TokenValidationDTO;
 import com.jobtrack.system.pojo.vo.TokenValidationVO;
 import com.jobtrack.system.service.AccessTokenService;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -25,28 +25,29 @@ public class TokenValidationController {
     private final AccessTokenService accessTokenService;
 
     @PostMapping("/validate")
-    public ResponseEntity<Result<TokenValidationVO>> validate(
+    public Result<TokenValidationVO> validate(
             @Valid @RequestBody TokenValidationDTO request,
-            HttpServletRequest httpRequest) {
-        TokenValidationVO response = accessTokenService.validate(request.getCode(),
+            HttpServletRequest httpRequest,
+            HttpServletResponse response) {
+        TokenValidationVO result = accessTokenService.validate(request.getCode(),
                 clientIp(httpRequest), httpRequest.getHeader("User-Agent"));
-        if (response.isValid()) {
-            return ResponseEntity.ok(Result.success(response));
+        if (result.isValid()) {
+            return Result.success(result);
         }
-        int status = switch (String.valueOf(response.getReason())) {
+        int status = switch (String.valueOf(result.getReason())) {
             case "expired" -> 410;
             case "disabled", "banned" -> 403;
             default -> 401;
         };
-        return ResponseEntity.status(status)
-                .body(Result.error(status, failureMessage(response)));
+        response.setStatus(status);
+        return Result.error(status, failureMessage(result));
     }
 
-    private String failureMessage(TokenValidationVO response) {
-        if (response.getMessage() != null && !response.getMessage().isBlank()) {
-            return response.getMessage();
+    private String failureMessage(TokenValidationVO result) {
+        if (result.getMessage() != null && !result.getMessage().isBlank()) {
+            return result.getMessage();
         }
-        return switch (String.valueOf(response.getReason())) {
+        return switch (String.valueOf(result.getReason())) {
             case "expired" -> "授权码已过期";
             case "disabled" -> "授权码已停用或账号状态异常";
             case "banned" -> "该账号已被封禁";

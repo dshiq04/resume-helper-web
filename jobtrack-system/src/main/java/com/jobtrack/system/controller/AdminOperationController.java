@@ -1,5 +1,7 @@
 package com.jobtrack.system.controller;
 
+import com.jobtrack.common.api.Result;
+
 import com.jobtrack.system.pojo.vo.UserOperationPageVO;
 import com.jobtrack.system.service.UserOperationLogService;
 import lombok.RequiredArgsConstructor;
@@ -23,7 +25,7 @@ public class AdminOperationController {
     private final UserOperationLogService operationLogService;
 
     @GetMapping
-    public UserOperationPageVO list(
+    public Result<UserOperationPageVO> list(
             @RequestParam(required = false) Long userId,
             @RequestParam(required = false) String type,
             @RequestParam(required = false) String from,
@@ -31,8 +33,8 @@ public class AdminOperationController {
             @RequestParam(required = false) String keyword,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "20") int pageSize) {
-        return operationLogService.page(userId, type, parse(from, false), parse(to, true),
-                keyword, page, pageSize);
+        return Result.success(operationLogService.page(userId, type, parse(from, false), parse(to, true),
+                keyword, page, pageSize));
     }
 
     /** 兼容日期与日期时间两种参数，日期结束值自动补到 23:59:59。 */

@@ -1,5 +1,7 @@
 package com.jobtrack.system.controller;
 
+import com.jobtrack.common.api.Result;
+
 import com.jobtrack.system.config.AppProperties;
 import com.jobtrack.system.database.DatabaseManager;
 import com.jobtrack.system.pojo.vo.DatabaseTestResultVO;
@@ -28,7 +30,7 @@ public class DatabaseController {
     private final Environment environment;
 
     @GetMapping
-    public Map<String, Object> current() {
+    public Result<Map<String, Object>> current() {
         SecurityUtils.requireAdmin();
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("settings", databaseManager.currentSettings());
@@ -37,13 +39,13 @@ public class DatabaseController {
         result.put("configFile", "application-" + activeProfile() + ".yml");
         result.put("dataDir", appProperties.dataPath().toString());
         result.put("editable", false);
-        return result;
+        return Result.success(result);
     }
 
     @GetMapping("/test")
-    public DatabaseTestResultVO test() {
+    public Result<DatabaseTestResultVO> test() {
         SecurityUtils.requireAdmin();
-        return databaseManager.testCurrent();
+        return Result.success(databaseManager.testCurrent());
     }
 
     private String activeProfile() {
