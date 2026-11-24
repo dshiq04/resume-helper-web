@@ -163,13 +163,7 @@ public class StatsServiceImpl implements StatsService {
 
         for (ApplicationRecord application : applications) {
             List<ApplicationChange> timeline = changes.getOrDefault(application.getId(), List.of());
-            Map<String, LocalDateTime> firstAt = new HashMap<>();
-            for (ApplicationChange change : timeline) {
-                firstAt.putIfAbsent(change.getStatus(), change.getChangedAt());
-            }
-            for (String status : DomainConstants.stageChainForStatus(application.getStatus())) {
-                firstAt.putIfAbsent(status, null);
-            }
+            Map<String, LocalDateTime> firstAt = stageTimeline(application.getStatus(), timeline);
 
             for (String stage : DomainConstants.STAGE_ORDER) {
                 if (firstAt.containsKey(stage)) {
@@ -249,6 +243,50 @@ public class StatsServiceImpl implements StatsService {
             response.setAverageInterviewToOffer(round1(offerIntervalTotal / offerIntervalCount));
         }
         return response;
+    }
+
+    /**
+     * 计算一条投递实际到达过的阶段。
+     *
+     * <p>旧逻辑直接按“当前状态必经链路”补全阶段，导致所有被淘汰的记录都被算作
+     * 到达过面试，初筛数量因此接近累计投递。这里改为只采信真实时间线：
+     * 淘汰记录不再反向推断面试/笔试，但仍按实际到达的最高阶段补齐前置阶段，
+     * 保证漏斗数量单调递减。</p>
+     */
+    private Map<String, LocalDateTime> stageTimeline(String currentStatus, List<ApplicationChange> timeline) {
+        int currentRank = ApplicationHistoryServiceImpl.timelineStatusRank(currentStatus);
+        boolean currentTerminal = ApplicationHistoryServiceImpl.isTerminal(currentStatus);
+        Map<String, LocalDateTime> firstAt = new HashMap<>();
+        for (ApplicationChange change : timeline) {
+            String status = change.getStatus();
+            if (status == null) {
+                continue;
+            }
+            // 终态互斥：当前为 Offer 时不采信历史中的淘汰，反之亦然。
+            if (currentTerminal && ApplicationHistoryServiceImpl.isTerminal(status)
+                    && !status.equals(currentStatus)) {
+                continue;
+            }
+            // 当前状态回退后，不再统计高于当前状态的历史阶段。
+            if (ApplicationHistoryServiceImpl.timelineStatusRank(status) > currentRank) {
+                continue;
+            }
+            firstAt.putIfAbsent(status, change.getChangedAt());
+        }
+
+        int furthest = -1;
+        for (int index = 0; index < DomainConstants.STAGE_ORDER.size(); index++) {
+            String stage = DomainConstants.STAGE_ORDER.get(index);
+            if (stage.equals(currentStatus) || firstAt.containsKey(stage)) {
+                furthest = index;
+            }
+        }
+        if (furthest >= 0) {
+            for (int index = 0; index <= furthest; index++) {
+                firstAt.putIfAbsent(DomainConstants.STAGE_ORDER.get(index), null);
+            }
+        }
+        return firstAt;
     }
 
     private List<ApplicationRecord> applications(Range range) {
