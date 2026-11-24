@@ -13,9 +13,9 @@ $radius-pill: 999px;
 $ease: 180ms ease;
 $ease-fast: 120ms ease;
 
-// 字体
-$font-serif: "Iowan Old Style", "Palatino Linotype", "Songti SC", "Noto Serif SC", Georgia, serif;
-$font-sans: "Inter", "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+// 字体：全站使用鸿蒙字体（HarmonyOS Sans），中文使用 SC 字体回退。
+$font-serif: "HarmonyOS Sans", "HarmonyOS Sans SC", "Iowan Old Style", "Palatino Linotype", "Songti SC", "Noto Serif SC", Georgia, serif;
+$font-sans: "HarmonyOS Sans", "HarmonyOS Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
 
 // 响应式断点
 $bp-xl: 1180px;
