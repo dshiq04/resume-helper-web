@@ -321,7 +321,8 @@ public class ApplicationServiceImpl implements ApplicationService {
         String normalized = categoryOrDefault(category, "");
         int updated = applicationMapper.update(null, Wrappers.<ApplicationRecord>lambdaUpdate()
                 .in(ApplicationRecord::getId, unique)
-                .set(ApplicationRecord::getCategory, normalized));
+                .set(ApplicationRecord::getCategory, normalized)
+                .set(ApplicationRecord::getUpdatedAt, LocalDateTime.now()));
         applicationCache.invalidate();
         return updated;
     }

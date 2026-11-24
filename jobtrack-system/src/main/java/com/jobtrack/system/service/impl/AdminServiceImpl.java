@@ -199,7 +199,6 @@ public class AdminServiceImpl implements AdminService {
         String avatarKey = profile.getAvatarUrl();
         BeanUtils.copyProperties(request, profile);
         profile.setAvatarUrl(avatarKey);
-        profile.setUpdatedAt(LocalDateTime.now());
         UserProfile target = profile;
         inTenant(user.getTenantId(), () -> {
             if (creating) {
@@ -244,7 +243,6 @@ public class AdminServiceImpl implements AdminService {
         }
         profile.setPhone(phone.isEmpty() ? null : phone);
         profile.setEmail(email.isEmpty() ? null : email);
-        profile.setUpdatedAt(LocalDateTime.now());
         UserProfile target = profile;
         inTenant(user.getTenantId(), () -> {
             if (creating) {
@@ -294,7 +292,6 @@ public class AdminServiceImpl implements AdminService {
             profile.setUserId(userId);
         }
         profile.setAvatarUrl(key);
-        profile.setUpdatedAt(LocalDateTime.now());
         UserProfile target = profile;
         inTenant(user.getTenantId(), () -> {
             if (creating) {

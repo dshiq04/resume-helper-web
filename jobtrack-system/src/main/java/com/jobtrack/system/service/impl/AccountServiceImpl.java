@@ -25,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -81,7 +80,6 @@ public class AccountServiceImpl implements AccountService {
         if (creating) {
             profileMapper.insert(profile);
         } else {
-            profile.setUpdatedAt(LocalDateTime.now());
             profileMapper.updateById(profile);
         }
         return view(profile);
@@ -125,12 +123,10 @@ public class AccountServiceImpl implements AccountService {
             profile.setUserId(principal.id());
             profile.setPhone(phone.isEmpty() ? null : phone);
             profile.setEmail(email.isEmpty() ? null : email);
-            profile.setUpdatedAt(LocalDateTime.now());
             profileMapper.insert(profile);
         } else {
             profile.setPhone(phone.isEmpty() ? null : phone);
             profile.setEmail(email.isEmpty() ? null : email);
-            profile.setUpdatedAt(LocalDateTime.now());
             profileMapper.updateById(profile);
         }
         return view(profile);
@@ -169,11 +165,9 @@ public class AccountServiceImpl implements AccountService {
             profile.setTenantId(principal.tenantId());
             profile.setUserId(principal.id());
             profile.setAvatarUrl(key);
-            profile.setUpdatedAt(LocalDateTime.now());
             profileMapper.insert(profile);
         } else {
             profile.setAvatarUrl(key);
-            profile.setUpdatedAt(LocalDateTime.now());
             profileMapper.updateById(profile);
         }
         if (previous != null && !previous.isBlank() && !previous.equals(key)) {
