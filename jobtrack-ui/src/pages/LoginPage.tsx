@@ -279,7 +279,7 @@ export function LoginPage() {
         </div>
         <div className="editorial-foot">
           <span>{t("login.selfHosted")}</span>
-          <span>v{config?.version ?? import.meta.env.VITE_APP_VERSION ?? "1.2"}</span>
+          <span>V{config?.version ?? import.meta.env.VITE_APP_VERSION ?? "1.2.1"}</span>
         </div>
       </section>
 

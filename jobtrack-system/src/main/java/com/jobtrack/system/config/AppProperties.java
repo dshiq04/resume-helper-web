@@ -18,7 +18,7 @@ import java.util.List;
 public class AppProperties {
 
     private String name = "履途 ResumeTrail";
-    private String version = "1.2";
+    private String version = "1.2.1";
     private String dataDir = "./data";
     private String logDir = "./logs";
     private boolean seedDemo = false;
