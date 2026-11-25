@@ -1,6 +1,8 @@
 package com.jobtrack.application.pojo.vo;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 import java.util.List;
 
@@ -16,16 +18,12 @@ public class FunnelVO {
     private long offerCount;
 
     @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
     public static class FunnelStage {
         private String key;
         private long count;
         private double conversion;
-
-        public FunnelStage(String key, long count, double conversion) {
-            this.key = key;
-            this.count = count;
-            this.conversion = conversion;
-        }
     }
 
     @Data

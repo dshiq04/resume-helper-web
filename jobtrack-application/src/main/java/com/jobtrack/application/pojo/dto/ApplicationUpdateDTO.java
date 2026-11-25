@@ -11,7 +11,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 局部更新：null 表示不修改该字段。
+ * 投递整体更新：必填字段必须提供；选填字段为 null 或空字符串表示清空该字段。
  */
 @Data
 public class ApplicationUpdateDTO {
@@ -62,7 +62,8 @@ public class ApplicationUpdateDTO {
 
     private Integer interviewRound;
 
-    private LocalDateTime nextActionAt;
+    /** 字符串形式接收，由服务端统一换算到服务器时区。 */
+    private String nextActionAt;
 
     @Size(max = 2000, message = "备注不能超过 2000 个字符")
     private String notes;

@@ -1,19 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import { App as AntdApp, Button, DatePicker, Empty, Input, Popconfirm, Select } from "antd";
+import { App as AntdApp, Button, DatePicker, Empty, Input, Pagination, Popconfirm, Select } from "antd";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
 import {
   CloudUploadOutlined,
+  DownloadOutlined,
   FilterOutlined,
   PlusOutlined,
   ReloadOutlined,
   ThunderboltOutlined,
 } from "@ant-design/icons";
 import { applicationApi } from "../api/applications";
-import type { Application, Category, Status } from "../api/types";
+import type { Application, ApplicationUpdate, Category, Status } from "../api/types";
 import { ApplicationCards } from "../components/ApplicationCards";
 import { ApplicationFormDrawer } from "../components/ApplicationFormDrawer";
 import { ApplicationTable } from "../components/ApplicationTable";
+import { ExportModal } from "../components/ExportModal";
 import { ImportModal } from "../components/ImportModal";
 import { PageHeader } from "../components/PageHeader";
 import { QuickEntryModal } from "../components/QuickEntryModal";
@@ -49,6 +51,36 @@ function seasonCategory(): Category {
   return "internship";
 }
 
+/**
+ * 列表内联修改只改动单个字段，但后端校验要求企业名称、状态等必填项齐全。
+ * 因此把当前行数据一并带上，避免出现“企业名称/状态不能为空”的误报。
+ */
+function buildUpdatePayload(
+  record: Application,
+  patch: ApplicationUpdate,
+): ApplicationUpdate {
+  return {
+    category: record.category,
+    companyName: record.companyName,
+    link: record.link,
+    year: record.year,
+    position: record.position,
+    status: record.status,
+    channel: record.channel,
+    city: record.city,
+    salary: record.salary,
+    contact: record.contact,
+    contactInfo: record.contactInfo,
+    workMode: record.workMode,
+    priority: record.priority,
+    interviewRound: record.interviewRound,
+    nextActionAt: record.nextActionAt,
+    notes: record.notes,
+    pinned: record.pinned,
+    ...patch,
+  };
+}
+
 export function DashboardPage({ category }: { category: Category | "all" }) {
   const { t } = useI18n();
   const { message } = AntdApp.useApp();
@@ -67,6 +99,7 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
   const [editing, setEditing] = useState<Application | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const statusOptions = useMemo(
     () =>
@@ -75,6 +108,11 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
       ),
     [t],
   );
+
+  // 切换投递分类后，上一分类的选中项已不可见，必须清空，避免批量操作误伤。
+  useEffect(() => {
+    dispatch(clearSelection());
+  }, [category, dispatch]);
 
   useEffect(() => {
     dispatch(
@@ -140,7 +178,10 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
 
   const handlePin = async (record: Application) => {
     try {
-      await applicationApi.update(record.id, { pinned: !record.pinned });
+      await applicationApi.update(
+        record.id,
+        buildUpdatePayload(record, { pinned: !record.pinned }),
+      );
       refresh();
     } catch (error) {
       message.error(errorMessage(error));
@@ -149,7 +190,7 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
 
   const handleStatus = async (record: Application, status: Status) => {
     try {
-      await applicationApi.update(record.id, { status });
+      await applicationApi.update(record.id, buildUpdatePayload(record, { status }));
       refresh();
     } catch (error) {
       message.error(errorMessage(error));
@@ -162,7 +203,7 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
     value: string,
   ) => {
     try {
-      await applicationApi.update(record.id, { [field]: value });
+      await applicationApi.update(record.id, buildUpdatePayload(record, { [field]: value }));
       refresh();
     } catch (error) {
       message.error(errorMessage(error));
@@ -231,6 +272,9 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
             </Button>
             <Button icon={<CloudUploadOutlined />} onClick={() => setImportOpen(true)}>
               {t("dash.import")}
+            </Button>
+            <Button icon={<DownloadOutlined />} onClick={() => setExportOpen(true)}>
+              {t("dash.export")}
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
               {t("dash.add")}
@@ -342,27 +386,48 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
         )}
 
         {isCompact ? (
-          <ApplicationCards
-            items={items}
-            loading={loading}
-            selectedKeys={selectedKeys}
-            onToggleSelect={(id) =>
-              dispatch(
-                setSelectedKeys(
-                  selectedKeys.includes(id)
-                    ? selectedKeys.filter((key) => key !== id)
-                    : [...selectedKeys, id],
-                ),
-              )
-            }
-            onView={(record) => navigate(`/applications/${record.id}`)}
-            onEdit={openEdit}
-            onDelete={(record) => void handleDelete(record)}
-            onPin={(record) => void handlePin(record)}
-            onStatusChange={(record, status) => void handleStatus(record, status)}
-            statusOptions={statusOptions}
-            emptyText={emptyNode}
-          />
+          <>
+            <ApplicationCards
+              items={items}
+              loading={loading}
+              selectedKeys={selectedKeys}
+              onToggleSelect={(id) =>
+                dispatch(
+                  setSelectedKeys(
+                    selectedKeys.includes(id)
+                      ? selectedKeys.filter((key) => key !== id)
+                      : [...selectedKeys, id],
+                  ),
+                )
+              }
+              onView={(record) => navigate(`/applications/${record.id}`)}
+              onEdit={openEdit}
+              onDelete={(record) => void handleDelete(record)}
+              onPin={(record) => void handlePin(record)}
+              onStatusChange={(record, status) => void handleStatus(record, status)}
+              statusOptions={statusOptions}
+              emptyText={emptyNode}
+            />
+            {total > 0 && (
+              <div style={{ marginTop: 16, display: "flex", justifyContent: "center" }}>
+                <Pagination
+                  current={filters.page}
+                  pageSize={filters.pageSize}
+                  total={total}
+                  size="small"
+                  showSizeChanger
+                  pageSizeOptions={[10, 20, 50, 100]}
+                  onChange={(nextPage, nextSize) => {
+                    if (nextSize !== filters.pageSize) {
+                      dispatch(setPageSize(nextSize));
+                    } else {
+                      dispatch(setPage(nextPage));
+                    }
+                  }}
+                />
+              </div>
+            )}
+          </>
         ) : (
           <ApplicationTable
             items={items}
@@ -398,6 +463,7 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
         onClose={() => setImportOpen(false)}
         onImported={refresh}
       />
+      <ExportModal open={exportOpen} onClose={() => setExportOpen(false)} />
       <QuickEntryModal
         open={quickOpen}
         defaultCategory={category === "all" ? seasonCategory() : category}

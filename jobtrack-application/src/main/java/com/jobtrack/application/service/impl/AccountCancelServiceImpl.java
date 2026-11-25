@@ -104,10 +104,9 @@ public class AccountCancelServiceImpl implements AccountCancelService {
         user.setStatus("CANCELLED");
         userMapper.updateById(user);
 
-        // Redis 中删除令牌、权限信息并从程序中注销令牌（通过 RabbitMQ）。
-        if (!publisher.publishTokenInvalidate(principal.id(), null)) {
-            sessionService.deleteByUser(principal.id(), principal.tenantId());
-        }
+        // 先同步清空会话，确保注销后旧令牌立即失效；再广播异步清理消息。
+        sessionService.deleteByUser(principal.id(), principal.tenantId());
+        publisher.publishTokenInvalidate(principal.id(), principal.tenantId(), null);
     }
 
     private SysUser requireUser(AuthPrincipal principal) {

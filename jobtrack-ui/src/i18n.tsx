@@ -20,7 +20,10 @@ import dayjsZhTw from "dayjs/locale/zh-tw";
 import dayjsJa from "dayjs/locale/ja";
 import dayjsKo from "dayjs/locale/ko";
 import dayjsRu from "dayjs/locale/ru";
-import { adminEn, adminZh } from "./i18n/admin";
+import { adminEn, adminZh, adminZhTW } from "./i18n/admin";
+import { adminJa } from "./i18n/adminJa";
+import { adminKo } from "./i18n/adminKo";
+import { adminRu } from "./i18n/adminRu";
 import { ja, ko, ru } from "./i18n/extra";
 import { zhTW } from "./i18n/zhTW";
 
@@ -42,7 +45,6 @@ const DAYJS_LOCALE_DATA: Record<string, unknown> = {
 export type Lang = "zh-CN" | "zh-TW" | "en" | "ja" | "ko" | "ru";
 
 const zh: Record<string, string> = {
-  "app.name": "履途 ResumeTrail",
   "app.tagline": "把每一次投递，记成一条清晰的线索。",
   "app.desc": "履途 ResumeTrail 是一个多用户、可自托管的求职投递台账。公司、链接、时间线、简历与统计，全部收在一处。",
   "common.loading": "正在加载",
@@ -165,6 +167,14 @@ const zh: Record<string, string> = {
   "dash.add": "新增投递",
   "dash.quick": "快速录入",
   "dash.import": "导入 Excel",
+  "dash.export": "导出 Excel",
+  "export.title": "导出投递",
+  "export.hint": "选择投递时间范围与投递类型，确认后下载 Excel 文件。",
+  "export.range": "投递时间范围",
+  "export.rangeHint": "留空表示不限时间。",
+  "export.types": "导出类型",
+  "export.emptyTypes": "请至少选择一种投递类型",
+  "export.success": "投递台账已导出",
   "import.title": "导入投递",
   "import.hint": "支持 .xlsx，列顺序：年度、投递类型、公司、投递地址、时间。",
   "import.choose": "点击或拖入 Excel 文件",
@@ -214,6 +224,7 @@ const zh: Record<string, string> = {
   "resume.emptyHint": "支持 PDF、HTML、PPTX、DOCX、PNG、JPG、JPEG 与 MD。",
   "resume.preview": "预览",
   "resume.download": "下载",
+  "resume.downloadFailed": "下载失败，请稍后重试",
   "resume.edit": "编辑信息",
   "resume.uploadTitle": "上传简历",
   "resume.editTitle": "编辑简历信息",
@@ -239,6 +250,9 @@ const zh: Record<string, string> = {
   "stats.thisQuarter": "本季",
   "stats.thisYear": "本年",
   "stats.allTime": "全部时间",
+  "stats.activeNote": "笔面推进",
+  "stats.interviewNote": "面试阶段",
+  "stats.offerNote": "已获 Offer",
   "stats.trend": "投递趋势",
   "stats.trendHint": "按天统计所选投递类型的新增记录",
   "stats.statusDist": "状态分布",
@@ -263,6 +277,8 @@ const zh: Record<string, string> = {
   "trash.clearConfirm": "确定清空回收站？所有记录将被永久删除。",
   "trash.deleteConfirm": "确定永久删除「{name}」？",
   "trash.restored": "已恢复",
+  "trash.deleted": "已永久删除",
+  "trash.cleared": "回收站已清空",
   "settings.title": "设置",
   "settings.subtitle": "账号、安全、外观与数据。",
   "settings.account": "账号",
@@ -543,7 +559,6 @@ const zh: Record<string, string> = {
 };
 
 const en: Record<string, string> = {
-  "app.name": "履途 ResumeTrail",
   "app.tagline": "Every application, kept on one clear thread.",
   "app.desc": "ResumeTrail is a self-hosted, multi-user job application ledger. Companies, links, timelines, resumes and stats in one place.",
   "common.loading": "Loading",
@@ -666,6 +681,14 @@ const en: Record<string, string> = {
   "dash.add": "New application",
   "dash.quick": "Quick add",
   "dash.import": "Import Excel",
+  "dash.export": "Export Excel",
+  "export.title": "Export applications",
+  "export.hint": "Choose a date range and application types, then download the Excel file.",
+  "export.range": "Application date range",
+  "export.rangeHint": "Leave empty for all dates.",
+  "export.types": "Export types",
+  "export.emptyTypes": "Select at least one application type",
+  "export.success": "Application ledger exported",
   "import.title": "Import applications",
   "import.hint": "Supports .xlsx with columns: Year, Category, Company, Link, Time.",
   "import.choose": "Click or drop an Excel file",
@@ -715,6 +738,7 @@ const en: Record<string, string> = {
   "resume.emptyHint": "Supports PDF, HTML, PPTX, DOCX, PNG, JPG, JPEG and MD.",
   "resume.preview": "Preview",
   "resume.download": "Download",
+  "resume.downloadFailed": "Download failed. Please try again.",
   "resume.edit": "Edit details",
   "resume.uploadTitle": "Upload resume",
   "resume.editTitle": "Edit resume",
@@ -740,6 +764,9 @@ const en: Record<string, string> = {
   "stats.thisQuarter": "This quarter",
   "stats.thisYear": "This year",
   "stats.allTime": "All time",
+  "stats.activeNote": "Moving forward",
+  "stats.interviewNote": "Interview stage",
+  "stats.offerNote": "Offers received",
   "stats.trend": "Application trend",
   "stats.trendHint": "New records per day for the selected type",
   "stats.statusDist": "Status distribution",
@@ -764,6 +791,8 @@ const en: Record<string, string> = {
   "trash.clearConfirm": "Empty the trash? Every record will be permanently deleted.",
   "trash.deleteConfirm": "Permanently delete \"{name}\"?",
   "trash.restored": "Restored",
+  "trash.deleted": "Permanently deleted",
+  "trash.cleared": "Trash emptied",
   "settings.title": "Settings",
   "settings.subtitle": "Account, security, appearance and data.",
   "settings.account": "Account",
@@ -1051,11 +1080,11 @@ const en: Record<string, string> = {
 
 const dictionaries: Record<Lang, Record<string, string>> = {
   "zh-CN": { ...zh, ...adminZh },
-  "zh-TW": { ...zhTW, ...adminZh },
+  "zh-TW": { ...zhTW, ...adminZhTW },
   en: { ...en, ...adminEn },
-  ja: { ...ja, ...adminZh },
-  ko: { ...ko, ...adminZh },
-  ru: { ...ru, ...adminZh },
+  ja: { ...ja, ...adminJa },
+  ko: { ...ko, ...adminKo },
+  ru: { ...ru, ...adminRu },
 };
 
 /** Vite 8 对部分 CommonJS 语言包会多包一层 default，这里统一解包。 */

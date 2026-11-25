@@ -1,5 +1,7 @@
 package com.jobtrack.system.controller;
 
+import com.jobtrack.common.api.Result;
+
 import com.jobtrack.system.service.PublicConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,7 +21,7 @@ public class PublicConfigController {
      * 登录页即可读取的公共配置，启用 Redis 时由缓存提供。
      */
     @GetMapping
-    public Map<String, Object> config() {
-        return publicConfigService.config();
+    public Result<Map<String, Object>> config() {
+        return Result.success(publicConfigService.config());
     }
 }

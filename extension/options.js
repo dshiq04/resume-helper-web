@@ -75,22 +75,26 @@ async function validate(silent = false) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ code }),
     });
-    let data = null;
+    let payload = null;
     try {
-      data = await response.json();
+      payload = await response.json();
     } catch {
-      data = null;
+      payload = null;
     }
+    const envelope = payload && typeof payload.code === "number" ? payload : null;
+    const data = envelope ? envelope.data : payload;
     if (!response.ok || !data || !data.valid) {
       if (!silent) {
         const reason = data && data.reason;
-        const message = reason === "banned"
-          ? (data.message || "该账号已被封禁")
-          : response.status === 410 || reason === "expired"
-            ? "授权码已过期"
-            : response.status === 403 || reason === "disabled"
-              ? "授权码已停用或账号状态异常"
-              : "授权码无效或已被删除";
+        const message = (envelope && envelope.message) || (data && data.message) || (
+          reason === "banned"
+            ? (data.message || "该账号已被封禁")
+            : response.status === 410 || reason === "expired"
+              ? "授权码已过期"
+              : response.status === 403 || reason === "disabled"
+                ? "授权码已停用或账号状态异常"
+                : "授权码无效或已被删除"
+        );
         showError(message);
         setStatus(message, false);
       }
@@ -110,9 +114,9 @@ async function validate(silent = false) {
     return true;
   } catch {
     if (!silent) {
-      showError("无法连接服务端，请检查服务器与端口");
+      showError("暂时无法连接到服务器");
     }
-    setStatus("无法连接服务端", false);
+    setStatus("暂时无法连接到服务器", false);
     return false;
   }
 }

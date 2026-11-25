@@ -4,9 +4,12 @@ import com.jobtrack.application.service.ApplicationImportService;
 import com.jobtrack.application.service.ApplicationService;
 
 import com.jobtrack.application.pojo.dto.ApplicationImportDTO;
+import com.jobtrack.application.pojo.dto.ApplicationImportRow;
+import com.jobtrack.application.pojo.dto.ApplicationExportDTO;
 import com.jobtrack.application.pojo.po.ApplicationRecord;
 import com.jobtrack.application.pojo.dto.ApplicationDTO;
 import com.jobtrack.application.pojo.vo.ImportResultVO;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.common.exception.BusinessException;
@@ -27,6 +30,7 @@ import org.apache.poi.xssf.usermodel.XSSFDataValidation;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.time.LocalDate;
@@ -35,9 +39,11 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
- * 投递台账 Excel 导入：模板列为 年度 / 投递类型 / 公司 / 投递地址 / 时间。
+ * 投递台账 Excel 导入与导出：模板列为 年度 / 投递类型 / 公司 / 投递地址 / 时间。
  */
 @Slf4j
 @Service
@@ -45,6 +51,10 @@ import java.util.Locale;
 public class ApplicationImportServiceImpl implements ApplicationImportService {
 
     private static final long MAX_BYTES = 10L * 1024 * 1024;
+    /** 解压后总大小上限，防止压缩炸弹。 */
+    private static final long MAX_UNCOMPRESSED_BYTES = 100L * 1024 * 1024;
+    private static final int MAX_ZIP_ENTRIES = 2000;
+    private static final int MAX_ROWS = 5000;
     private static final String[] TEMPLATE_CATEGORIES = {"春招", "秋招", "实习", "社招"};
     /** 下拉与默认行高覆盖到第 1000 行，足够日常导入使用。 */
     private static final int TEMPLATE_VALIDATION_LAST_ROW = 999;
@@ -72,17 +82,30 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
     }
 
     /**
-     * 按导入模板的列（年度/投递类型/公司/投递地址/时间）导出全部投递记录，
-     * 用户注销前可以用它把台账带走。
+     * 按界面选择的投递类型与时间范围导出投递记录。
+     * 类型为空时导出全部；时间范围为空的一侧不限制。
      */
-    public byte[] exportAll() {
-        List<ApplicationRecord> records = applicationRecordMapper.selectList(
-                Wrappers.<ApplicationRecord>lambdaQuery()
-                        .orderByDesc(ApplicationRecord::getAppliedAt));
-        List<ApplicationImportDTO> rows = new ArrayList<>();
-        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    @Override
+    public byte[] exportApplications(List<String> categories, LocalDate from, LocalDate to) {
+        LambdaQueryWrapper<ApplicationRecord> query = Wrappers.<ApplicationRecord>lambdaQuery()
+                .orderByDesc(ApplicationRecord::getAppliedAt);
+        List<String> normalizedCategories = normalizeCategories(categories);
+        if (!normalizedCategories.isEmpty()) {
+            query.in(ApplicationRecord::getCategory, normalizedCategories);
+        }
+        if (from != null) {
+            query.ge(ApplicationRecord::getAppliedAt, from.atStartOfDay());
+        }
+        if (to != null) {
+            // 结束日期按整天包含，导出 to 当天 23:59:59 之前的记录。
+            query.lt(ApplicationRecord::getAppliedAt, to.plusDays(1).atStartOfDay());
+        }
+        List<ApplicationRecord> records = applicationRecordMapper.selectList(query);
+
+        List<ApplicationExportDTO> rows = new ArrayList<>();
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         for (ApplicationRecord record : records) {
-            ApplicationImportDTO row = new ApplicationImportDTO();
+            ApplicationExportDTO row = new ApplicationExportDTO();
             row.setYear(record.getApplyYear());
             row.setCategory(categoryLabel(record.getCategory()));
             row.setCompany(record.getCompanyName());
@@ -92,14 +115,33 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
             rows.add(row);
         }
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            FesodSheet.write(output, ApplicationImportDTO.class)
-                    .registerWriteHandler(new TemplateSheetWriteHandler())
+            FesodSheet.write(output, ApplicationExportDTO.class)
                     .sheet("投递台账")
                     .doWrite(rows);
             return output.toByteArray();
         } catch (Exception exception) {
             throw BusinessException.internal("export_failed", "导出投递台账失败");
         }
+    }
+
+    /**
+     * 过滤空值与未知类型，「全部」或空集合都表示不限制类型。
+     */
+    private List<String> normalizeCategories(List<String> categories) {
+        if (categories == null || categories.isEmpty()) {
+            return List.of();
+        }
+        List<String> normalized = new ArrayList<>();
+        for (String category : categories) {
+            String value = DomainConstants.normalize(category);
+            if (value.isEmpty() || "all".equals(value)) {
+                return List.of();
+            }
+            if (DomainConstants.isValidCategory(value)) {
+                normalized.add(value);
+            }
+        }
+        return normalized;
     }
 
     private String categoryLabel(String category) {
@@ -121,11 +163,19 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         if (file.getSize() > MAX_BYTES) {
             throw BusinessException.badRequest("file_too_large", "文件不能超过 10 MB");
         }
-        List<ApplicationImportDTO> rows = new ArrayList<>();
-        try (InputStream input = file.getInputStream()) {
-            FesodSheet.read(input, ApplicationImportDTO.class, new ReadListener<ApplicationImportDTO>() {
+        byte[] content;
+        try {
+            content = file.getBytes();
+        } catch (Exception exception) {
+            throw BusinessException.badRequest("file_unreadable", "无法读取上传的文件");
+        }
+        requireExcel(file.getOriginalFilename(), content);
+
+        List<ApplicationImportRow> rows = new ArrayList<>();
+        try (InputStream input = new ByteArrayInputStream(content)) {
+            FesodSheet.read(input, ApplicationImportRow.class, new ReadListener<ApplicationImportRow>() {
                 @Override
-                public void invoke(ApplicationImportDTO row, AnalysisContext context) {
+                public void invoke(ApplicationImportRow row, AnalysisContext context) {
                     if (row != null) {
                         rows.add(row);
                     }
@@ -140,12 +190,16 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
             throw BusinessException.badRequest("invalid_excel",
                     "无法解析 Excel，请使用提供的模板");
         }
+        if (rows.size() > MAX_ROWS) {
+            throw BusinessException.badRequest("too_many_rows",
+                    "单次最多导入 " + MAX_ROWS + " 行，请拆分后重试");
+        }
 
         int imported = 0;
         int skipped = 0;
         List<String> errors = new ArrayList<>();
         for (int index = 0; index < rows.size(); index++) {
-            ApplicationImportDTO row = rows.get(index);
+            ApplicationImportRow row = rows.get(index);
             try {
                 applicationService.create(toRequest(row));
                 imported++;
@@ -160,7 +214,80 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         return new ImportResultVO(imported, skipped, rows.size(), errors);
     }
 
-    private ApplicationDTO toRequest(ApplicationImportDTO row) {
+    /**
+     * 只接受真正的 Excel 文件：先看扩展名，再看文件头（xlsx 为 ZIP 的 PK，
+     * 旧版 xls 为 OLE2 的 D0 CF 11 E0），避免把 .txt 之类的文件当成“0 行”导入。
+     */
+    private void requireExcel(String filename, byte[] content) {
+        String name = filename == null ? "" : filename.trim().toLowerCase(Locale.ROOT);
+        int dot = name.lastIndexOf('.');
+        String extension = dot < 0 ? "" : name.substring(dot + 1);
+        if (!"xlsx".equals(extension) && !"xls".equals(extension)) {
+            throw BusinessException.badRequest("invalid_file_type",
+                    "仅支持 .xlsx / .xls 格式的 Excel 文件，请使用提供的模板");
+        }
+        if (!looksLikeExcel(content)) {
+            throw BusinessException.badRequest("invalid_file_type",
+                    "文件内容不是有效的 Excel，请使用提供的模板");
+        }
+    }
+
+    private boolean looksLikeExcel(byte[] content) {
+        if (content == null || content.length < 4) {
+            return false;
+        }
+        // xlsx：ZIP 容器（PK\x03\x04 / PK\x05\x06 / PK\x07\x08）。
+        if (content[0] == 'P' && content[1] == 'K') {
+            return isValidXlsx(content);
+        }
+        // xls：OLE2 复合文档。
+        return content.length >= 8
+                && (content[0] & 0xFF) == 0xD0 && (content[1] & 0xFF) == 0xCF
+                && (content[2] & 0xFF) == 0x11 && (content[3] & 0xFF) == 0xE0
+                && (content[4] & 0xFF) == 0xA1 && (content[5] & 0xFF) == 0xB1
+                && (content[6] & 0xFF) == 0x1A && (content[7] & 0xFF) == 0xE1;
+    }
+
+    /**
+     * 校验 xlsx 的 OOXML 结构并限制解压规模，避免仅凭 PK 头就放行任意 ZIP
+     * （压缩炸弹 / 非 Excel 内容）。
+     */
+    private boolean isValidXlsx(byte[] content) {
+        boolean hasContentTypes = false;
+        boolean hasWorkbook = false;
+        int entries = 0;
+        long totalUncompressed = 0;
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(content))) {
+            ZipEntry entry;
+            byte[] buffer = new byte[8192];
+            while ((entry = zip.getNextEntry()) != null) {
+                entries++;
+                if (entries > MAX_ZIP_ENTRIES) {
+                    return false;
+                }
+                String name = entry.getName();
+                if ("[Content_Types].xml".equals(name)) {
+                    hasContentTypes = true;
+                }
+                if ("xl/workbook.xml".equals(name)) {
+                    hasWorkbook = true;
+                }
+                int read;
+                while ((read = zip.read(buffer)) != -1) {
+                    totalUncompressed += read;
+                    if (totalUncompressed > MAX_UNCOMPRESSED_BYTES) {
+                        return false;
+                    }
+                }
+                zip.closeEntry();
+            }
+        } catch (Exception exception) {
+            return false;
+        }
+        return hasContentTypes && hasWorkbook;
+    }
+
+    private ApplicationDTO toRequest(ApplicationImportRow row) {
         String company = trim(row.getCompany());
         if (company.isEmpty()) {
             throw BusinessException.badRequest("company_required", "公司名称不能为空");
@@ -176,23 +303,46 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         request.setLink(link);
         request.setCategory(mapCategory(row.getCategory()));
         request.setStatus(DomainConstants.STATUS_SCREENING);
-        Integer year = row.getYear();
-        if (year == null || year <= 0) {
-            year = appliedAt == null ? LocalDate.now().getYear() : appliedAt.getYear();
-        }
-        request.setYear(year);
-        request.setAppliedAt(appliedAt);
+        request.setYear(parseYear(row.getYear(), appliedAt));
+        request.setAppliedAt(appliedAt == null ? null : appliedAt.toString());
         return request;
+    }
+
+    /**
+     * 「年度」以字符串读入后逐行转换，类型错误只影响当前行。
+     * 留空时按投递时间（或当前年份）补全，保持原有行为。
+     */
+    private Integer parseYear(String raw, LocalDateTime appliedAt) {
+        String value = trim(raw);
+        if (value.isEmpty()) {
+            return appliedAt == null ? LocalDate.now().getYear() : appliedAt.getYear();
+        }
+        String normalized = value.endsWith(".0")
+                ? value.substring(0, value.length() - 2) : value;
+        try {
+            int year = Integer.parseInt(normalized);
+            if (year <= 0) {
+                throw new NumberFormatException("year must be positive");
+            }
+            return year;
+        } catch (NumberFormatException exception) {
+            throw BusinessException.badRequest("invalid_year", "年度必须为数字，例如 2026");
+        }
     }
 
     private String mapCategory(String raw) {
         String value = trim(raw).toLowerCase(Locale.ROOT);
+        if (value.isEmpty()) {
+            throw BusinessException.badRequest("category_required",
+                    "投递类型不能为空，请填写：春招、秋招、实习、社招");
+        }
         return switch (value) {
             case "spring", "春招" -> DomainConstants.CATEGORY_SPRING;
             case "autumn", "秋招" -> DomainConstants.CATEGORY_AUTUMN;
             case "internship", "实习" -> DomainConstants.CATEGORY_INTERNSHIP;
             case "social", "社招", "社会招聘" -> DomainConstants.CATEGORY_SOCIAL;
-            default -> DomainConstants.CATEGORY_SPRING;
+            default -> throw BusinessException.badRequest("category_invalid",
+                    "投递类型不存在，请填写：春招、秋招、实习、社招");
         };
     }
 

@@ -62,7 +62,11 @@ public class ApplicationDTO {
 
     private Integer interviewRound;
 
-    private LocalDateTime nextActionAt;
+    /**
+     * 字符串形式接收，由服务端用 FlexibleTimes 解析。
+     * 这样既接受本地墙上时间，也接受带 Z / +08:00 的 ISO 时间并换算到服务器时区。
+     */
+    private String nextActionAt;
 
     @Size(max = 2000, message = "备注不能超过 2000 个字符")
     private String notes;
@@ -70,5 +74,5 @@ public class ApplicationDTO {
     private Boolean pinned;
 
     /** 导入时指定投递时间，普通新增留空即可。 */
-    private LocalDateTime appliedAt;
+    private String appliedAt;
 }

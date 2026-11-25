@@ -136,9 +136,11 @@ export function ApplicationFormDrawer({
       workMode: values.workMode,
       priority: values.priority,
       interviewRound: values.interviewRound,
-      nextActionAt: values.nextActionAt?.toISOString(),
+      // 发送本地墙上时间，避免后端 LocalDateTime 丢弃时区偏移造成跟进时间偏移。
+      nextActionAt: values.nextActionAt?.format("YYYY-MM-DDTHH:mm:ss"),
       notes: values.notes,
-      pinned: values.pinned,
+      // 编辑时表单可能未注册 pinned 字段，兜底保留原值，避免静默取消置顶。
+      pinned: values.pinned ?? editing?.pinned ?? false,
     };
     try {
       if (editing) {
@@ -181,6 +183,10 @@ export function ApplicationFormDrawer({
       }
     >
       <Form form={form} layout="vertical" onFinish={submit}>
+        {/* 隐藏字段：让编辑表单原样携带 pinned，避免整体更新时被清空。 */}
+        <Form.Item name="pinned" hidden>
+          <Input />
+        </Form.Item>
         <div className="form-section-label">{t("form.basic")}</div>
         <Form.Item
           name="companyName"

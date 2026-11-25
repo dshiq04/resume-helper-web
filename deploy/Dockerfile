@@ -10,9 +10,10 @@ FROM eclipse-temurin:21-jre-alpine
 LABEL maintainer="resume-helper" \
       description="履途 ResumeTrail 后端（Spring Boot 4.2 / JRE 21 Alpine）"
 
+# 通过 JAVA_OPTS 强制指定生产 profile，避免环境变量被误覆盖。
 ENV TZ=Asia/Shanghai \
     LANG=zh_CN.UTF-8 \
-    JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError"
+    JAVA_OPTS="-XX:MaxRAMPercentage=75.0 -XX:+ExitOnOutOfMemoryError -Dspring.profiles.active=prod"
 
 # 时区数据（Alpine 镜像默认不含 tzdata）
 RUN apk add --no-cache tzdata \

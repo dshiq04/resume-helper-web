@@ -14,9 +14,10 @@ import { useAuth } from "../context/AuthContext";
 import { LANGUAGES, useI18n } from "../i18n";
 import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { toggleTheme } from "../store/slices/uiSlice";
+import { APP_NAME, appVersionLabel } from "../utils/appInfo";
 import { COUNTRY_CODES, joinPhone } from "../utils/countryCodes";
 import { getTimeZone } from "../utils/clientInfo";
-import { errorMessage, isApiErrorCode } from "../utils/errors";
+import { errorMessage } from "../utils/errors";
 import { EMAIL_PATTERN, FULL_PHONE_PATTERN, LOCAL_PHONE_PATTERN } from "../utils/validation";
 
 type Mode = "login" | "register" | "forgot";
@@ -246,11 +247,7 @@ export function LoginPage() {
       }
     } catch (error) {
       // 登录失败统一提示，避免显示通用错误或暴露账号是否存在。
-      message.error(
-        isApiErrorCode(error, "invalid_credentials")
-          ? t("auth.invalidCredentials")
-          : errorMessage(error),
-      );
+      message.error(errorMessage(error));
       form.setFieldValue("captchaCode", "");
       if (currentConfig.captchaEnabled) {
         void loadCaptcha();
@@ -264,9 +261,9 @@ export function LoginPage() {
     <div className="login-page">
       <section className="login-editorial">
         <div className="login-brand">
-          <img className="brand-logo is-large" src="/logo.svg" alt="ResumeTrail" />
+          <img className="brand-logo is-large" src="/logo.svg" alt={APP_NAME} />
           <div>
-            <strong>{t("app.name")}</strong>
+            <strong>{APP_NAME}</strong>
             <span>RESUMETRAIL</span>
           </div>
         </div>
@@ -283,7 +280,7 @@ export function LoginPage() {
         </div>
         <div className="editorial-foot">
           <span>{t("login.selfHosted")}</span>
-          <span>v{config?.version ?? import.meta.env.VITE_APP_VERSION ?? "1.2"}</span>
+          <span>{appVersionLabel()}</span>
         </div>
       </section>
 

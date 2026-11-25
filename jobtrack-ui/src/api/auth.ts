@@ -1,4 +1,5 @@
 import { request } from "./client";
+import { encryptedRequest } from "../utils/secureForm";
 import type {
   AuthResponse,
   CaptchaResponse,
@@ -7,7 +8,7 @@ import type {
   UserAgreementRecord,
 } from "./types";
 
-/** 对应后端 AuthController。 */
+/** 对应后端 AuthController。登录、注册、改密、找回密码表单统一加密后提交。 */
 export const authApi = {
   status() {
     return request<{ enabled: boolean; authenticated: boolean }>("/auth/status", {
@@ -17,14 +18,19 @@ export const authApi = {
   captcha() {
     return request<CaptchaResponse>("/auth/captcha", { handleUnauthorized: false });
   },
-  login(input: { username: string; password: string; captchaId?: string; captchaCode?: string }) {
-    return request<AuthResponse>("/auth/login", {
-      method: "POST",
-      data: input,
+  /** 获取表单加密公钥；前端按 chunkSize 分块做 RSA 加密。 */
+  publicKey() {
+    return request<{ algorithm: string; publicKey: string; chunkSize: number }>(
+      "/auth/public-key",
+      { handleUnauthorized: false },
+    );
+  },
+  async login(input: { username: string; password: string; captchaId?: string; captchaCode?: string }) {
+    return encryptedRequest<AuthResponse>("/auth/login", input, {
       handleUnauthorized: false,
     });
   },
-  register(input: {
+  async register(input: {
     username: string;
     password: string;
     confirmPassword?: string;
@@ -40,9 +46,7 @@ export const authApi = {
     captchaId?: string;
     captchaCode?: string;
   }) {
-    return request<AuthResponse>("/auth/register", {
-      method: "POST",
-      data: input,
+    return encryptedRequest<AuthResponse>("/auth/register", input, {
       handleUnauthorized: false,
     });
   },
@@ -68,15 +72,20 @@ export const authApi = {
   updateProfile(displayName: string) {
     return request<User>("/auth/me", { method: "PUT", data: { displayName } });
   },
-  changePassword(
+  async changePassword(
     currentPassword: string,
     newPassword: string,
+    confirmPassword: string,
     contact: string,
     contactType?: "phone" | "email",
   ) {
-    return request<{ changed: boolean }>("/auth/change-password", {
-      method: "POST",
-      data: { currentPassword, newPassword, contact, contactType },
+    return encryptedRequest<{ changed: boolean }>("/auth/change-password", {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+      contact,
+      contactType,
+    }, {
       // 密码校验失败不能触发全局 401 退出登录。
       handleUnauthorized: false,
     });
@@ -88,24 +97,20 @@ export const authApi = {
     return request<OnlineStatus>("/auth/online");
   },
   /** 忘记密码第一步：验证用户名与手机号/邮箱。 */
-  forgotPasswordVerify(input: { username: string; contactType?: string; contact: string }) {
-    return request<{ verified: boolean }>("/auth/forgot-password/verify", {
-      method: "POST",
-      data: input,
+  async forgotPasswordVerify(input: { username: string; contactType?: string; contact: string }) {
+    return encryptedRequest<{ verified: boolean }>("/auth/forgot-password/verify", input, {
       handleUnauthorized: false,
     });
   },
   /** 忘记密码第二步：重置密码并注销全部旧令牌。 */
-  forgotPasswordReset(input: {
+  async forgotPasswordReset(input: {
     username: string;
     contactType?: string;
     contact: string;
     newPassword: string;
     confirmPassword: string;
   }) {
-    return request<{ reset: boolean }>("/auth/forgot-password/reset", {
-      method: "POST",
-      data: input,
+    return encryptedRequest<{ reset: boolean }>("/auth/forgot-password/reset", input, {
       handleUnauthorized: false,
     });
   },

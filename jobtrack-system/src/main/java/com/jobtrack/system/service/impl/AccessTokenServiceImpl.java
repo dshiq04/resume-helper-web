@@ -49,10 +49,8 @@ import java.util.UUID;
 public class AccessTokenServiceImpl implements AccessTokenService {
 
     private static final Set<String> SCOPES = Set.of("read", "write", "readwrite");
-    private static final Set<String> RESOURCES =
-            Set.of("applications", "resumes", "statistics", "profile");
-    private static final List<String> DEFAULT_RESOURCES =
-            List.of("applications", "resumes", "statistics", "profile");
+    private static final Set<String> RESOURCES = Set.copyOf(AccessTokenService.ALL_RESOURCES);
+    private static final List<String> DEFAULT_RESOURCES = AccessTokenService.ALL_RESOURCES;
 
     private static final String CACHE_PREFIX = "access-code:";
 
@@ -70,7 +68,7 @@ public class AccessTokenServiceImpl implements AccessTokenService {
                         .eq(AccessToken::getUserId, userId)
                         .orderByDesc(AccessToken::getCreatedAt))
                 .stream()
-                .map(this::view)
+                .map(token -> view(token, false))
                 .toList();
     }
 
@@ -110,7 +108,8 @@ public class AccessTokenServiceImpl implements AccessTokenService {
         token.setCode("rt_" + UUID.randomUUID().toString().replace("-", ""));
         tokenMapper.insert(token);
         cacheToken(token);
-        return view(token);
+        // 完整授权码只在创建成功时返回一次，后续列表与详情只返回脱敏值。
+        return view(token, true);
     }
 
     @Transactional
@@ -136,7 +135,7 @@ public class AccessTokenServiceImpl implements AccessTokenService {
         tokenMapper.updateById(update);
         token.setEnabled(enabled);
         cacheToken(token);
-        return view(token);
+        return view(token, false);
     }
 
     /**
@@ -221,6 +220,10 @@ public class AccessTokenServiceImpl implements AccessTokenService {
         touch.setLastUsedAt(LocalDateTime.now());
         tokenMapper.updateById(touch);
         return new AccessTokenService.TokenAuth(token, user);
+    }
+
+    public List<String> resources(AccessToken token) {
+        return splitResources(token == null ? null : token.getResources());
     }
 
     public AccessTokenLogPageVO logs(Long userId, int page, int pageSize, String name, String result) {
@@ -388,10 +391,27 @@ public class AccessTokenServiceImpl implements AccessTokenService {
     }
 
     private AccessTokenVO view(AccessToken token) {
+        return view(token, false);
+    }
+
+    private AccessTokenVO view(AccessToken token, boolean revealCode) {
         AccessTokenVO view = new AccessTokenVO();
-        BeanUtils.copyProperties(token, view, "resources");
+        BeanUtils.copyProperties(token, view, "resources", "code");
         view.setResources(splitResources(token.getResources()));
+        String code = token.getCode() == null ? "" : token.getCode();
+        view.setCodeMasked(maskCode(code));
+        view.setCode(revealCode ? token.getCode() : null);
         return view;
+    }
+
+    private String maskCode(String code) {
+        if (code == null || code.isBlank()) {
+            return "—";
+        }
+        if (code.length() <= 11) {
+            return code;
+        }
+        return code.substring(0, 7) + "••••" + code.substring(code.length() - 4);
     }
 
     private String joinResources(List<String> resources) {

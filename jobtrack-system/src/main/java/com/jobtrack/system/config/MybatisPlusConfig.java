@@ -40,13 +40,15 @@ public class MybatisPlusConfig {
             @Override
             public void insertFill(MetaObject metaObject) {
                 LocalDateTime now = LocalDateTime.now();
+                // 新增时同时补齐创建时间与更新时间，已显式赋值（如导入数据）时不覆盖。
                 strictInsertFill(metaObject, "createdAt", LocalDateTime.class, now);
                 strictInsertFill(metaObject, "updatedAt", LocalDateTime.class, now);
             }
 
             @Override
             public void updateFill(MetaObject metaObject) {
-                strictUpdateFill(metaObject, "updatedAt", LocalDateTime.class, LocalDateTime.now());
+                // 更新时强制刷新更新时间：实体通常已带有旧值，strictUpdateFill 会跳过。
+                setFieldValByName("updatedAt", LocalDateTime.now(), metaObject);
             }
         };
     }

@@ -216,15 +216,8 @@ export function AccountTokensPage() {
       },
       {
         title: t("tokens.columnCode"),
-        dataIndex: "code",
-        render: (code: string) => (
-          <Typography.Text
-            code
-            copyable={{ text: code, tooltips: [t("tokens.copy"), t("tokens.copied")] }}
-          >
-            {`${code.slice(0, 7)}••••${code.slice(-4)}`}
-          </Typography.Text>
-        ),
+        dataIndex: "codeMasked",
+        render: (masked: string) => <Typography.Text code>{masked || "—"}</Typography.Text>,
       },
       {
         title: t("tokens.columnExpires"),

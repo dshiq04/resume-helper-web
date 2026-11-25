@@ -1,5 +1,7 @@
 package com.jobtrack.system.controller;
 
+import com.jobtrack.common.api.Result;
+
 import com.jobtrack.system.pojo.dto.PreferencesDTO;
 import com.jobtrack.system.pojo.vo.PreferencesVO;
 import com.jobtrack.system.service.SettingService;
@@ -18,12 +20,12 @@ public class PreferencesController {
     private final SettingService settingService;
 
     @GetMapping
-    public PreferencesVO get() {
-        return settingService.preferences();
+    public Result<PreferencesVO> get() {
+        return Result.success(settingService.preferences());
     }
 
     @PutMapping
-    public PreferencesVO update(@RequestBody PreferencesDTO request) {
-        return settingService.update(request);
+    public Result<PreferencesVO> update(@RequestBody PreferencesDTO request) {
+        return Result.success(settingService.update(request));
     }
 }

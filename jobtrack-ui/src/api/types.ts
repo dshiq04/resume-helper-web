@@ -189,7 +189,10 @@ export type TokenResource = "applications" | "resumes" | "statistics" | "profile
 export interface AccessToken {
   id: number;
   name: string;
-  code: string;
+  /** 完整授权码仅在创建成功时返回一次，列表中为 null。 */
+  code?: string | null;
+  /** 脱敏后的授权码，用于列表展示。 */
+  codeMasked?: string;
   scope: TokenScope;
   resources: TokenResource[];
   enabled: boolean;
@@ -247,8 +250,6 @@ export interface CaptchaResponse {
 }
 
 export interface PublicConfig {
-  name: string;
-  version: string;
   categories: Category[];
   statuses: Status[];
   timelineStatuses: Status[];
@@ -472,7 +473,6 @@ export interface DatabaseTestResult {
 }
 
 export interface SystemInfo {
-  version: string;
   javaVersion: string;
   driver: string;
   database: string;

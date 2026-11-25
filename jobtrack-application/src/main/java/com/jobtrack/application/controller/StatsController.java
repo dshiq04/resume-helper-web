@@ -1,5 +1,7 @@
 package com.jobtrack.application.controller;
 
+import com.jobtrack.common.api.Result;
+
 import com.jobtrack.application.pojo.vo.DailyStatsVO;
 import com.jobtrack.application.pojo.vo.FunnelVO;
 import com.jobtrack.application.pojo.vo.StatsVO;
@@ -18,23 +20,23 @@ public class StatsController {
     private final StatsService statsService;
 
     @GetMapping
-    public StatsVO stats(@RequestParam(required = false) String from,
+    public Result<StatsVO> stats(@RequestParam(required = false) String from,
                                @RequestParam(required = false) String to,
                                @RequestParam(required = false) Integer year) {
-        return statsService.stats(from, to, year);
+        return Result.success(statsService.stats(from, to, year));
     }
 
     @GetMapping("/daily")
-    public DailyStatsVO daily(@RequestParam(required = false) String from,
+    public Result<DailyStatsVO> daily(@RequestParam(required = false) String from,
                                     @RequestParam(required = false) String to,
                                     @RequestParam(required = false) Integer year) {
-        return statsService.daily(from, to, year);
+        return Result.success(statsService.daily(from, to, year));
     }
 
     @GetMapping("/funnel")
-    public FunnelVO funnel(@RequestParam(required = false) String from,
+    public Result<FunnelVO> funnel(@RequestParam(required = false) String from,
                                  @RequestParam(required = false) String to,
                                  @RequestParam(required = false) Integer year) {
-        return statsService.funnel(from, to, year);
+        return Result.success(statsService.funnel(from, to, year));
     }
 }

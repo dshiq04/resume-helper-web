@@ -1,7 +1,7 @@
 package com.jobtrack.application.service.impl;
 
+import com.jobtrack.application.config.CacheNames;
 import com.jobtrack.application.service.StatsService;
-import com.jobtrack.application.service.ApplicationCacheService;
 import com.jobtrack.application.service.ApplicationHistoryService;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -16,10 +16,10 @@ import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.common.util.FlexibleTimes;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
-import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -36,27 +36,23 @@ public class StatsServiceImpl implements StatsService {
     private final ApplicationRecordMapper applicationMapper;
     private final ResumeMapper resumeMapper;
     private final ApplicationHistoryService historyService;
-    private final ApplicationCacheService applicationCache;
 
+    /**
+     * 概览包含“初筛停留天数”等基于当前时间计算的派生值，不放入长 TTL 缓存，
+     * 每次请求重新计算，避免天数滞后。
+     */
     public StatsVO stats(String from, String to, Integer year) {
-        Integer normalizedYear = normalizeYear(year);
-        String key = "stats|" + normalizedYear + "|" + value(from) + "|" + value(to);
-        return applicationCache.cached(key, StatsVO.class,
-                () -> computeStats(range(from, to, normalizedYear)));
+        return computeStats(range(from, to, normalizeYear(year)));
     }
 
+    @Cacheable(cacheNames = CacheNames.DAILY_STATS)
     public DailyStatsVO daily(String from, String to, Integer year) {
-        Integer normalizedYear = normalizeYear(year);
-        String key = "daily|" + normalizedYear + "|" + value(from) + "|" + value(to);
-        return applicationCache.cached(key, DailyStatsVO.class,
-                () -> computeDaily(range(from, to, normalizedYear)));
+        return computeDaily(range(from, to, normalizeYear(year)));
     }
 
+    @Cacheable(cacheNames = CacheNames.FUNNEL)
     public FunnelVO funnel(String from, String to, Integer year) {
-        Integer normalizedYear = normalizeYear(year);
-        String key = "funnel|" + normalizedYear + "|" + value(from) + "|" + value(to);
-        return applicationCache.cached(key, FunnelVO.class,
-                () -> computeFunnel(range(from, to, normalizedYear)));
+        return computeFunnel(range(from, to, normalizeYear(year)));
     }
 
     private StatsVO computeStats(Range range) {
@@ -103,7 +99,6 @@ public class StatsServiceImpl implements StatsService {
                 for (ApplicationChange change : changes.getOrDefault(application.getId(), List.of())) {
                     if (DomainConstants.STATUS_SCREENING.equals(change.getStatus())) {
                         since = change.getChangedAt();
-                        break;
                     }
                 }
                 int days = daysBetween(since, now);
@@ -163,13 +158,7 @@ public class StatsServiceImpl implements StatsService {
 
         for (ApplicationRecord application : applications) {
             List<ApplicationChange> timeline = changes.getOrDefault(application.getId(), List.of());
-            Map<String, LocalDateTime> firstAt = new HashMap<>();
-            for (ApplicationChange change : timeline) {
-                firstAt.putIfAbsent(change.getStatus(), change.getChangedAt());
-            }
-            for (String status : DomainConstants.stageChainForStatus(application.getStatus())) {
-                firstAt.putIfAbsent(status, null);
-            }
+            Map<String, LocalDateTime> firstAt = stageTimeline(application.getStatus(), timeline);
 
             for (String stage : DomainConstants.STAGE_ORDER) {
                 if (firstAt.containsKey(stage)) {
@@ -251,13 +240,63 @@ public class StatsServiceImpl implements StatsService {
         return response;
     }
 
+    /**
+     * 计算一条投递实际到达过的阶段。
+     *
+     * <p>旧逻辑直接按“当前状态必经链路”补全阶段，导致所有被淘汰的记录都被算作
+     * 到达过面试，初筛数量因此接近累计投递。这里改为只采信真实时间线：
+     * 淘汰记录不再反向推断面试/笔试，但仍按实际到达的最高阶段补齐前置阶段，
+     * 保证漏斗数量单调递减。</p>
+     */
+    private Map<String, LocalDateTime> stageTimeline(String currentStatus, List<ApplicationChange> timeline) {
+        int currentRank = ApplicationHistoryServiceImpl.timelineStatusRank(currentStatus);
+        boolean currentTerminal = ApplicationHistoryServiceImpl.isTerminal(currentStatus);
+        Map<String, LocalDateTime> firstAt = new HashMap<>();
+        for (ApplicationChange change : timeline) {
+            String status = change.getStatus();
+            if (status == null) {
+                continue;
+            }
+            // 终态互斥：当前为 Offer 时不采信历史中的淘汰，反之亦然。
+            if (currentTerminal && ApplicationHistoryServiceImpl.isTerminal(status)
+                    && !status.equals(currentStatus)) {
+                continue;
+            }
+            // 当前状态回退后，不再统计高于当前状态的历史阶段。
+            if (ApplicationHistoryServiceImpl.timelineStatusRank(status) > currentRank) {
+                continue;
+            }
+            firstAt.putIfAbsent(status, change.getChangedAt());
+        }
+
+        int furthest = -1;
+        for (int index = 0; index < DomainConstants.STAGE_ORDER.size(); index++) {
+            String stage = DomainConstants.STAGE_ORDER.get(index);
+            if (stage.equals(currentStatus) || firstAt.containsKey(stage)) {
+                furthest = index;
+            }
+        }
+        if (furthest >= 0) {
+            for (int index = 0; index <= furthest; index++) {
+                firstAt.putIfAbsent(DomainConstants.STAGE_ORDER.get(index), null);
+            }
+        }
+        return firstAt;
+    }
+
     private List<ApplicationRecord> applications(Range range) {
         var query = Wrappers.<ApplicationRecord>lambdaQuery();
-        if (range.from != null) {
-            query.ge(ApplicationRecord::getAppliedAt, range.from);
-        }
-        if (range.to != null) {
-            query.le(ApplicationRecord::getAppliedAt, range.to);
+        if (range.year != null) {
+            // 年度筛选与投递列表保持一致，按记录自身的 apply_year 过滤，
+            // 而不是把年度换算成 applied_at 的起止时间。
+            query.eq(ApplicationRecord::getApplyYear, range.year);
+        } else {
+            if (range.from != null) {
+                query.ge(ApplicationRecord::getAppliedAt, range.from);
+            }
+            if (range.to != null) {
+                query.le(ApplicationRecord::getAppliedAt, range.to);
+            }
         }
         query.orderByAsc(ApplicationRecord::getAppliedAt).orderByAsc(ApplicationRecord::getId);
         return applicationMapper.selectList(query);
@@ -266,14 +305,12 @@ public class StatsServiceImpl implements StatsService {
     private Range range(String from, String to, Integer year) {
         LocalDateTime fromTime = parse(from);
         LocalDateTime toTime = parse(to);
-        if (fromTime == null && toTime == null && year != null) {
-            fromTime = LocalDate.of(year, 1, 1).atStartOfDay();
-            toTime = LocalDate.of(year, 12, 31).atTime(23, 59, 59, 999_000_000);
-        }
         if (fromTime != null && toTime != null && toTime.isBefore(fromTime)) {
             throw BusinessException.badRequest("invalid_range", "结束时间必须晚于开始时间");
         }
-        return new Range(fromTime, toTime);
+        // 只有未指定自定义时间范围时才使用年度筛选；两者互斥，年度优先按 apply_year。
+        Integer yearFilter = fromTime == null && toTime == null ? year : null;
+        return new Range(fromTime, toTime, yearFilter);
     }
 
     private Integer normalizeYear(Integer year) {
@@ -284,10 +321,6 @@ public class StatsServiceImpl implements StatsService {
             throw BusinessException.badRequest("invalid_year", "年度需在 2000-2100 之间");
         }
         return year;
-    }
-
-    private String value(String value) {
-        return value == null ? "" : value.trim();
     }
 
     private LocalDateTime parse(String value) {
@@ -320,7 +353,7 @@ public class StatsServiceImpl implements StatsService {
         return Math.round(value * 10.0) / 10.0;
     }
 
-    private record Range(LocalDateTime from, LocalDateTime to) {
+    private record Range(LocalDateTime from, LocalDateTime to, Integer year) {
     }
 
     private static final class CompanyStat {

@@ -1,6 +1,23 @@
 // 主题变量、全局重置与通用工具类
 @use "variables" as v;
 
+// 全站鸿蒙字体：拉丁字符使用 HarmonyOS Sans，中文使用 HarmonyOS Sans SC。
+@font-face {
+  font-family: "HarmonyOS Sans";
+  src: url("/fonts/HarmonyOS_Sans_Light.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "HarmonyOS Sans SC";
+  src: url("/fonts/HarmonyOS_Sans_SC_Light.ttf") format("truetype");
+  font-style: normal;
+  font-weight: 300;
+  font-display: swap;
+}
+
 :root {
   --bg: #f4f1e9;
   --bg-elev: #fffdf8;

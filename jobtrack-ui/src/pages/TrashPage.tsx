@@ -45,6 +45,8 @@ export function TrashPage() {
   const remove = async (item: TrashItem) => {
     try {
       await trashApi.remove(item.id);
+      message.success(t("trash.deleted"));
+      notifyDataChanged();
       await load();
     } catch (error) {
       message.error(errorMessage(error));
@@ -54,6 +56,8 @@ export function TrashPage() {
   const empty = async () => {
     try {
       await trashApi.empty();
+      message.success(t("trash.cleared"));
+      notifyDataChanged();
       await load();
     } catch (error) {
       message.error(errorMessage(error));

@@ -16,8 +16,8 @@ import com.jobtrack.system.mapper.SysTenantMapper;
 import com.jobtrack.system.mapper.SysUserMapper;
 import com.jobtrack.system.mapper.UserProfileMapper;
 import com.jobtrack.system.security.AuthPrincipal;
-import com.jobtrack.system.messaging.AsyncTaskPublisher;
 import com.jobtrack.system.service.ContactService;
+import com.jobtrack.system.storage.FileCleanupScheduler;
 import com.jobtrack.system.storage.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -25,7 +25,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.time.LocalDateTime;
 import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -48,7 +47,7 @@ public class AccountServiceImpl implements AccountService {
     private final ObjectStorageService objectStorage;
     private final AvatarService avatarService;
     private final ContactService contactService;
-    private final AsyncTaskPublisher publisher;
+    private final FileCleanupScheduler fileCleanupScheduler;
 
     private static final Set<String> AVATAR_TYPES = Set.of("png", "jpg", "jpeg", "webp", "gif");
     private static final long AVATAR_MAX_BYTES = 5L * 1024 * 1024;
@@ -81,7 +80,6 @@ public class AccountServiceImpl implements AccountService {
         if (creating) {
             profileMapper.insert(profile);
         } else {
-            profile.setUpdatedAt(LocalDateTime.now());
             profileMapper.updateById(profile);
         }
         return view(profile);
@@ -125,12 +123,10 @@ public class AccountServiceImpl implements AccountService {
             profile.setUserId(principal.id());
             profile.setPhone(phone.isEmpty() ? null : phone);
             profile.setEmail(email.isEmpty() ? null : email);
-            profile.setUpdatedAt(LocalDateTime.now());
             profileMapper.insert(profile);
         } else {
             profile.setPhone(phone.isEmpty() ? null : phone);
             profile.setEmail(email.isEmpty() ? null : email);
-            profile.setUpdatedAt(LocalDateTime.now());
             profileMapper.updateById(profile);
         }
         return view(profile);
@@ -160,6 +156,8 @@ public class AccountServiceImpl implements AccountService {
         String key = "avatars/" + principal.tenantId() + "/" + principal.id()
                 + "-" + System.currentTimeMillis() + "." + extension;
         objectStorage.put(key, content, contentType(extension));
+        // 资料写入或事务提交失败时，删除刚上传的头像文件。
+        fileCleanupScheduler.deleteOnRollback(key);
 
         UserProfile profile = profileMapper.selectOne(Wrappers.<UserProfile>lambdaQuery()
                 .eq(UserProfile::getUserId, principal.id()));
@@ -169,17 +167,14 @@ public class AccountServiceImpl implements AccountService {
             profile.setTenantId(principal.tenantId());
             profile.setUserId(principal.id());
             profile.setAvatarUrl(key);
-            profile.setUpdatedAt(LocalDateTime.now());
             profileMapper.insert(profile);
         } else {
             profile.setAvatarUrl(key);
-            profile.setUpdatedAt(LocalDateTime.now());
             profileMapper.updateById(profile);
         }
         if (previous != null && !previous.isBlank() && !previous.equals(key)) {
-            if (!publisher.publishFileCleanup(previous)) {
-                objectStorage.delete(previous);
-            }
+            // 提交后才删除旧头像，避免事务回滚后数据库仍引用已被删除的文件。
+            fileCleanupScheduler.deleteAfterCommit(previous);
         }
         return view(profile);
     }

@@ -78,6 +78,7 @@ public class DataInitializer implements ApplicationRunner {
             adminUser.setEnabled(true);
             userMapper.insert(adminUser);
             log.info("已创建默认账号: {} / {}", username, admin.getPassword());
+            grantAdmin(adminUser.getId());
         } else {
             adminUser = userMapper.selectOne(Wrappers.<SysUser>lambdaQuery()
                     .eq(SysUser::getUsername, username)
@@ -85,17 +86,24 @@ public class DataInitializer implements ApplicationRunner {
                             .or().ne(SysUser::getStatus, "CANCELLED"))
                     .orderByAsc(SysUser::getId)
                     .last("LIMIT 1"));
+            // 安全约束：初始化器绝不把已有普通账号提升为管理员。
+            // 如果配置的管理员用户名已被普通账号占用，直接启动失败并要求人工处理，
+            // 避免注册同名账号后重启提权。
+            if (adminUser != null && !"ADMIN".equalsIgnoreCase(adminUser.getRole())) {
+                throw new IllegalStateException("配置的管理员用户名已被非管理员账号占用: "
+                        + username + "，请更换 app.admin.username 或先人工处理该账号");
+            }
+            // 已存在的管理员账号只补齐控制台权限，不再修改其角色。
+            if (adminUser != null) {
+                grantAdmin(adminUser.getId());
+            }
         }
-        // 无论账号是否刚创建，都确保 admin 拥有 ADMIN 与独立的管理员控制台权限。
-        if (adminUser != null) {
-            permissionService.grant(adminUser.getId(), "ADMIN");
-            for (String code : PermissionService.adminConsolePermissions()) {
-                permissionService.grant(adminUser.getId(), code);
-            }
-            if (!"ADMIN".equalsIgnoreCase(adminUser.getRole())) {
-                adminUser.setRole("ADMIN");
-                userMapper.updateById(adminUser);
-            }
+    }
+
+    private void grantAdmin(Long userId) {
+        permissionService.grant(userId, "ADMIN");
+        for (String code : PermissionService.adminConsolePermissions()) {
+            permissionService.grant(userId, code);
         }
     }
 }

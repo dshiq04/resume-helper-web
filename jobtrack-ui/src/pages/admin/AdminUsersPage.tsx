@@ -54,10 +54,15 @@ export function AdminUsersPage() {
   const banType = Form.useWatch("banType", banForm) ?? "PERMANENT";
 
   const load = useCallback(
-    (targetPage = page) => {
+    (targetPage = 1, targetSize = pageSize) => {
       setLoading(true);
       void adminApi
-        .users({ search: search || undefined, status: status || undefined, page: targetPage, pageSize })
+        .users({
+          search: search || undefined,
+          status: status || undefined,
+          page: targetPage,
+          pageSize: targetSize,
+        })
         .then((data) => {
           setRows(data.items);
           setTotal(data.total);
@@ -66,13 +71,14 @@ export function AdminUsersPage() {
         .catch((error) => message.error(errorMessage(error)))
         .finally(() => setLoading(false));
     },
-    [message, page, pageSize, search, status],
+    [message, pageSize, search, status],
   );
 
+  // 仅搜索/状态变化时回到第一页；pageSize 变化由分页回调显式加载，避免双请求竞态。
   useEffect(() => {
-    load(1);
+    load(1, pageSize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, status, pageSize]);
+  }, [search, status]);
 
   const replaceRow = (updated: AdminUser) => {
     setRows((list) => list.map((item) => (item.id === updated.id ? updated : item)));
@@ -109,7 +115,7 @@ export function AdminUsersPage() {
         try {
           await adminApi.deleteUser(record.id);
           message.success(t("admin.deleted"));
-          load(page);
+          load(page, pageSize);
         } catch (error) {
           message.error(errorMessage(error));
         }
@@ -313,7 +319,7 @@ export function AdminUsersPage() {
           />
           <span className="admin-muted admin-total">{total} {t("common.people")}</span>
         </div>
-        <Button icon={<ReloadOutlined />} onClick={() => load(page)}>
+        <Button icon={<ReloadOutlined />} onClick={() => load(page, pageSize)}>
           {t("admin.refresh")}
         </Button>
       </div>
@@ -333,9 +339,14 @@ export function AdminUsersPage() {
           pageSizeOptions: [10, 20, 50, 100],
           showTotal: (value) => `${value} ${t("common.people")}`,
           onChange: (nextPage, nextSize) => {
-            setPage(nextPage);
-            setPageSize(nextSize);
-            load(nextPage);
+            if (nextSize !== pageSize) {
+              setPageSize(nextSize);
+              setPage(1);
+              load(1, nextSize);
+            } else {
+              setPage(nextPage);
+              load(nextPage, nextSize);
+            }
           },
         }}
         locale={{

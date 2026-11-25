@@ -40,6 +40,7 @@ import com.jobtrack.system.service.ContactService;
 import com.jobtrack.system.service.PermissionService;
 import com.jobtrack.system.service.UserAgreementService;
 import com.jobtrack.system.service.UserOperationLogService;
+import com.jobtrack.system.storage.FileCleanupScheduler;
 import com.jobtrack.system.storage.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -93,6 +94,7 @@ public class AdminServiceImpl implements AdminService {
     private final UserAgreementService agreementService;
     private final UserOperationLogService operationLogService;
     private final ObjectStorageService objectStorage;
+    private final FileCleanupScheduler fileCleanupScheduler;
     private final AsyncTaskPublisher publisher;
     private final CacheService cacheService;
     private final JdbcTemplate jdbcTemplate;
@@ -199,7 +201,6 @@ public class AdminServiceImpl implements AdminService {
         String avatarKey = profile.getAvatarUrl();
         BeanUtils.copyProperties(request, profile);
         profile.setAvatarUrl(avatarKey);
-        profile.setUpdatedAt(LocalDateTime.now());
         UserProfile target = profile;
         inTenant(user.getTenantId(), () -> {
             if (creating) {
@@ -244,7 +245,6 @@ public class AdminServiceImpl implements AdminService {
         }
         profile.setPhone(phone.isEmpty() ? null : phone);
         profile.setEmail(email.isEmpty() ? null : email);
-        profile.setUpdatedAt(LocalDateTime.now());
         UserProfile target = profile;
         inTenant(user.getTenantId(), () -> {
             if (creating) {
@@ -282,6 +282,7 @@ public class AdminServiceImpl implements AdminService {
         String key = "avatars/" + user.getTenantId() + "/" + userId
                 + "-" + System.currentTimeMillis() + "." + extension;
         objectStorage.put(key, content, contentType(extension));
+        fileCleanupScheduler.deleteOnRollback(key);
 
         UserProfile profile = inTenant(user.getTenantId(), () ->
                 profileMapper.selectOne(Wrappers.<UserProfile>lambdaQuery()
@@ -294,7 +295,6 @@ public class AdminServiceImpl implements AdminService {
             profile.setUserId(userId);
         }
         profile.setAvatarUrl(key);
-        profile.setUpdatedAt(LocalDateTime.now());
         UserProfile target = profile;
         inTenant(user.getTenantId(), () -> {
             if (creating) {
@@ -305,9 +305,7 @@ public class AdminServiceImpl implements AdminService {
             return null;
         });
         if (previous != null && !previous.isBlank() && !previous.equals(key)) {
-            if (!publisher.publishFileCleanup(previous)) {
-                objectStorage.delete(previous);
-            }
+            fileCleanupScheduler.deleteAfterCommit(previous);
         }
         return profileView(target, userId);
     }
@@ -422,9 +420,8 @@ public class AdminServiceImpl implements AdminService {
 
         for (String key : fileKeys) {
             if (key != null && !key.isBlank()) {
-                if (!publisher.publishFileCleanup(key)) {
-                    objectStorage.delete(key);
-                }
+                // 数据库删除事务提交后再清理文件，回滚时保留文件。
+                fileCleanupScheduler.deleteAfterCommit(key);
             }
         }
         log.info("管理员已删除用户 {}（租户 {}），清理文件 {} 个", userId, tenantId, fileKeys.size());

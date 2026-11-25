@@ -27,6 +27,7 @@ import type { CaptchaResponse, CancelStatus, PublicConfig } from "../api/types";
 import { CANCEL_AGREEMENTS } from "../data/cancelAgreement";
 import { useAuth } from "../context/AuthContext";
 import { useI18n } from "../i18n";
+import { APP_NAME } from "../utils/appInfo";
 import { COUNTRY_CODES, joinPhone } from "../utils/countryCodes";
 import { errorMessage } from "../utils/errors";
 import { EMAIL_PATTERN, FULL_PHONE_PATTERN, LOCAL_PHONE_PATTERN } from "../utils/validation";
@@ -206,9 +207,9 @@ export function AccountCancelPage() {
     <div className="cancel-standalone">
       <header className="cancel-header">
         <div className="login-brand">
-          <img className="brand-logo is-large" src="/logo.svg" alt="ResumeTrail" />
+          <img className="brand-logo is-large" src="/logo.svg" alt={APP_NAME} />
           <div>
-            <strong>{t("app.name")}</strong>
+            <strong>{APP_NAME}</strong>
             <span>RESUMETRAIL</span>
           </div>
         </div>

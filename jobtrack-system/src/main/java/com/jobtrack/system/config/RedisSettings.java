@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 /**
  * 在线会话存储配置。默认关闭 Redis，使用进程内存储；
- * 打开后会话与在线人数写入 Redis，多实例部署时也可以共享。
+ * 打开后登录会话、在线人数与验证码通过 Redisson 写入 Redis，多实例部署时也可以共享。
  */
 @Data
 @Component

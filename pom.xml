@@ -6,7 +6,7 @@
 
     <groupId>com.jobtrack</groupId>
     <artifactId>jobtrack-parent</artifactId>
-    <version>1.0.0</version>
+    <version>v1.2.1</version>
     <packaging>pom</packaging>
 
     <name>jobtrack</name>
@@ -26,7 +26,8 @@
         <spring-boot.version>4.2.0</spring-boot.version>
         <mybatis-plus.version>3.5.18</mybatis-plus.version>
         <jjwt.version>0.13.0</jjwt.version>
-        <easy-captcha.version>1.6.2</easy-captcha.version>
+        <redisson.version>4.8.0</redisson.version>
+        <hutool.version>5.8.48</hutool.version>
         <minio.version>8.5.17</minio.version>
         <poi.version>5.5.1</poi.version>
         <fesod.version>2.0.2-incubating</fesod.version>
@@ -121,11 +122,18 @@
                 <version>${poi.version}</version>
             </dependency>
 
-            <!-- 图形验证码 -->
+            <!-- 图形验证码（Hutool） -->
             <dependency>
-                <groupId>com.github.whvcse</groupId>
-                <artifactId>easy-captcha</artifactId>
-                <version>${easy-captcha.version}</version>
+                <groupId>cn.hutool</groupId>
+                <artifactId>hutool-captcha</artifactId>
+                <version>${hutool.version}</version>
+            </dependency>
+
+            <!-- Redisson：登录会话、验证码等分布式存储 -->
+            <dependency>
+                <groupId>org.redisson</groupId>
+                <artifactId>redisson</artifactId>
+                <version>${redisson.version}</version>
             </dependency>
 
             <!-- 内部模块 -->

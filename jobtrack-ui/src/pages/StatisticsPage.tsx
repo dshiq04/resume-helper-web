@@ -51,8 +51,9 @@ export function StatisticsPage() {
   const query = useMemo(() => {
     if (range) {
       return {
-        from: range[0].startOf("day").toISOString(),
-        to: range[1].endOf("day").toISOString(),
+        // 统一发送本地墙上时间，与仪表盘/列表日期范围语义一致。
+        from: range[0].startOf("day").format("YYYY-MM-DD HH:mm:ss"),
+        to: range[1].endOf("day").format("YYYY-MM-DD HH:mm:ss"),
       };
     }
     if (year !== "all") {

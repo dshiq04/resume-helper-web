@@ -47,6 +47,8 @@ const applicationsSlice = createSlice({
   reducers: {
     setFilter(state, action: PayloadAction<Partial<Filters>>) {
       state.filters = { ...state.filters, ...action.payload };
+      // 筛选条件变化后旧选中项已不在当前查询结果中，必须清空。
+      state.selectedKeys = [];
       if (
         action.payload.search !== undefined ||
         action.payload.status !== undefined ||
@@ -59,10 +61,12 @@ const applicationsSlice = createSlice({
     },
     setPage(state, action) {
       state.filters.page = action.payload;
+      state.selectedKeys = [];
     },
     setPageSize(state, action) {
       state.filters.pageSize = action.payload;
       state.filters.page = 1;
+      state.selectedKeys = [];
     },
     setSelectedKeys(state, action: PayloadAction<number[]>) {
       state.selectedKeys = action.payload;

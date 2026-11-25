@@ -46,6 +46,7 @@ import { useAppDispatch, useAppSelector } from "../store/hooks";
 import { loadOnline } from "../store/slices/metaSlice";
 import { closeTab, syncRoute } from "../store/slices/tabsSlice";
 import { setSidebarCollapsed, toggleTheme } from "../store/slices/uiSlice";
+import { APP_NAME } from "../utils/appInfo";
 import {
   canGrantPermissions,
   canManageUsers,
@@ -299,10 +300,10 @@ export function AppLayout() {
   const sidebarContent = (
     <>
       <div className="brand">
-        <img className="brand-logo" src="/logo.svg" alt="ResumeTrail" />
+        <img className="brand-logo" src="/logo.svg" alt={APP_NAME} />
         {!rail && (
           <div className="brand-text">
-            <strong>{t("app.name")}</strong>
+            <strong>{APP_NAME}</strong>
             <span>RESUMETRAIL</span>
           </div>
         )}

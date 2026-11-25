@@ -185,6 +185,7 @@ export function AccountProfilePage() {
       const result = await authApi.changePassword(
         values.currentPassword,
         values.newPassword,
+        values.confirmPassword,
         contact,
         isPhone ? "phone" : "email",
       );

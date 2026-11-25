@@ -1,6 +1,8 @@
 package com.jobtrack.system.security;
 
+import com.jobtrack.common.api.Result;
 import com.jobtrack.common.context.TenantContext;
+import com.jobtrack.common.util.JsonUtils;
 import com.jobtrack.system.service.AccessTokenService;
 import com.jobtrack.system.service.BanService;
 import com.jobtrack.system.service.PermissionService;
@@ -30,8 +32,8 @@ import java.util.List;
  * <p>支持两种凭证：</p>
  * <ul>
  *   <li>登录后的 JWT（网页端），授予全部 SCOPE 权限；</li>
- *   <li>授权码 rt_xxx（浏览器扩展），只授予该授权码的 SCOPE 权限，
- *       具体读/写限制由 SecurityConfig 的 authorizeHttpRequests 执行。</li>
+ *   <li>授权码 rt_xxx（浏览器扩展），只授予该授权码的 SCOPE 与数据范围（RES_*）权限，
+ *       具体读/写与可访问数据由 SecurityConfig 的 authorizeHttpRequests 执行。</li>
  * </ul>
  *
  * <p>封禁集合中的用户在 JWT 与授权码两种凭证下都会立即被拒绝，
@@ -86,10 +88,16 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 List<String> permissions = session.getPermissions() == null
                         ? List.of() : session.getPermissions();
                 List<GrantedAuthority> authorities = new ArrayList<>();
-                // 网页端登录用户拥有全部读写权限。
+                // 网页端登录用户拥有全部读写权限与全部数据范围。
                 authorities.add(new SimpleGrantedAuthority("SCOPE_read"));
                 authorities.add(new SimpleGrantedAuthority("SCOPE_write"));
                 authorities.add(new SimpleGrantedAuthority("SCOPE_readwrite"));
+                // 网页登录态专属标记：账号级高敏感接口（授权码管理等）只允许网页登录，
+                // 扩展授权码即便拥有全部数据范围也不能自行创建/读取/删除授权码。
+                authorities.add(new SimpleGrantedAuthority("SESSION_WEB"));
+                for (String resource : AccessTokenService.ALL_RESOURCES) {
+                    authorities.add(new SimpleGrantedAuthority("RES_" + resource));
+                }
                 // Redis 权限映射为 ROLE_* 权限。
                 for (String permission : permissions) {
                     if (permission != null && !permission.isBlank()) {
@@ -107,6 +115,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                 : PermissionService.roleOf(permissions),
                         principal.sessionId());
                 bind(authenticated, token, authorities, true);
+            } else if (sessionService.degraded()) {
+                // Redis 异常冷却期间无法确认会话是否仍然有效：
+                // 返回 503 表示服务暂时不可用，而不是误导用户“未登录”。
+                writeUnavailable(response);
+                return false;
             }
             return true;
         } catch (JwtException | IllegalArgumentException exception) {
@@ -135,9 +148,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 auth.user().getId(), auth.user().getTenantId(), auth.user().getUsername(),
                 auth.user().getDisplayName(), auth.user().getRole(),
                 "token:" + auth.token().getId());
-        // 授权码只授予 SCOPE_*，不授予 ROLE_*：避免扩展授权码访问管理员接口。
-        bind(principal, token, List.of(
-                new SimpleGrantedAuthority("SCOPE_" + auth.token().getScope())), false);
+        // 授权码只授予 SCOPE_* 与用户勾选的数据范围 RES_*，不授予 ROLE_*：
+        // 避免扩展授权码访问管理员接口。
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority("SCOPE_" + auth.token().getScope()));
+        for (String resource : accessTokenService.resources(auth.token())) {
+            authorities.add(new SimpleGrantedAuthority("RES_" + resource));
+        }
+        bind(principal, token, authorities, false);
         return true;
     }
 
@@ -157,8 +175,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        String safe = message == null ? "该账号已被封禁" : message.replace("\"", "'");
-        response.getWriter().write("{\"error\":\"" + safe + "\",\"code\":\"account_banned\"}");
+        String safe = message == null ? "该账号已被封禁" : message;
+        response.getWriter().write(JsonUtils.toJson(
+                Result.error(HttpServletResponse.SC_FORBIDDEN, safe)));
+    }
+
+    private void writeUnavailable(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
+        response.setCharacterEncoding(StandardCharsets.UTF_8.name());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.getWriter().write(JsonUtils.toJson(Result.error(
+                HttpServletResponse.SC_SERVICE_UNAVAILABLE, "服务暂时不可用，请稍后重试")));
     }
 
     private String resolveToken(HttpServletRequest request) {

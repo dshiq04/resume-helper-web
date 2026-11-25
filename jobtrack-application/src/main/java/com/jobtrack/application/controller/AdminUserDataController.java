@@ -1,5 +1,7 @@
 package com.jobtrack.application.controller;
 
+import com.jobtrack.common.api.Result;
+
 import com.jobtrack.application.pojo.po.ApplicationRecord;
 import com.jobtrack.application.pojo.po.Resume;
 import com.jobtrack.application.pojo.dto.ApplicationDTO;
@@ -15,12 +17,10 @@ import com.jobtrack.common.context.TenantContext;
 import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.system.mapper.SysUserMapper;
 import com.jobtrack.system.pojo.po.SysUser;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,10 +29,10 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
@@ -55,7 +55,7 @@ public class AdminUserDataController {
     private final ResumeService resumeService;
 
     @GetMapping("/applications")
-    public PageResult<ApplicationRecord> applications(
+    public Result<PageResult<ApplicationRecord>> applications(
             @PathVariable Long userId,
             @RequestParam(required = false) String search,
             @RequestParam(required = false) String category,
@@ -68,131 +68,133 @@ public class AdminUserDataController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int pageSize) {
         SysUser user = requireUser(userId);
-        return inTenant(user.getTenantId(), () -> applicationService.list(search, category, status,
-                channel, priority, year, from, to, page, pageSize));
+        return Result.success(inTenant(user.getTenantId(), () -> applicationService.list(search, category, status,
+                channel, priority, year, from, to, page, pageSize)));
     }
 
     /** 管理员代目标用户新增投递，复用普通用户的创建逻辑。 */
     @PostMapping("/applications")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ApplicationRecord createApplication(@PathVariable Long userId,
+    public Result<ApplicationRecord> createApplication(@PathVariable Long userId,
                                                @Valid @RequestBody ApplicationDTO request) {
         SysUser user = requireUser(userId);
-        return inTenant(user.getTenantId(), () -> applicationService.create(request));
+        return Result.success(inTenant(user.getTenantId(), () -> applicationService.create(request)));
     }
 
     /** 管理员查看目标用户的单条投递详情。 */
     @GetMapping("/applications/{applicationId}")
-    public ApplicationRecord application(@PathVariable Long userId,
+    public Result<ApplicationRecord> application(@PathVariable Long userId,
                                          @PathVariable Long applicationId) {
         SysUser user = requireUser(userId);
-        return inTenant(user.getTenantId(), () -> applicationService.get(applicationId));
+        return Result.success(inTenant(user.getTenantId(), () -> applicationService.get(applicationId)));
     }
 
     /** 管理员查看目标用户投递的状态时间线。 */
     @GetMapping("/applications/{applicationId}/history")
-    public HistoryVO applicationHistory(@PathVariable Long userId,
+    public Result<HistoryVO> applicationHistory(@PathVariable Long userId,
                                         @PathVariable Long applicationId) {
         SysUser user = requireUser(userId);
-        return inTenant(user.getTenantId(), () -> applicationService.history(applicationId));
+        return Result.success(inTenant(user.getTenantId(), () -> applicationService.history(applicationId)));
     }
 
     /** 管理员代目标用户补全状态时间线。 */
     @PostMapping("/applications/{applicationId}/history")
-    @ResponseStatus(HttpStatus.CREATED)
-    public Map<String, Object> appendApplicationHistory(@PathVariable Long userId,
+    public Result<Map<String, Object>> appendApplicationHistory(@PathVariable Long userId,
                                                         @PathVariable Long applicationId,
                                                         @RequestBody Map<String, String> body) {
         SysUser user = requireUser(userId);
-        return inTenant(user.getTenantId(), () -> {
+        return Result.success(inTenant(user.getTenantId(), () -> {
             List<com.jobtrack.application.pojo.vo.ApplicationChangeVO> items =
                     applicationService.appendHistory(applicationId,
                             body.get("status"), body.get("changedAt"));
             return Map.of("items", items);
-        });
+        }));
     }
 
     /** 管理员代目标用户修改投递。 */
     @PutMapping("/applications/{applicationId}")
-    public ApplicationRecord updateApplication(@PathVariable Long userId,
+    public Result<ApplicationRecord> updateApplication(@PathVariable Long userId,
                                                @PathVariable Long applicationId,
                                                @Valid @RequestBody ApplicationUpdateDTO request) {
         SysUser user = requireUser(userId);
-        return inTenant(user.getTenantId(), () -> applicationService.update(applicationId, request));
+        return Result.success(inTenant(user.getTenantId(), () -> applicationService.update(applicationId, request)));
     }
 
     /** 管理员代目标用户删除投递（与普通用户一致，进入目标用户的回收站）。 */
     @DeleteMapping("/applications/{applicationId}")
-    public Map<String, Object> deleteApplication(@PathVariable Long userId,
+    public Result<Map<String, Object>> deleteApplication(@PathVariable Long userId,
                                                  @PathVariable Long applicationId) {
         SysUser user = requireUser(userId);
-        return inTenant(user.getTenantId(), () -> {
+        return Result.success(inTenant(user.getTenantId(), () -> {
             applicationService.delete(applicationId);
             return Map.of("deleted", 1);
-        });
+        }));
     }
 
     @GetMapping("/resumes")
-    public ResumeListVO resumes(@PathVariable Long userId,
+    public Result<ResumeListVO> resumes(@PathVariable Long userId,
                                 @RequestParam(required = false) String search) {
         SysUser user = requireUser(userId);
-        return inTenant(user.getTenantId(), () -> resumeService.list(search));
+        return Result.success(inTenant(user.getTenantId(), () -> resumeService.list(search)));
     }
 
     /** 管理员代目标用户编辑投递时，使用该用户历史公司名作为补全建议。 */
     @GetMapping("/applications/companies")
-    public Map<String, Object> applicationCompanies(@PathVariable Long userId,
+    public Result<Map<String, Object>> applicationCompanies(@PathVariable Long userId,
                                                     @RequestParam(required = false) String search) {
         SysUser user = requireUser(userId);
-        return inTenant(user.getTenantId(),
-                () -> Map.of("items", applicationService.companySuggestions(search)));
+        return Result.success(inTenant(user.getTenantId(),
+                () -> Map.of("items", applicationService.companySuggestions(search))));
     }
 
     /** 管理员代目标用户上传简历。 */
     @PostMapping("/resumes")
-    @ResponseStatus(HttpStatus.CREATED)
-    public ResumeVO createResume(@PathVariable Long userId,
+    public Result<ResumeVO> createResume(@PathVariable Long userId,
                                  @RequestParam(required = false) String name,
                                  @RequestParam(required = false) String tags,
                                  @RequestParam("file") MultipartFile file) {
         SysUser user = requireUser(userId);
-        return inTenant(user.getTenantId(), () -> resumeService.create(name, tags, file));
+        return Result.success(inTenant(user.getTenantId(), () -> resumeService.create(name, tags, file)));
     }
 
     /** 管理员代目标用户修改简历名称、标签或置顶状态。 */
     @PutMapping("/resumes/{resumeId}")
-    public ResumeVO updateResume(@PathVariable Long userId,
+    public Result<ResumeVO> updateResume(@PathVariable Long userId,
                                  @PathVariable Long resumeId,
                                  @RequestBody ResumeUpdateDTO request) {
         SysUser user = requireUser(userId);
-        return inTenant(user.getTenantId(), () -> resumeService.update(resumeId, request));
+        return Result.success(inTenant(user.getTenantId(), () -> resumeService.update(resumeId, request)));
     }
 
     /** 管理员代目标用户删除简历。 */
     @DeleteMapping("/resumes/{resumeId}")
-    public Map<String, Object> deleteResume(@PathVariable Long userId,
+    public Result<Map<String, Object>> deleteResume(@PathVariable Long userId,
                                             @PathVariable Long resumeId) {
         SysUser user = requireUser(userId);
-        return inTenant(user.getTenantId(), () -> {
+        return Result.success(inTenant(user.getTenantId(), () -> {
             resumeService.delete(resumeId);
             return Map.of("deleted", 1);
-        });
+        }));
     }
 
     @GetMapping("/resumes/{resumeId}/file")
-    public ResponseEntity<byte[]> resumeFile(@PathVariable Long userId,
-                                             @PathVariable Long resumeId) {
+    public void resumeFile(@PathVariable Long userId,
+                           @PathVariable Long resumeId,
+                           HttpServletResponse response) throws IOException {
         SysUser user = requireUser(userId);
-        return inTenant(user.getTenantId(), () -> {
+        ResumeDownload file = inTenant(user.getTenantId(), () -> {
             Resume resume = resumeService.entity(resumeId);
-            byte[] content = resumeService.readFile(resume);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType(resumeService.contentType(resume)));
-            headers.set(HttpHeaders.CONTENT_DISPOSITION,
-                    contentDisposition("attachment", resume.getFileName()));
-            headers.setCacheControl("no-store");
-            return new ResponseEntity<>(content, headers, HttpStatus.OK);
+            return new ResumeDownload(resume.getFileName(),
+                    resumeService.contentType(resume), resumeService.readFile(resume));
         });
+        response.setContentType(file.contentType());
+        response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
+                contentDisposition("attachment", file.fileName()));
+        response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+        response.setContentLength(file.content().length);
+        response.getOutputStream().write(file.content());
+    }
+
+    private record ResumeDownload(String fileName, String contentType, byte[] content) {
     }
 
     private SysUser requireUser(Long userId) {

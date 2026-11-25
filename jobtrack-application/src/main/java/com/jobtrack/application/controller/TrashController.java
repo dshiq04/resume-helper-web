@@ -1,5 +1,7 @@
 package com.jobtrack.application.controller;
 
+import com.jobtrack.common.api.Result;
+
 import com.jobtrack.application.pojo.vo.TrashListVO;
 import com.jobtrack.application.pojo.po.ApplicationRecord;
 import com.jobtrack.application.service.TrashService;
@@ -21,22 +23,22 @@ public class TrashController {
     private final TrashService trashService;
 
     @GetMapping
-    public TrashListVO list() {
-        return trashService.list();
+    public Result<TrashListVO> list() {
+        return Result.success(trashService.list());
     }
 
     @PostMapping("/{id}/restore")
-    public ApplicationRecord restore(@PathVariable Long id) {
-        return trashService.restore(id);
+    public Result<ApplicationRecord> restore(@PathVariable Long id) {
+        return Result.success(trashService.restore(id));
     }
 
     @DeleteMapping("/{id}")
-    public Map<String, Object> delete(@PathVariable Long id) {
-        return Map.of("deleted", trashService.delete(id));
+    public Result<Map<String, Object>> delete(@PathVariable Long id) {
+        return Result.success(Map.of("deleted", trashService.delete(id)));
     }
 
     @DeleteMapping
-    public Map<String, Object> empty() {
-        return Map.of("deleted", trashService.empty());
+    public Result<Map<String, Object>> empty() {
+        return Result.success(Map.of("deleted", trashService.empty()));
     }
 }

@@ -221,15 +221,8 @@ export function AdminUserTokensPanel({ userId }: { userId: number }) {
       },
       {
         title: t("admin.tokenCode"),
-        dataIndex: "code",
-        render: (code: string) => (
-          <Typography.Text
-            code
-            copyable={{ text: code, tooltips: [t("admin.copy"), t("admin.copied")] }}
-          >
-            {`${code.slice(0, 7)}••••${code.slice(-4)}`}
-          </Typography.Text>
-        ),
+        dataIndex: "codeMasked",
+        render: (masked: string) => <Typography.Text code>{masked || "—"}</Typography.Text>,
       },
       {
         title: t("admin.tokenExpires"),

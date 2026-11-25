@@ -1,9 +1,9 @@
 package com.jobtrack.application.bootstrap;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.jobtrack.application.config.CacheNames;
 import com.jobtrack.application.pojo.po.ApplicationRecord;
 import com.jobtrack.application.mapper.ApplicationRecordMapper;
-import com.jobtrack.application.service.ApplicationCacheService;
 import com.jobtrack.application.service.ApplicationHistoryService;
 import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.common.context.TenantContext;
@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +35,7 @@ public class DemoDataInitializer implements ApplicationRunner {
     private final SysTenantMapper tenantMapper;
     private final ApplicationRecordMapper applicationMapper;
     private final ApplicationHistoryService historyService;
-    private final ApplicationCacheService applicationCache;
+    private final CacheManager cacheManager;
 
     @Override
     @Transactional
@@ -51,25 +53,25 @@ public class DemoDataInitializer implements ApplicationRunner {
             }
             List<Demo> demos = List.of(
                     new Demo("字节跳动", "https://jobs.bytedance.com/position/1001", "后端开发工程师",
-                            "秋招", DomainConstants.STATUS_INTERVIEW, "官网", "北京", "25-40K", "high", 2, 42, 12),
+                            DomainConstants.CATEGORY_AUTUMN, DomainConstants.STATUS_INTERVIEW, "官网", "北京", "25-40K", "high", 2, 42, 12),
                     new Demo("小红书", "https://job.xiaohongshu.com/jobs/2002", "前端开发工程师",
-                            "秋招", DomainConstants.STATUS_WRITTEN, "内推", "上海", "22-35K", "high", 1, 30, 9),
+                            DomainConstants.CATEGORY_AUTUMN, DomainConstants.STATUS_WRITTEN, "内推", "上海", "22-35K", "high", 1, 30, 9),
                     new Demo("美团", "https://zhaopin.meituan.com/job/3003", "数据开发",
-                            "秋招", DomainConstants.STATUS_SCREENING, "官网", "北京", "20-32K", "medium", 0, 21, 21),
+                            DomainConstants.CATEGORY_AUTUMN, DomainConstants.STATUS_SCREENING, "官网", "北京", "20-32K", "medium", 0, 21, 21),
                     new Demo("网易", "https://hr.163.com/position/4004", "Java 开发工程师",
-                            "春招", DomainConstants.STATUS_OFFER, "牛客", "杭州", "24-36K", "high", 3, 65, 40),
+                            DomainConstants.CATEGORY_SPRING, DomainConstants.STATUS_OFFER, "牛客", "杭州", "24-36K", "high", 3, 65, 40),
                     new Demo("腾讯", "https://careers.tencent.com/job/5005", "客户端开发",
-                            "春招", DomainConstants.STATUS_REJECTED, "官网", "深圳", "25-40K", "medium", 2, 50, 35),
+                            DomainConstants.CATEGORY_SPRING, DomainConstants.STATUS_REJECTED, "官网", "深圳", "25-40K", "medium", 2, 50, 35),
                     new Demo("米哈游", "https://jobs.mihoyo.com/position/6006", "游戏服务端开发",
-                            "实习", DomainConstants.STATUS_PENDING, "内推", "上海", "300/天", "medium", 0, 8, 8),
+                            DomainConstants.CATEGORY_INTERNSHIP, DomainConstants.STATUS_PENDING, "内推", "上海", "300/天", "medium", 0, 8, 8),
                     new Demo("拼多多", "https://careers.pinduoduo.com/job/7007", "算法工程师",
-                            "社招", DomainConstants.STATUS_SCREENING, "猎聘", "上海", "35-55K", "high", 0, 14, 14),
+                            DomainConstants.CATEGORY_SOCIAL, DomainConstants.STATUS_SCREENING, "猎聘", "上海", "35-55K", "high", 0, 14, 14),
                     new Demo("蚂蚁集团", "https://talent.antgroup.com/position/8008", "基础平台开发",
-                            "秋招", DomainConstants.STATUS_INTERVIEW, "官网", "杭州", "28-45K", "high", 1, 36, 10),
+                            DomainConstants.CATEGORY_AUTUMN, DomainConstants.STATUS_INTERVIEW, "官网", "杭州", "28-45K", "high", 1, 36, 10),
                     new Demo("华为", "https://career.huawei.com/position/9009", "软件开发工程师",
-                            "秋招", DomainConstants.STATUS_OFFER, "官网", "深圳", "22-35K", "high", 3, 430, 30),
+                            DomainConstants.CATEGORY_AUTUMN, DomainConstants.STATUS_OFFER, "官网", "深圳", "22-35K", "high", 3, 430, 30),
                     new Demo("阿里巴巴", "https://talent.alibaba.com/position/9010", "Java 开发",
-                            "春招", DomainConstants.STATUS_SCREENING, "内推", "杭州", "23-38K", "medium", 0, 395, 20));
+                            DomainConstants.CATEGORY_SPRING, DomainConstants.STATUS_SCREENING, "内推", "杭州", "23-38K", "medium", 0, 395, 20));
             for (Demo demo : demos) {
                 LocalDateTime appliedAt = LocalDateTime.now().minusDays(demo.appliedDaysAgo);
                 ApplicationRecord record = new ApplicationRecord();
@@ -96,7 +98,12 @@ public class DemoDataInitializer implements ApplicationRunner {
                             appliedAt.plusDays(Math.max(4, demo.appliedDaysAgo - demo.daysSinceStatus)));
                 }
             }
-            applicationCache.invalidate();
+            for (String name : CacheNames.ALL) {
+                Cache cache = cacheManager.getCache(name);
+                if (cache != null) {
+                    cache.clear();
+                }
+            }
             log.info("已写入 {} 条演示投递记录", demos.size());
         } finally {
             TenantContext.clear();

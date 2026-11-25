@@ -16,14 +16,14 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 前后端共享的公共配置（选项列表、版本、上传上限等）。
+ * 前后端共享的公共配置（选项列表、上传上限等）。
  * 结果写入 Redis 或进程内缓存，避免每次页面启动都重复组装。
  */
 @Service
 @RequiredArgsConstructor
 public class PublicConfigServiceImpl implements PublicConfigService {
 
-    private static final String CACHE_KEY = "public:config:v1";
+    private static final String CACHE_KEY = "public:config:v2";
     private static final Duration TTL = Duration.ofMinutes(10);
 
     private final AppProperties appProperties;
@@ -38,8 +38,6 @@ public class PublicConfigServiceImpl implements PublicConfigService {
 
     private Map<String, Object> build() {
         Map<String, Object> config = new LinkedHashMap<>();
-        config.put("name", appProperties.getName());
-        config.put("version", appProperties.getVersion());
         config.put("categories", DomainConstants.CATEGORIES);
         config.put("statuses", DomainConstants.STATUSES);
         config.put("timelineStatuses", DomainConstants.TIMELINE_ORDER);

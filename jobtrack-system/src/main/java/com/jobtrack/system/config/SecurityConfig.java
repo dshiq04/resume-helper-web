@@ -1,6 +1,7 @@
 package com.jobtrack.system.config;
 
 import com.jobtrack.system.security.JwtAuthenticationFilter;
+import com.jobtrack.system.security.ResourceScopeAuthorizationManager;
 import com.jobtrack.system.security.RestAccessDeniedHandler;
 import com.jobtrack.system.security.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
@@ -60,7 +61,10 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)
-                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.sameOrigin())
+                        // 统一禁止 MIME 嗅探，降低上传文件被当作 HTML/JS 执行的风险。
+                        .contentTypeOptions(Customizer.withDefaults()))
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
@@ -71,6 +75,7 @@ public class SecurityConfig {
                                 "/api/auth/register",
                                 "/api/auth/status",
                                 "/api/auth/captcha",
+                                "/api/auth/public-key",
                                 "/api/auth/forgot-password/**",
                                 "/api/tokens/validate",
                                 "/api/avatar/**",
@@ -94,7 +99,25 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**")
                         .hasAnyRole("ADMIN", "ADMIN_CONSOLE", "ADMIN_USERS",
                                 "ADMIN_ONLINE", "ADMIN_OPERATIONS", "ADMIN_PERMISSIONS")
-                        // 授权码权限由 SCOPE_* 权限控制：读接口需要 read/readwrite，
+                        // 授权码管理属于账号级高敏感操作：只允许网页登录态（SESSION_WEB）访问。
+                        // 扩展授权码没有 SESSION_WEB，即使勾选了全部数据范围也不能自行扩权，
+                        // 更不能读取或删除用户的其他授权码。
+                        .requestMatchers("/api/account/tokens", "/api/account/tokens/**")
+                        .hasAuthority("SESSION_WEB")
+                        // 授权码的数据范围（resources）在这里生效：
+                        // 同时校验 SCOPE_*（读/写）与 RES_*（可访问的数据范围）。
+                        // 网页端 JWT 登录用户拥有全部 SCOPE_* 与 RES_*，不受影响。
+                        .requestMatchers("/api/applications", "/api/applications/**",
+                                "/api/application/**", "/api/trash", "/api/trash/**")
+                        .access(ResourceScopeAuthorizationManager.of("applications"))
+                        .requestMatchers("/api/resumes", "/api/resumes/**", "/api/resume/**")
+                        .access(ResourceScopeAuthorizationManager.of("resumes"))
+                        .requestMatchers("/api/stats", "/api/stats/**")
+                        .access(ResourceScopeAuthorizationManager.of("statistics"))
+                        .requestMatchers("/api/account/profile", "/api/account/contact",
+                                "/api/account/avatar")
+                        .access(ResourceScopeAuthorizationManager.of("profile"))
+                        // 其余授权码权限由 SCOPE_* 权限控制：读接口需要 read/readwrite，
                         // 写接口需要 write/readwrite；JWT 登录用户拥有全部 SCOPE。
                         .requestMatchers(HttpMethod.GET, "/api/**")
                         .hasAnyAuthority("SCOPE_read", "SCOPE_readwrite")

@@ -1,5 +1,7 @@
 package com.jobtrack.system.security;
 
+import com.jobtrack.common.api.Result;
+import com.jobtrack.common.util.JsonUtils;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import org.springframework.http.MediaType;
@@ -19,6 +21,7 @@ public class RestAccessDeniedHandler implements AccessDeniedHandler {
         response.setStatus(HttpServletResponse.SC_FORBIDDEN);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.getWriter().write("{\"error\":\"没有权限执行该操作\",\"code\":\"forbidden\"}");
+        response.getWriter().write(JsonUtils.toJson(
+                Result.error(HttpServletResponse.SC_FORBIDDEN, "没有权限执行该操作")));
     }
 }

@@ -1,6 +1,6 @@
 # 履途 ResumeTrail
 
-一个自托管、多用户的求职投递管理服务。后端使用 **Spring Boot 4.2 + MyBatis-Plus**，前端使用 **React + Ant Design + Redux Toolkit**，通过 MyBatis-Plus 多租户拦截器按账号隔离数据。前后端完全分离：后端只提供 REST 接口，前端构建产物输出到 `frontend/dist`，由 Nginx 等静态服务器托管。
+一个自托管、多用户的求职投递管理服务。后端使用 **Spring Boot 4.2 + MyBatis-Plus**，前端使用 **React + Ant Design + Redux Toolkit**，通过 MyBatis-Plus 多租户拦截器按账号隔离数据。前后端完全分离：后端只提供 REST 接口，前端构建产物输出到 `jobtrack-ui/dist`，由 Nginx 等静态服务器托管。
 
 - 默认账号：`admin`
 - 默认密码：`123456`
@@ -12,10 +12,10 @@
 
 ### 投递管理
 
-- **多年度投递**：每条记录带年度字段，列表与统计都支持按年度筛选，春招/秋招/实习/社招可以跨年归档。
+- **多年度投递**：每条记录带年度字段，统计页支持按年度筛选（接口也支持），春招/秋招/实习/社招可以跨年归档。
 - **只必填两项**：公司名称与投递链接必填，其余字段全部选填。
 - **更完整的字段**：岗位、年度、状态、渠道、城市、薪资、联系人、联系方式、工作方式、优先级、面试轮次、下次跟进、备注。
-- **置顶与内联编辑**：置顶记录优先展示；公司名称、投递链接、状态可以直接在表格中修改。
+- **置顶与内联编辑**：置顶记录优先展示；宽屏表格中公司名称、投递链接、状态可直接修改，窄屏（≤1180px）卡片视图仅状态可内联修改，公司名称与投递链接需进入编辑抽屉。
 - **批量操作**：批量修改状态、投递类型、批量删除。
 - **状态时间线**：初筛 → 笔试 → 面试 → Offer/淘汰，记录每个阶段的日期、间隔与停留天数；历史缺失时可以补全。
 - **回收站**：删除先进入回收站，支持恢复、永久删除与清空。
@@ -25,7 +25,7 @@
 
 ### 简历库
 
-- 支持 PDF、DOCX、PPTX、PNG、JPG、WEBP、Markdown，单文件最大 50 MB。
+- 支持 PDF、DOCX、PPTX、HTML、PNG、JPG、JPEG、Markdown，单文件最大 50 MB。
 - 简历名称、标签、置顶；文件使用 AES-256-GCM 加密后上传到 S3 兼容对象存储（MinIO / 阿里云 OSS / AWS S3），未配置密钥时回退到本地 `data/`。
 - 在线预览：PDF / 图片直接预览，DOCX 使用 mammoth 转换，Markdown 渲染，PPTX 提供下载。
 
@@ -36,9 +36,9 @@
 - 服务启动时自动执行对应建表脚本，并在空库中创建默认工作区与 `admin / 123456`。
 - 设置页的「数据库连接」只做信息展示与连通性测试；修改数据库请编辑对应环境文件后重启。
 
-### 五种界面语言
+### 六种界面语言
 
-- 简体中文、English、日本語、한국어、Русский，登录页与设置页都可以切换。
+- 简体中文、繁體中文、English、日本語、한국어、Русский，登录页与设置页都可以切换。
 
 ### 统计
 
@@ -49,20 +49,37 @@
 ### 账号与安全
 
 - 多用户注册，每个账号拥有独立工作区，数据与其他账号完全隔离。
-- Spring Security + JWT；登录态由服务端会话存储校验，支持退出登录、修改密码后强制下线。
-- 密码使用 BCrypt 哈希保存。
-- 可选的图形验证码（EasyCaptcha），验证码通过 Redis 一次性存储。**开启验证码必须同时开启 Redis**，否则服务会拒绝启动。
+- Spring Security + JWT；登录态由 Redisson 服务端会话存储校验，支持退出登录、修改密码后强制下线。
+- 密码使用 Spring Security Crypto 的 BCrypt 哈希保存。
+- 登录、注册、修改密码、忘记密码表单使用 RSA 传输加密：前端 JSEncrypt 按公钥分块加密表单 JSON，后端用 Spring Security Crypto 的 `RsaRawEncryptor` 解密后再做参数校验。
+- 可选的图形验证码（Hutool Captcha），验证码通过 Redisson 一次性存储。**开启验证码必须同时开启 Redis / Redisson**，否则服务会拒绝启动。
 - 可选的闲置自动锁定。
 
-### 可选 Redis
+### 查询缓存
 
-- `redis.enabled=false` 时：在线状态与会话使用进程内存储，列表缓存使用进程内缓存，零依赖启动。
+- 投递列表、年度选项、统计分析、按天趋势、阶段漏斗、简历列表与回收站列表使用 Spring Cache 的 `@Cacheable` 缓存。
+- 缓存统一下沉到 Redis，键格式为 `<redis.key-prefix>cache:<缓存名>@tenant:<租户ID>::<业务键>`，多实例部署可共享。
+- 默认 TTL 为 24 小时，可通过 `app.cache.ttl` 或环境变量 `CACHE_TTL` 调整；写操作仍会立即清理对应缓存。
+- 新增、修改、删除、批量操作、回收站恢复/清空以及简历变更时使用 `@CacheEvict` 清理对应缓存，下一次查询重新读库并回填。
+- 缓存按账号隔离，一个账号的写操作不会清理其他账号的缓存。
+- Redis 临时不可用时记录告警并回退数据库查询，不阻塞业务接口。
+
+### 可选 Redis（登录模块使用 Redisson）
+
+- `redis.enabled=false` 时：在线状态与会话使用进程内存储；业务查询缓存仍使用 `spring.data.redis` 配置的 Redis。
 - `redis.enabled=true` 时：
-  - 登录会话与在线人数写入 Redis，多实例部署可共享；
-  - 投递列表、统计、年度选项优先从 Redis 读取，未命中再查数据库；
+  - 登录会话、账号会话集合与在线人数通过 **Redisson** 写入 Redis，多实例部署可共享；
   - 公共配置与账号偏好使用 Redis 缓存；
-  - 支持图形验证码。
-- Redis 临时不可用时会自动退回进程内存储，不影响登录与业务读写。
+  - 支持 Hutool Captcha 图形验证码。
+- Redisson 临时不可用时会自动退回进程内副本并带退避自动重试，不会永久降级；本实例已登录会话保留，Redis 恢复后自动回填。
+
+### 登录表单传输加密
+
+- 前端通过 `GET /api/auth/public-key` 获取 RSA 公钥与分块大小，使用 `JSEncrypt` 加密表单 JSON，请求体只包含 `chunks` 密文块。
+- 后端首次启动自动生成 2048 位 RSA 密钥并保存到 `{app.data-dir}/keys/form-rsa-private.pem`；也可通过 `app.form-crypto.private-key`（PKCS#8 PEM）或 `RSA_KEY_FILE` 指定已有密钥。
+- 后端使用 Spring Security Crypto 的 `RsaRawEncryptor` 逐块解密，拼回 JSON 后映射为 DTO，再执行 Jakarta Validation，最后进入业务逻辑。
+- 公钥可以安全公开；私钥只保存在服务端，请勿提交到代码仓库。多实例部署时请共享同一把私钥或挂载同一个密钥文件。
+- 表单加密用于避免明文密码出现在请求体与网关日志中，不能替代 HTTPS；生产环境仍应启用 HTTPS 并配置安全响应头。
 
 ---
 
@@ -96,7 +113,7 @@ resume-helper-web/
 
 ### 前端请求拆分
 
-`frontend/src/api/client.ts` 只保留 axios 实例、token、错误处理与通用请求方法。接口按后端 Controller 拆分：
+`jobtrack-ui/src/api/client.ts` 只保留 axios 实例、token、错误处理与通用请求方法。接口按后端 Controller 拆分：
 
 | 文件 | 对应 Controller |
 | --- | --- |
@@ -144,8 +161,8 @@ resume-helper-web/
 ### 手动启动
 
 ```bash
-# 1. 前端（产物输出到 frontend/dist）
-cd frontend
+# 1. 前端（产物输出到 jobtrack-ui/dist）
+cd jobtrack-ui
 npm install
 npm run build
 
@@ -172,22 +189,22 @@ export SPRING_PROFILES_ACTIVE=test
 mvn -pl jobtrack-web -am spring-boot:run
 
 # 终端 2：前端（Vite 代理 /api 到 18080）
-cd frontend
+cd jobtrack-ui
 npm run dev
 ```
 
-Vite 默认监听 `0.0.0.0:5173`，同一局域网内的手机/平板可通过终端输出的 `Network` 地址访问。若只允许本机访问，在 `frontend/.env.development` 中设置 `VITE_DEV_HOST=127.0.0.1`。
+Vite 默认监听 `0.0.0.0:5173`，同一局域网内的手机/平板可通过终端输出的 `Network` 地址访问。若只允许本机访问，在 `jobtrack-ui/.env.development` 中设置 `VITE_DEV_HOST=127.0.0.1`。
 
 ---
 
 ## 前端 .env
 
-前端构建环境变量位于 `frontend/.env`：
+前端构建环境变量位于 `jobtrack-ui/.env`：
 
 | 变量 | 说明 | 默认值 |
 | --- | --- | --- |
-| `VITE_APP_TITLE` | 浏览器标题 | `履途 ResumeTrail` |
-| `VITE_APP_VERSION` | 前端兜底版本号 | `1.2` |
+| `VITE_APP_TITLE` | 应用名称（浏览器标题、登录页/侧边栏品牌） | `履途 ResumeTrail` |
+| `VITE_APP_VERSION` | 应用版本号（登录页与设置页展示，可填 `1.2.1` 或 `V1.2.1`） | `V1.2.1` |
 | `VITE_APP_DEFAULT_LANGUAGE` | 默认界面语言 | `zh-CN` |
 | `VITE_SHOW_DEVELOPMENT_WATERMARK` | 是否显示「开发中品质，请谅解」水印 | `true` |
 | `VITE_API_BASE_URL` | 后端接口地址 | `/api` |
@@ -240,7 +257,7 @@ app:
 说明：
 
 - 简历文件会先用 `app.storage.secret` 派生的 AES-256-GCM 密钥加密，再上传到 `resumes/<租户>/...`。
-- 简历库支持 PDF、DOCX、PPTX、XLSX、Markdown、HTML 与常见图片格式；预览使用 `anyview` 在浏览器内原生渲染，可直接选中并复制文本。
+- 简历库支持 PDF、DOCX、PPTX、Markdown、HTML 与常见图片格式；预览使用 `anyview` 在浏览器内原生渲染，可直接选中并复制文本。
 - 头像上传到 `avatars/<租户>/...`，数据库只保存对象 key，接口返回时用 `public-base-url + key` 拼成完整地址。
 - 配置了 `access-key` / `secret-key` 时使用 S3；未配置或连接失败会自动回退本地磁盘，不影响启动。
 - 启动时会自动创建 bucket，并在 `public-read: true` 时设置匿名只读策略，保证头像可以直接访问。
@@ -268,6 +285,9 @@ captcha:
 app:
   data-dir: ./data
   log-dir: ./log
+  form-crypto:
+    key-size: 2048
+    key-file: ${RSA_KEY_FILE:}
   jwt:
     secret: ${JWT_SECRET:...}
     ttl-hours: 72
@@ -284,8 +304,9 @@ app:
 - 数据库只支持 `mysql` 与 `postgresql`，切换方式：替换 `spring.datasource` 配置块，并把 `spring.sql.init.schema-locations` 改成对应的 `schema-*.sql`；每个配置文件里都附带了另一种数据库的注释示例。
 - 数据库账号密码可以直接改 yml，也可以用 `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USERNAME` / `DB_PASSWORD` 等环境变量覆盖。
 - 请先创建数据库（MySQL 默认 `jobtrack`，字符集 `utf8mb4`；PostgreSQL 默认 `jobtrack`）。服务启动时自动建表，并在空库中创建 `admin / 123456`。
-- `app.data-dir` 存放加密简历文件等运行数据，`app.log-dir` 存放日志。
+- `app.data-dir` 存放加密简历文件、登录表单 RSA 私钥等运行数据，`app.log-dir` 存放日志。
 - `app.admin` 只在首次启动时创建账号，不会覆盖已修改的密码。
+- 登录表单加密密钥默认生成到 `{app.data-dir}/keys/form-rsa-private.pem`，请妥善备份并限制文件权限；生产环境也可通过 `app.form-crypto.private-key` 或 `RSA_KEY_FILE` 注入已有 PKCS#8 私钥。
 - 设置页的「数据库连接」为只读展示 + 连通性测试；修改配置后重启服务生效。
 - 生产环境必须提供 `JWT_SECRET` 与 `STORAGE_SECRET` 环境变量，否则启动失败。
 
@@ -300,15 +321,15 @@ app:
 ### Redis 与验证码
 
 - dev / test / prod 三个环境默认都开启 Redis 与图形验证码（`redis.enabled: true`、`captcha.enabled: true`）。
-- 启动前请确保 Redis 可用；验证码写入 Redis 失败时会返回 503，在线状态会自动退回进程内存储。
+- 登录会话与验证码通过 Redisson 访问 Redis；启动前请确保 Redis 可用。验证码写入失败时会返回 503，在线状态与会话会自动退回进程内副本并定时重试。
 - 如确实不需要，可在对应 yml 中把二者改为 `false`（验证码依赖 Redis，不能只开验证码不开 Redis，否则服务拒绝启动）。
-- 验证码类型支持 `char`（字母数字）和 `math`（算术）。
+- 验证码使用 Hutool Captcha 生成，类型支持 `char`（字母数字）和 `math`（算术），校验后立即从 Redisson 删除。
 
 ---
 
 ## 前端部署
 
-前端构建产物位于 `frontend/dist`，可以放到任意静态服务器。Nginx 同域部署示例：
+前端构建产物位于 `jobtrack-ui/dist`，可以放到任意静态服务器。Nginx 同域部署示例：
 
 ```nginx
 server {
@@ -438,14 +459,15 @@ Content-Type: application/json
 | 方法 | 路径 | 说明 |
 | --- | --- | --- |
 | `GET` | `/api/health` | 健康检查 |
-| `GET` | `/api/config` | 公共配置（选项、版本、验证码开关、在线存储类型） |
+| `GET` | `/api/config` | 公共配置（选项、验证码开关、在线存储类型） |
 | `GET` | `/api/auth/status` | 登录状态 |
 | `GET` | `/api/auth/captcha` | 获取图形验证码（需开启验证码） |
-| `POST` | `/api/auth/login` | 登录 |
-| `POST` | `/api/auth/register` | 注册并创建工作区 |
+| `GET` | `/api/auth/public-key` | 获取登录表单 RSA 加密公钥 |
+| `POST` | `/api/auth/login` | 登录（请求体为 `{ chunks: [...] }` 加密表单） |
+| `POST` | `/api/auth/register` | 注册并创建工作区（加密表单） |
 | `GET` | `/api/auth/me` | 当前用户 |
 | `PUT` | `/api/auth/me` | 修改昵称 |
-| `POST` | `/api/auth/change-password` | 修改密码 |
+| `POST` | `/api/auth/change-password` | 修改密码（加密表单） |
 | `GET` | `/api/auth/agreement` | 当前账号的用户协议签署记录 |
 | `POST` | `/api/auth/agreement` | 登录后补签用户协议（记录语言、时区、地点与 IP） |
 | `POST` | `/api/auth/logout` | 退出登录 |
@@ -456,7 +478,7 @@ Content-Type: application/json
 | `POST` | `/api/applications/import` | 导入 Excel |
 | `POST` | `/api/applications` | 新增投递 |
 | `GET` | `/api/application/{id}` | 投递详情 |
-| `PUT` | `/api/application/{id}` | 局部更新 |
+| `PUT` | `/api/application/{id}` | 更新投递（整体更新，必填字段必须提供，选填字段为 `null` 或空字符串时清空） |
 | `DELETE` | `/api/application/{id}` | 删除（进入回收站） |
 | `GET/POST` | `/api/application/{id}/history` | 状态时间线 / 补全阶段 |
 | `GET` | `/api/applications/companies` | 公司名补全 |
@@ -470,7 +492,7 @@ Content-Type: application/json
 | `GET` | `/api/stats/daily` | 每日投递趋势 |
 | `GET` | `/api/stats/funnel` | 转化漏斗 |
 | `GET/PUT` | `/api/system/preferences` | 闲置锁定偏好 |
-| `GET` | `/api/system/info` | 版本、数据库、运行环境、数据目录 |
+| `GET` | `/api/system/info` | Java 版本、数据库、运行环境、数据目录 |
 | `GET` | `/api/system/database` | 当前数据库配置、运行环境与配置文件（只读） |
 | `GET` | `/api/system/database/test` | 测试当前数据库连接 |
 | `GET` | `/api/system/quick-entry/defaults` | 扩展默认类型与服务器时间 |
@@ -512,11 +534,12 @@ Authorization: Bearer <token>
 
 | 层 | 技术 |
 | --- | --- |
-| 后端 | Spring Boot 4.2、Spring Security、Spring Data Redis |
+| 后端 | Spring Boot 4.2、Spring Security、Spring Data Redis、Redisson |
 | 数据访问 | MyBatis-Plus 3.5.18（多租户、分页） |
 | 数据库 | MySQL 8 / PostgreSQL 16+（按环境配置） |
-| 认证 | JWT（jjwt）+ 服务端会话校验 |
-| 验证码 | EasyCaptcha |
+| 认证 | JWT（jjwt）+ Redisson 服务端会话校验 |
+| 表单加密 | JSEncrypt（前端）+ Spring Security Crypto RSA（后端） |
+| 验证码 | Hutool Captcha |
 | 前端 | React 18、TypeScript、Vite、Ant Design 5 |
 | 状态管理 | Redux Toolkit + React Redux |
 | 图表 | ECharts |
