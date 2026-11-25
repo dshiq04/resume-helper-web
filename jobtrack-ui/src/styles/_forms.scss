@@ -41,6 +41,28 @@
   justify-content: flex-end;
   gap: 8px;
 }
+.export-field + .export-field {
+  margin-top: 18px;
+}
+.export-label {
+  margin-bottom: 8px;
+  color: var(--ink);
+  font-size: 11.5px;
+  font-weight: 600;
+}
+.export-range {
+  width: 100%;
+}
+.export-hint {
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+.export-types {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+}
 .import-dragger .ant-upload-drag {
   background: var(--bg-sunken);
   border-color: var(--line-strong);

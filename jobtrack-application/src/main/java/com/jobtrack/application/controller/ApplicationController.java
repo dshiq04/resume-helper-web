@@ -29,7 +29,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import org.springframework.format.annotation.DateTimeFormat;
+
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
@@ -68,10 +71,20 @@ public class ApplicationController {
         return Result.success(applicationImportService.importFile(file));
     }
 
-    /** 按导入模板的列导出当前工作区的全部投递记录（注销账号前可用）。 */
+    /**
+     * 导出投递记录：可按投递类型与投递时间范围筛选。
+     * 不传参数时导出当前工作区的全部投递记录（注销账号前可用）。
+     */
     @GetMapping("/applications/export")
-    public void exportApplications(HttpServletResponse response) throws IOException {
-        writeFile(response, applicationImportService.exportAll(),
+    public void exportApplications(
+            @RequestParam(required = false) List<String> categories,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false)
+            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
+            HttpServletResponse response) throws IOException {
+        writeFile(response,
+                applicationImportService.exportApplications(categories, from, to),
                 "resume-trail-applications.xlsx");
     }
 

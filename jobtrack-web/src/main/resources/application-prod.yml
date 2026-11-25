@@ -1,4 +1,4 @@
-# 开发环境：本机 MySQL + 本机 Redis，前端由 Vite 开发服务器代理。
+# 生产环境：容器内通过服务名连接 MySQL / Redis / RabbitMQ。
 # 数据库账号密码请按需修改（或使用环境变量 DB_* 覆盖）。
 server:
   port: 18080
@@ -6,7 +6,7 @@ server:
 spring:
   datasource:
     driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://192.168.150.10:3306/jobtrack?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://mysql:3306/jobtrack?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
     password: tomori
     hikari:
@@ -26,7 +26,7 @@ spring:
       schema-locations: classpath:schema-mysql.sql
       # schema-locations: classpath:schema-postgresql.sql
   rabbitmq:
-    host: 192.168.150.10
+    host: rabbitmq
     port: 5672
     username: resume-helper
     password: tomori
@@ -34,7 +34,7 @@ spring:
     connection-timeout: 2s
   data:
     redis:
-      host: 192.168.150.10
+      host: redis
       port: 6379
       password: tomori
       database: 1
@@ -44,7 +44,7 @@ spring:
 # 应用级 Redis 开关：在线状态与验证码都依赖它。
 redis:
   enabled: true
-  host: 192.168.150.10
+  host: redis
   port: 6379
   password: tomori
   database: 1
@@ -64,22 +64,24 @@ app:
   log-dir: ./log
   seed-demo: false
   cors:
-    allowed-origins: "${CORS_ALLOWED_ORIGINS:http://127.0.0.1:5173,http://localhost:5173}"
+    allowed-origins:
+      - http://127.0.0.1:5173
+      - http://localhost:5173
   jwt:
-    secret: ${JWT_SECRET:jobtrack-local-dev-secret-change-me-0123456789abcdef}
+    secret: jobtrack-local-dev-secret-change-me-0123456789abcdef
     ttl-hours: 72
   storage:
-    secret: ${STORAGE_SECRET:jobtrack-file-encryption-secret-change-me-0123456789}
+    secret: jobtrack-file-encryption-secret-change-me-0123456789
     max-file-size-mb: 50
     type: s3
-    endpoint: http://192.168.150.10:9000
+    endpoint: http://192.168.31.100:9000
     region: us-east-1
     bucket: resume-helper
     access-key: FJcxHESr9gAjJxGw3s1Y
     secret-key: H3pVVhaqQLuLRcDAcpDWz1tbX2qskujJRAWtbr8k
     path-style: true
     public-read: true
-    public-base-url: http://192.168.150.10:9000/resume-helper
+    public-base-url: http://192.168.31.100:9000/resume-helper
   admin:
     username: admin
     password: 123456

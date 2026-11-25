@@ -4,6 +4,7 @@ import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
 import {
   CloudUploadOutlined,
+  DownloadOutlined,
   FilterOutlined,
   PlusOutlined,
   ReloadOutlined,
@@ -14,6 +15,7 @@ import type { Application, ApplicationUpdate, Category, Status } from "../api/ty
 import { ApplicationCards } from "../components/ApplicationCards";
 import { ApplicationFormDrawer } from "../components/ApplicationFormDrawer";
 import { ApplicationTable } from "../components/ApplicationTable";
+import { ExportModal } from "../components/ExportModal";
 import { ImportModal } from "../components/ImportModal";
 import { PageHeader } from "../components/PageHeader";
 import { QuickEntryModal } from "../components/QuickEntryModal";
@@ -97,6 +99,7 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
   const [editing, setEditing] = useState<Application | null>(null);
   const [quickOpen, setQuickOpen] = useState(false);
   const [importOpen, setImportOpen] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
 
   const statusOptions = useMemo(
     () =>
@@ -269,6 +272,9 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
             </Button>
             <Button icon={<CloudUploadOutlined />} onClick={() => setImportOpen(true)}>
               {t("dash.import")}
+            </Button>
+            <Button icon={<DownloadOutlined />} onClick={() => setExportOpen(true)}>
+              {t("dash.export")}
             </Button>
             <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
               {t("dash.add")}
@@ -457,6 +463,7 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
         onClose={() => setImportOpen(false)}
         onImported={refresh}
       />
+      <ExportModal open={exportOpen} onClose={() => setExportOpen(false)} />
       <QuickEntryModal
         open={quickOpen}
         defaultCategory={category === "all" ? seasonCategory() : category}

@@ -5,9 +5,11 @@ import com.jobtrack.application.service.ApplicationService;
 
 import com.jobtrack.application.pojo.dto.ApplicationImportDTO;
 import com.jobtrack.application.pojo.dto.ApplicationImportRow;
+import com.jobtrack.application.pojo.dto.ApplicationExportDTO;
 import com.jobtrack.application.pojo.po.ApplicationRecord;
 import com.jobtrack.application.pojo.dto.ApplicationDTO;
 import com.jobtrack.application.pojo.vo.ImportResultVO;
+import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.common.exception.BusinessException;
@@ -41,7 +43,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
 /**
- * 投递台账 Excel 导入：模板列为 年度 / 投递类型 / 公司 / 投递地址 / 时间。
+ * 投递台账 Excel 导入与导出：模板列为 年度 / 投递类型 / 公司 / 投递地址 / 时间。
  */
 @Slf4j
 @Service
@@ -80,17 +82,30 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
     }
 
     /**
-     * 按导入模板的列（年度/投递类型/公司/投递地址/时间）导出全部投递记录，
-     * 用户注销前可以用它把台账带走。
+     * 按界面选择的投递类型与时间范围导出投递记录。
+     * 类型为空时导出全部；时间范围为空的一侧不限制。
      */
-    public byte[] exportAll() {
-        List<ApplicationRecord> records = applicationRecordMapper.selectList(
-                Wrappers.<ApplicationRecord>lambdaQuery()
-                        .orderByDesc(ApplicationRecord::getAppliedAt));
-        List<ApplicationImportDTO> rows = new ArrayList<>();
-        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    @Override
+    public byte[] exportApplications(List<String> categories, LocalDate from, LocalDate to) {
+        LambdaQueryWrapper<ApplicationRecord> query = Wrappers.<ApplicationRecord>lambdaQuery()
+                .orderByDesc(ApplicationRecord::getAppliedAt);
+        List<String> normalizedCategories = normalizeCategories(categories);
+        if (!normalizedCategories.isEmpty()) {
+            query.in(ApplicationRecord::getCategory, normalizedCategories);
+        }
+        if (from != null) {
+            query.ge(ApplicationRecord::getAppliedAt, from.atStartOfDay());
+        }
+        if (to != null) {
+            // 结束日期按整天包含，导出 to 当天 23:59:59 之前的记录。
+            query.lt(ApplicationRecord::getAppliedAt, to.plusDays(1).atStartOfDay());
+        }
+        List<ApplicationRecord> records = applicationRecordMapper.selectList(query);
+
+        List<ApplicationExportDTO> rows = new ArrayList<>();
+        DateTimeFormatter timeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
         for (ApplicationRecord record : records) {
-            ApplicationImportDTO row = new ApplicationImportDTO();
+            ApplicationExportDTO row = new ApplicationExportDTO();
             row.setYear(record.getApplyYear());
             row.setCategory(categoryLabel(record.getCategory()));
             row.setCompany(record.getCompanyName());
@@ -100,14 +115,33 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
             rows.add(row);
         }
         try (ByteArrayOutputStream output = new ByteArrayOutputStream()) {
-            FesodSheet.write(output, ApplicationImportDTO.class)
-                    .registerWriteHandler(new TemplateSheetWriteHandler())
+            FesodSheet.write(output, ApplicationExportDTO.class)
                     .sheet("投递台账")
                     .doWrite(rows);
             return output.toByteArray();
         } catch (Exception exception) {
             throw BusinessException.internal("export_failed", "导出投递台账失败");
         }
+    }
+
+    /**
+     * 过滤空值与未知类型，「全部」或空集合都表示不限制类型。
+     */
+    private List<String> normalizeCategories(List<String> categories) {
+        if (categories == null || categories.isEmpty()) {
+            return List.of();
+        }
+        List<String> normalized = new ArrayList<>();
+        for (String category : categories) {
+            String value = DomainConstants.normalize(category);
+            if (value.isEmpty() || "all".equals(value)) {
+                return List.of();
+            }
+            if (DomainConstants.isValidCategory(value)) {
+                normalized.add(value);
+            }
+        }
+        return normalized;
     }
 
     private String categoryLabel(String category) {

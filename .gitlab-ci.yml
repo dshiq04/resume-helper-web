@@ -43,7 +43,7 @@ variables:
   DEPLOY_HOST_DIR: "/opt/resume-helper"             # 宿主机部署根目录
   FRONTEND_DIR_NAME: "resume-helper"                # 前端产物目录名（dist 重命名后的名字）
   BACKEND_UPSTREAM: "http://127.0.0.1:18080"        # 宿主机 nginx 访问后端地址（后端容器 -p 18080:18080 映射到宿主机）
-  CORS_ALLOWED_ORIGINS: "http://192.168.150.10:81,http://localhost:5173,http://127.0.0.1:5173"  # 后端 CORS 白名单（逗号分隔）
+  CORS_ALLOWED_ORIGINS: "http://192.168.31.100:81,http://localhost:5173,http://127.0.0.1:5173"  # 后端 CORS 白名单（逗号分隔）
   GIT_STRATEGY: clone
 
 # =====================================================================
@@ -141,20 +141,6 @@ deploy-backend:
         --network dshiq04 \
         --add-host host.docker.internal:host-gateway \
         -e TZ=Asia/Shanghai \
-        -e SPRING_PROFILES_ACTIVE=prod \
-        -e JWT_SECRET="${JWT_SECRET:?请在 GitLab CI/CD Variables 中配置 JWT_SECRET}" \
-        -e STORAGE_SECRET="${STORAGE_SECRET:?请在 GitLab CI/CD Variables 中配置 STORAGE_SECRET}" \
-        -e DB_HOST="${DB_HOST:-host.docker.internal}" \
-        -e DB_PORT="${DB_PORT:-5432}" \
-        -e DB_NAME="${DB_NAME:-jobtrack}" \
-        -e DB_USERNAME="${DB_USERNAME:-postgres}" \
-        -e DB_PASSWORD="${DB_PASSWORD:-}" \
-        -e REDIS_HOST="${REDIS_HOST:-host.docker.internal}" \
-        -e REDIS_PORT="${REDIS_PORT:-6379}" \
-        -e REDIS_PASSWORD="${REDIS_PASSWORD:-}" \
-        -e CORS_ALLOWED_ORIGINS="${CORS_ALLOWED_ORIGINS:-*}" \
-        -e ADMIN_USERNAME="${ADMIN_USERNAME:-admin}" \
-        -e ADMIN_PASSWORD="${ADMIN_PASSWORD:-123456}" \
         -v "$DEPLOY_HOST_DIR/backend/data:/app/data" \
         -v "$DEPLOY_HOST_DIR/backend/log:/app/log" \
         -p 18080:18080 \
