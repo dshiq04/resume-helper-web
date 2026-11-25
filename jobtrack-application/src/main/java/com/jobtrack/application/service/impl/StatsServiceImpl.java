@@ -1,7 +1,7 @@
 package com.jobtrack.application.service.impl;
 
+import com.jobtrack.application.config.CacheNames;
 import com.jobtrack.application.service.StatsService;
-import com.jobtrack.application.service.ApplicationCacheService;
 import com.jobtrack.application.service.ApplicationHistoryService;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -16,6 +16,7 @@ import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.common.util.FlexibleTimes;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
@@ -35,27 +36,20 @@ public class StatsServiceImpl implements StatsService {
     private final ApplicationRecordMapper applicationMapper;
     private final ResumeMapper resumeMapper;
     private final ApplicationHistoryService historyService;
-    private final ApplicationCacheService applicationCache;
 
+    @Cacheable(cacheNames = CacheNames.STATS)
     public StatsVO stats(String from, String to, Integer year) {
-        Integer normalizedYear = normalizeYear(year);
-        String key = "stats|" + normalizedYear + "|" + value(from) + "|" + value(to);
-        return applicationCache.cached(key, StatsVO.class,
-                () -> computeStats(range(from, to, normalizedYear)));
+        return computeStats(range(from, to, normalizeYear(year)));
     }
 
+    @Cacheable(cacheNames = CacheNames.DAILY_STATS)
     public DailyStatsVO daily(String from, String to, Integer year) {
-        Integer normalizedYear = normalizeYear(year);
-        String key = "daily|" + normalizedYear + "|" + value(from) + "|" + value(to);
-        return applicationCache.cached(key, DailyStatsVO.class,
-                () -> computeDaily(range(from, to, normalizedYear)));
+        return computeDaily(range(from, to, normalizeYear(year)));
     }
 
+    @Cacheable(cacheNames = CacheNames.FUNNEL)
     public FunnelVO funnel(String from, String to, Integer year) {
-        Integer normalizedYear = normalizeYear(year);
-        String key = "funnel|" + normalizedYear + "|" + value(from) + "|" + value(to);
-        return applicationCache.cached(key, FunnelVO.class,
-                () -> computeFunnel(range(from, to, normalizedYear)));
+        return computeFunnel(range(from, to, normalizeYear(year)));
     }
 
     private StatsVO computeStats(Range range) {
@@ -325,10 +319,6 @@ public class StatsServiceImpl implements StatsService {
             throw BusinessException.badRequest("invalid_year", "年度需在 2000-2100 之间");
         }
         return year;
-    }
-
-    private String value(String value) {
-        return value == null ? "" : value.trim();
     }
 
     private LocalDateTime parse(String value) {

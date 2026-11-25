@@ -1,5 +1,6 @@
 package com.jobtrack.application.service.impl;
 
+import com.jobtrack.application.config.CacheNames;
 import com.jobtrack.application.service.ResumeService;
 import com.jobtrack.application.service.FileCrypto;
 
@@ -18,6 +19,8 @@ import com.jobtrack.system.config.AppProperties;
 import com.jobtrack.system.messaging.AsyncTaskPublisher;
 import com.jobtrack.system.storage.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -52,6 +55,7 @@ public class ResumeServiceImpl implements ResumeService {
     private final ObjectStorageService objectStorage;
     private final AsyncTaskPublisher publisher;
 
+    @Cacheable(cacheNames = CacheNames.RESUMES)
     public ResumeListVO list(String search) {
         var query = Wrappers.<Resume>lambdaQuery();
         if (search != null && !search.isBlank()) {
@@ -74,6 +78,7 @@ public class ResumeServiceImpl implements ResumeService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheNames.RESUMES, CacheNames.STATS}, allEntries = true)
     public ResumeVO create(String name, String tagsRaw, MultipartFile file) {
         if (file == null) {
             throw BusinessException.badRequest("file_required", "请选择要上传的简历文件");
@@ -138,6 +143,7 @@ public class ResumeServiceImpl implements ResumeService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheNames.RESUMES, CacheNames.STATS}, allEntries = true)
     public ResumeVO update(Long id, ResumeUpdateDTO request) {
         Resume resume = entity(id);
         if (request.getName() != null) {
@@ -161,6 +167,7 @@ public class ResumeServiceImpl implements ResumeService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheNames.RESUMES, CacheNames.STATS}, allEntries = true)
     public void delete(Long id) {
         Resume resume = entity(id);
         resumeMapper.deleteById(id);

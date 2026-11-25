@@ -1,7 +1,7 @@
 package com.jobtrack.application.service.impl;
 
+import com.jobtrack.application.config.CacheNames;
 import com.jobtrack.application.service.ApplicationService;
-import com.jobtrack.application.service.ApplicationCacheService;
 import com.jobtrack.application.service.TrashService;
 import com.jobtrack.application.service.ApplicationHistoryService;
 
@@ -9,7 +9,6 @@ import com.baomidou.mybatisplus.core.conditions.query.QueryWrapper;
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.jobtrack.application.pojo.vo.ApplicationChangeVO;
-import com.jobtrack.application.pojo.po.ApplicationPageCache;
 import com.jobtrack.application.pojo.dto.ApplicationDTO;
 import com.jobtrack.application.pojo.dto.ApplicationUpdateDTO;
 import com.jobtrack.application.pojo.vo.HistoryVO;
@@ -23,6 +22,8 @@ import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.common.util.FlexibleTimes;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -40,52 +41,44 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final ApplicationChangeMapper changeMapper;
     private final ApplicationHistoryService historyService;
     private final TrashService trashService;
-    private final ApplicationCacheService applicationCache;
 
     /**
-     * 投递列表优先读取 Redis 缓存（未启用或未命中时查询数据库）。
+     * 投递列表走 Spring Cache：缓存未命中时查询数据库并回填，
+     * 增删改后由 {@link CacheEvict} 清理，下一次查询重新读库。
      */
+    @Cacheable(cacheNames = CacheNames.APPLICATIONS)
     public PageResult<ApplicationRecord> list(String search, String category, String status,
                                               String channel, String priority, Integer year,
                                               String from, String to, int page, int pageSize) {
         int currentPage = Math.max(page, 1);
         int currentSize = Math.min(Math.max(pageSize, 1), 100);
         Integer normalizedYear = normalizeYear(year);
-        String cacheKey = String.join("|", "list",
-                String.valueOf(normalizedYear), normalizeKey(search), normalizeKey(category),
-                normalizeKey(status), normalizeKey(channel), normalizeKey(priority),
-                normalizeKey(from), normalizeKey(to), String.valueOf(currentPage),
-                String.valueOf(currentSize));
-
-        ApplicationPageCache cached = applicationCache.cached(cacheKey, ApplicationPageCache.class,
-                () -> queryPage(search, category, status, channel, priority, normalizedYear,
-                        from, to, currentPage, currentSize));
-        return PageResult.of(cached.getItems(), cached.getTotal(), cached.getPage(), cached.getPageSize());
+        return queryPage(search, category, status, channel, priority, normalizedYear,
+                from, to, currentPage, currentSize);
     }
 
     /**
      * 年度选项同样走缓存，页面打开时只查一次数据库。
      */
+    @Cacheable(cacheNames = CacheNames.APPLICATION_YEARS)
     public YearListVO years() {
-        return applicationCache.cached("years", YearListVO.class, () -> {
-            QueryWrapper<ApplicationRecord> query = new QueryWrapper<>();
-            query.select("DISTINCT apply_year").isNotNull("apply_year").orderByDesc("apply_year");
-            List<Object> values = applicationMapper.selectObjs(query);
-            List<Integer> years = new ArrayList<>();
-            for (Object value : values) {
-                if (value instanceof Number number) {
-                    years.add(number.intValue());
-                } else if (value != null) {
-                    years.add(Integer.parseInt(String.valueOf(value)));
-                }
+        QueryWrapper<ApplicationRecord> query = new QueryWrapper<>();
+        query.select("DISTINCT apply_year").isNotNull("apply_year").orderByDesc("apply_year");
+        List<Object> values = applicationMapper.selectObjs(query);
+        List<Integer> years = new ArrayList<>();
+        for (Object value : values) {
+            if (value instanceof Number number) {
+                years.add(number.intValue());
+            } else if (value != null) {
+                years.add(Integer.parseInt(String.valueOf(value)));
             }
-            return new YearListVO(years);
-        });
+        }
+        return new YearListVO(years);
     }
 
-    private ApplicationPageCache queryPage(String search, String category, String status,
-                                           String channel, String priority, Integer year,
-                                           String from, String to, int page, int pageSize) {
+    private PageResult<ApplicationRecord> queryPage(String search, String category, String status,
+                                                    String channel, String priority, Integer year,
+                                                    String from, String to, int page, int pageSize) {
         QueryWrapper<ApplicationRecord> query = new QueryWrapper<>();
         String normalizedCategory = normalizeFilter(category);
         String normalizedStatus = normalizeFilter(status);
@@ -129,10 +122,12 @@ public class ApplicationServiceImpl implements ApplicationService {
 
         Page<ApplicationRecord> result = applicationMapper.selectPage(new Page<>(page, pageSize), query);
         historyService.attachStatusDays(result.getRecords());
-        return new ApplicationPageCache(result.getRecords(), result.getTotal(), page, pageSize);
+        return PageResult.of(result.getRecords(), result.getTotal(), page, pageSize);
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheNames.APPLICATIONS, CacheNames.APPLICATION_YEARS,
+            CacheNames.STATS, CacheNames.DAILY_STATS, CacheNames.FUNNEL}, allEntries = true)
     public ApplicationRecord create(ApplicationDTO request) {
         ApplicationRecord record = new ApplicationRecord();
         String category = normalizeFilter(request.getCategory());
@@ -169,7 +164,6 @@ public class ApplicationServiceImpl implements ApplicationService {
         historyService.recordStatusChange(record.getId(), DomainConstants.STATUS_PENDING, record.getAppliedAt());
         historyService.recordStatusChange(record.getId(), record.getStatus(), record.getAppliedAt());
         historyService.attachStatusDays(List.of(record));
-        applicationCache.invalidate();
         return record;
     }
 
@@ -183,6 +177,8 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheNames.APPLICATIONS, CacheNames.APPLICATION_YEARS,
+            CacheNames.STATS, CacheNames.DAILY_STATS, CacheNames.FUNNEL}, allEntries = true)
     public ApplicationRecord update(Long id, ApplicationUpdateDTO request) {
         // 修改前先确认记录存在，不存在时返回 404，避免把业务校验错误当成服务异常。
         ApplicationRecord record = applicationMapper.selectById(id);
@@ -230,11 +226,13 @@ public class ApplicationServiceImpl implements ApplicationService {
             throw BusinessException.notFound("not_found", "投递记录不存在");
         }
         historyService.attachStatusDays(List.of(reloaded));
-        applicationCache.invalidate();
         return reloaded;
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheNames.APPLICATIONS, CacheNames.APPLICATION_YEARS,
+            CacheNames.STATS, CacheNames.DAILY_STATS, CacheNames.FUNNEL,
+            CacheNames.TRASH}, allEntries = true)
     public void delete(Long id) {
         // 删除前确认记录存在，不存在（或属于其他租户）时返回 404。
         ApplicationRecord record = applicationMapper.selectById(id);
@@ -242,10 +240,12 @@ public class ApplicationServiceImpl implements ApplicationService {
             throw BusinessException.notFound("not_found", "投递记录不存在");
         }
         trashService.moveToTrash(record);
-        applicationCache.invalidate();
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheNames.APPLICATIONS, CacheNames.APPLICATION_YEARS,
+            CacheNames.STATS, CacheNames.DAILY_STATS, CacheNames.FUNNEL,
+            CacheNames.TRASH}, allEntries = true)
     public int batchDelete(List<Long> ids) {
         List<Long> unique = uniqueIds(ids);
         if (unique.isEmpty()) {
@@ -260,11 +260,12 @@ public class ApplicationServiceImpl implements ApplicationService {
             trashService.moveToTrash(record);
             deleted++;
         }
-        applicationCache.invalidate();
         return deleted;
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheNames.APPLICATIONS, CacheNames.STATS,
+            CacheNames.DAILY_STATS, CacheNames.FUNNEL}, allEntries = true)
     public int batchStatus(List<Long> ids, String status) {
         List<Long> unique = uniqueIds(ids);
         if (unique.isEmpty()) {
@@ -283,11 +284,12 @@ public class ApplicationServiceImpl implements ApplicationService {
             historyService.updateStatusChange(record.getId(), previous, normalized, LocalDateTime.now());
             updated++;
         }
-        applicationCache.invalidate();
         return updated;
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheNames.APPLICATIONS, CacheNames.STATS,
+            CacheNames.DAILY_STATS, CacheNames.FUNNEL}, allEntries = true)
     public int batchCategory(List<Long> ids, String category) {
         List<Long> unique = uniqueIds(ids);
         if (unique.isEmpty()) {
@@ -298,7 +300,6 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .in(ApplicationRecord::getId, unique)
                 .set(ApplicationRecord::getCategory, normalized)
                 .set(ApplicationRecord::getUpdatedAt, LocalDateTime.now()));
-        applicationCache.invalidate();
         return updated;
     }
 
@@ -328,6 +329,8 @@ public class ApplicationServiceImpl implements ApplicationService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheNames.APPLICATIONS, CacheNames.STATS,
+            CacheNames.DAILY_STATS, CacheNames.FUNNEL}, allEntries = true)
     public List<ApplicationChangeVO> appendHistory(Long id, String status, String changedAt) {
         ApplicationRecord record = applicationMapper.selectById(id);
         if (record == null) {
@@ -344,7 +347,6 @@ public class ApplicationServiceImpl implements ApplicationService {
             }
         }
         historyService.recordStatusChange(id, normalized, when);
-        applicationCache.invalidate();
         List<ApplicationChange> changes = historyService.reconcile(record, historyService.loadChanges(id));
         List<ApplicationChangeVO> views = new ArrayList<>();
         for (ApplicationChange change : changes) {
@@ -361,10 +363,6 @@ public class ApplicationServiceImpl implements ApplicationService {
             throw BusinessException.badRequest("invalid_year", "年度必须为正整数");
         }
         return year;
-    }
-
-    private String normalizeKey(String value) {
-        return value == null || value.isBlank() ? "" : value.trim().toLowerCase();
     }
 
     private LocalDateTime parseOptional(String value) {

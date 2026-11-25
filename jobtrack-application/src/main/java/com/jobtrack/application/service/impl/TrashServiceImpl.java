@@ -1,7 +1,7 @@
 package com.jobtrack.application.service.impl;
 
+import com.jobtrack.application.config.CacheNames;
 import com.jobtrack.application.service.TrashService;
-import com.jobtrack.application.service.ApplicationCacheService;
 import com.jobtrack.application.service.ApplicationHistoryService;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
@@ -17,6 +17,8 @@ import com.jobtrack.application.mapper.DeletedApplicationMapper;
 import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.common.util.JsonUtils;
 import lombok.RequiredArgsConstructor;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -32,12 +34,14 @@ public class TrashServiceImpl implements TrashService {
     private final ApplicationChangeMapper changeMapper;
     private final DeletedApplicationMapper deletedMapper;
     private final ApplicationHistoryService historyService;
-    private final ApplicationCacheService applicationCache;
 
     /**
      * 把记录连同时间线整体写入回收站，再删除原记录。
      */
     @Transactional
+    @CacheEvict(cacheNames = {CacheNames.TRASH, CacheNames.APPLICATIONS,
+            CacheNames.APPLICATION_YEARS, CacheNames.STATS, CacheNames.DAILY_STATS,
+            CacheNames.FUNNEL}, allEntries = true)
     public DeletedApplication moveToTrash(ApplicationRecord record) {
         List<ApplicationChange> changes = changeMapper.selectList(Wrappers.<ApplicationChange>lambdaQuery()
                 .eq(ApplicationChange::getApplicationId, record.getId())
@@ -57,10 +61,10 @@ public class TrashServiceImpl implements TrashService {
         changeMapper.delete(Wrappers.<ApplicationChange>lambdaQuery()
                 .eq(ApplicationChange::getApplicationId, record.getId()));
         applicationMapper.deleteById(record.getId());
-        applicationCache.invalidate();
         return trash;
     }
 
+    @Cacheable(cacheNames = CacheNames.TRASH)
     public TrashListVO list() {
         List<DeletedApplication> rows = deletedMapper.selectList(Wrappers.<DeletedApplication>lambdaQuery()
                 .orderByDesc(DeletedApplication::getDeletedAt)
@@ -93,6 +97,9 @@ public class TrashServiceImpl implements TrashService {
     }
 
     @Transactional
+    @CacheEvict(cacheNames = {CacheNames.TRASH, CacheNames.APPLICATIONS,
+            CacheNames.APPLICATION_YEARS, CacheNames.STATS, CacheNames.DAILY_STATS,
+            CacheNames.FUNNEL}, allEntries = true)
     public ApplicationRecord restore(Long trashId) {
         DeletedApplication trash = deletedMapper.selectById(trashId);
         if (trash == null) {
@@ -127,20 +134,17 @@ public class TrashServiceImpl implements TrashService {
 
         deletedMapper.deleteById(trashId);
         historyService.attachStatusDays(List.of(application));
-        applicationCache.invalidate();
         return application;
     }
 
+    @CacheEvict(cacheNames = CacheNames.TRASH, allEntries = true)
     public int delete(Long trashId) {
-        int deleted = deletedMapper.deleteById(trashId);
-        applicationCache.invalidate();
-        return deleted;
+        return deletedMapper.deleteById(trashId);
     }
 
+    @CacheEvict(cacheNames = CacheNames.TRASH, allEntries = true)
     public int empty() {
-        int deleted = deletedMapper.delete(Wrappers.emptyWrapper());
-        applicationCache.invalidate();
-        return deleted;
+        return deletedMapper.delete(Wrappers.emptyWrapper());
     }
 
     private TrashPayload parsePayload(DeletedApplication trash) {

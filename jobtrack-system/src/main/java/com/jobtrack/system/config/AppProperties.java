@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -25,6 +26,7 @@ public class AppProperties {
     private Storage storage = new Storage();
     private Admin admin = new Admin();
     private Rabbit rabbit = new Rabbit();
+    private Cache cache = new Cache();
 
     public Path dataPath() {
         return Paths.get(dataDir).toAbsolutePath().normalize();
@@ -70,5 +72,12 @@ public class AppProperties {
     @Data
     public static class Rabbit {
         private boolean enabled = true;
+    }
+
+    /** Redis 业务缓存配置。 */
+    @Data
+    public static class Cache {
+        /** 缓存有效期，写操作仍会立即清理，TTL 仅作为兜底。 */
+        private Duration ttl = Duration.ofHours(24);
     }
 }

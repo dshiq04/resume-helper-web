@@ -1,9 +1,9 @@
 package com.jobtrack.application.bootstrap;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
+import com.jobtrack.application.config.CacheNames;
 import com.jobtrack.application.pojo.po.ApplicationRecord;
 import com.jobtrack.application.mapper.ApplicationRecordMapper;
-import com.jobtrack.application.service.ApplicationCacheService;
 import com.jobtrack.application.service.ApplicationHistoryService;
 import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.common.context.TenantContext;
@@ -14,6 +14,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -33,7 +35,7 @@ public class DemoDataInitializer implements ApplicationRunner {
     private final SysTenantMapper tenantMapper;
     private final ApplicationRecordMapper applicationMapper;
     private final ApplicationHistoryService historyService;
-    private final ApplicationCacheService applicationCache;
+    private final CacheManager cacheManager;
 
     @Override
     @Transactional
@@ -96,7 +98,12 @@ public class DemoDataInitializer implements ApplicationRunner {
                             appliedAt.plusDays(Math.max(4, demo.appliedDaysAgo - demo.daysSinceStatus)));
                 }
             }
-            applicationCache.invalidate();
+            for (String name : CacheNames.ALL) {
+                Cache cache = cacheManager.getCache(name);
+                if (cache != null) {
+                    cache.clear();
+                }
+            }
             log.info("已写入 {} 条演示投递记录", demos.size());
         } finally {
             TenantContext.clear();
