@@ -5,7 +5,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * 图形验证码配置。验证码一次性保存在 Redis 中，
+ * 图形验证码配置。验证码由 Hutool Captcha 生成并一次性保存在 Redisson 中，
  * 因此 captcha.enabled=true 时必须同时开启 redis.enabled=true。
  */
 @Data

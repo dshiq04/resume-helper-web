@@ -220,6 +220,10 @@ public class AuthServiceImpl implements AuthService {
             // 当前密码错误属于输入校验失败，不能返回 401，否则前端会误判为登录失效。
             throw BusinessException.badRequest("invalid_password", "当前密码不正确");
         }
+        if (request.getConfirmPassword() == null
+                || !request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw BusinessException.badRequest("password_mismatch", "两次输入的新密码不一致");
+        }
         if (request.getCurrentPassword().equals(request.getNewPassword())) {
             throw BusinessException.badRequest("same_password", "新密码不能与当前密码相同");
         }

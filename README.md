@@ -49,9 +49,10 @@
 ### 账号与安全
 
 - 多用户注册，每个账号拥有独立工作区，数据与其他账号完全隔离。
-- Spring Security + JWT；登录态由服务端会话存储校验，支持退出登录、修改密码后强制下线。
-- 密码使用 BCrypt 哈希保存。
-- 可选的图形验证码（EasyCaptcha），验证码通过 Redis 一次性存储。**开启验证码必须同时开启 Redis**，否则服务会拒绝启动。
+- Spring Security + JWT；登录态由 Redisson 服务端会话存储校验，支持退出登录、修改密码后强制下线。
+- 密码使用 Spring Security Crypto 的 BCrypt 哈希保存。
+- 登录、注册、修改密码、忘记密码表单使用 RSA 传输加密：前端 JSEncrypt 按公钥分块加密表单 JSON，后端用 Spring Security Crypto 的 `RsaRawEncryptor` 解密后再做参数校验。
+- 可选的图形验证码（Hutool Captcha），验证码通过 Redisson 一次性存储。**开启验证码必须同时开启 Redis / Redisson**，否则服务会拒绝启动。
 - 可选的闲置自动锁定。
 
 ### 查询缓存
@@ -63,14 +64,22 @@
 - 缓存按账号隔离，一个账号的写操作不会清理其他账号的缓存。
 - Redis 临时不可用时记录告警并回退数据库查询，不阻塞业务接口。
 
-### 可选 Redis
+### 可选 Redis（登录模块使用 Redisson）
 
 - `redis.enabled=false` 时：在线状态与会话使用进程内存储；业务查询缓存仍使用 `spring.data.redis` 配置的 Redis。
 - `redis.enabled=true` 时：
-  - 登录会话与在线人数写入 Redis，多实例部署可共享；
+  - 登录会话、账号会话集合与在线人数通过 **Redisson** 写入 Redis，多实例部署可共享；
   - 公共配置与账号偏好使用 Redis 缓存；
-  - 支持图形验证码。
-- Redis 临时不可用时会自动退回进程内副本并带退避自动重试，不会永久降级；本实例已登录会话保留，Redis 恢复后自动回填。
+  - 支持 Hutool Captcha 图形验证码。
+- Redisson 临时不可用时会自动退回进程内副本并带退避自动重试，不会永久降级；本实例已登录会话保留，Redis 恢复后自动回填。
+
+### 登录表单传输加密
+
+- 前端通过 `GET /api/auth/public-key` 获取 RSA 公钥与分块大小，使用 `JSEncrypt` 加密表单 JSON，请求体只包含 `chunks` 密文块。
+- 后端首次启动自动生成 2048 位 RSA 密钥并保存到 `{app.data-dir}/keys/form-rsa-private.pem`；也可通过 `app.form-crypto.private-key`（PKCS#8 PEM）或 `RSA_KEY_FILE` 指定已有密钥。
+- 后端使用 Spring Security Crypto 的 `RsaRawEncryptor` 逐块解密，拼回 JSON 后映射为 DTO，再执行 Jakarta Validation，最后进入业务逻辑。
+- 公钥可以安全公开；私钥只保存在服务端，请勿提交到代码仓库。多实例部署时请共享同一把私钥或挂载同一个密钥文件。
+- 表单加密用于避免明文密码出现在请求体与网关日志中，不能替代 HTTPS；生产环境仍应启用 HTTPS 并配置安全响应头。
 
 ---
 
@@ -276,6 +285,9 @@ captcha:
 app:
   data-dir: ./data
   log-dir: ./log
+  form-crypto:
+    key-size: 2048
+    key-file: ${RSA_KEY_FILE:}
   jwt:
     secret: ${JWT_SECRET:...}
     ttl-hours: 72
@@ -292,8 +304,9 @@ app:
 - 数据库只支持 `mysql` 与 `postgresql`，切换方式：替换 `spring.datasource` 配置块，并把 `spring.sql.init.schema-locations` 改成对应的 `schema-*.sql`；每个配置文件里都附带了另一种数据库的注释示例。
 - 数据库账号密码可以直接改 yml，也可以用 `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USERNAME` / `DB_PASSWORD` 等环境变量覆盖。
 - 请先创建数据库（MySQL 默认 `jobtrack`，字符集 `utf8mb4`；PostgreSQL 默认 `jobtrack`）。服务启动时自动建表，并在空库中创建 `admin / 123456`。
-- `app.data-dir` 存放加密简历文件等运行数据，`app.log-dir` 存放日志。
+- `app.data-dir` 存放加密简历文件、登录表单 RSA 私钥等运行数据，`app.log-dir` 存放日志。
 - `app.admin` 只在首次启动时创建账号，不会覆盖已修改的密码。
+- 登录表单加密密钥默认生成到 `{app.data-dir}/keys/form-rsa-private.pem`，请妥善备份并限制文件权限；生产环境也可通过 `app.form-crypto.private-key` 或 `RSA_KEY_FILE` 注入已有 PKCS#8 私钥。
 - 设置页的「数据库连接」为只读展示 + 连通性测试；修改配置后重启服务生效。
 - 生产环境必须提供 `JWT_SECRET` 与 `STORAGE_SECRET` 环境变量，否则启动失败。
 
@@ -308,9 +321,9 @@ app:
 ### Redis 与验证码
 
 - dev / test / prod 三个环境默认都开启 Redis 与图形验证码（`redis.enabled: true`、`captcha.enabled: true`）。
-- 启动前请确保 Redis 可用；验证码写入 Redis 失败时会返回 503，在线状态与会话会自动退回进程内副本并定时重试 Redis。
+- 登录会话与验证码通过 Redisson 访问 Redis；启动前请确保 Redis 可用。验证码写入失败时会返回 503，在线状态与会话会自动退回进程内副本并定时重试。
 - 如确实不需要，可在对应 yml 中把二者改为 `false`（验证码依赖 Redis，不能只开验证码不开 Redis，否则服务拒绝启动）。
-- 验证码类型支持 `char`（字母数字）和 `math`（算术）。
+- 验证码使用 Hutool Captcha 生成，类型支持 `char`（字母数字）和 `math`（算术），校验后立即从 Redisson 删除。
 
 ---
 
@@ -449,11 +462,12 @@ Content-Type: application/json
 | `GET` | `/api/config` | 公共配置（选项、验证码开关、在线存储类型） |
 | `GET` | `/api/auth/status` | 登录状态 |
 | `GET` | `/api/auth/captcha` | 获取图形验证码（需开启验证码） |
-| `POST` | `/api/auth/login` | 登录 |
-| `POST` | `/api/auth/register` | 注册并创建工作区 |
+| `GET` | `/api/auth/public-key` | 获取登录表单 RSA 加密公钥 |
+| `POST` | `/api/auth/login` | 登录（请求体为 `{ chunks: [...] }` 加密表单） |
+| `POST` | `/api/auth/register` | 注册并创建工作区（加密表单） |
 | `GET` | `/api/auth/me` | 当前用户 |
 | `PUT` | `/api/auth/me` | 修改昵称 |
-| `POST` | `/api/auth/change-password` | 修改密码 |
+| `POST` | `/api/auth/change-password` | 修改密码（加密表单） |
 | `GET` | `/api/auth/agreement` | 当前账号的用户协议签署记录 |
 | `POST` | `/api/auth/agreement` | 登录后补签用户协议（记录语言、时区、地点与 IP） |
 | `POST` | `/api/auth/logout` | 退出登录 |
@@ -520,11 +534,12 @@ Authorization: Bearer <token>
 
 | 层 | 技术 |
 | --- | --- |
-| 后端 | Spring Boot 4.2、Spring Security、Spring Data Redis |
+| 后端 | Spring Boot 4.2、Spring Security、Spring Data Redis、Redisson |
 | 数据访问 | MyBatis-Plus 3.5.18（多租户、分页） |
 | 数据库 | MySQL 8 / PostgreSQL 16+（按环境配置） |
-| 认证 | JWT（jjwt）+ 服务端会话校验 |
-| 验证码 | EasyCaptcha |
+| 认证 | JWT（jjwt）+ Redisson 服务端会话校验 |
+| 表单加密 | JSEncrypt（前端）+ Spring Security Crypto RSA（后端） |
+| 验证码 | Hutool Captcha |
 | 前端 | React 18、TypeScript、Vite、Ant Design 5 |
 | 状态管理 | Redux Toolkit + React Redux |
 | 图表 | ECharts |

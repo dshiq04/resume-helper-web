@@ -1,5 +1,6 @@
 package com.jobtrack.system.pojo.dto;
 
+import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 import lombok.Data;
@@ -14,6 +15,9 @@ public class ChangePasswordDTO {
     @Size(min = 6, max = 64, message = "新密码长度需为 6-64 个字符")
     private String newPassword;
 
+    @NotBlank(message = "请再次输入新密码")
+    private String confirmPassword;
+
     @Size(max = 160, message = "手机号或邮箱过长")
     private String contact;
 
@@ -21,4 +25,9 @@ public class ChangePasswordDTO {
      * 联系方式类型：phone 或 email。旧客户端未传时按手机号/邮箱自动识别。
      */
     private String contactType;
+
+    @AssertTrue(message = "两次输入的新密码不一致")
+    public boolean isPasswordConfirmed() {
+        return newPassword != null && newPassword.equals(confirmPassword);
+    }
 }

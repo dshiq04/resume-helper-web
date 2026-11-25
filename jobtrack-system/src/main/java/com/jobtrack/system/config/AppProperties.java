@@ -27,6 +27,7 @@ public class AppProperties {
     private Admin admin = new Admin();
     private Rabbit rabbit = new Rabbit();
     private Cache cache = new Cache();
+    private FormCrypto formCrypto = new FormCrypto();
 
     public Path dataPath() {
         return Paths.get(dataDir).toAbsolutePath().normalize();
@@ -79,5 +80,21 @@ public class AppProperties {
     public static class Cache {
         /** 缓存有效期，写操作仍会立即清理，TTL 仅作为兜底。 */
         private Duration ttl = Duration.ofHours(24);
+    }
+
+    /**
+     * 登录 / 注册 / 修改密码等表单的传输加密配置。
+     *
+     * <p>前端使用 JSEncrypt 按 RSA 公钥分块加密表单 JSON，后端使用
+     * Spring Security Crypto 的 RsaRawEncryptor 解密后再做参数校验。</p>
+     */
+    @Data
+    public static class FormCrypto {
+        /** RSA 密钥长度，默认 2048 位。 */
+        private int keySize = 2048;
+        /** 可选的 PKCS#8 私钥 PEM 内容，配置后不再生成密钥文件。 */
+        private String privateKey = "";
+        /** 私钥文件路径；为空时使用 {data-dir}/keys/form-rsa-private.pem。 */
+        private String keyFile = "";
     }
 }

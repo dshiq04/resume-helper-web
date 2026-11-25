@@ -5,26 +5,38 @@ import com.jobtrack.system.config.RedisSettings;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.data.redis.core.Cursor;
-import org.springframework.data.redis.core.ScanOptions;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.redisson.api.RBucket;
+import org.redisson.api.RScoredSortedSet;
+import org.redisson.api.RSet;
+import org.redisson.api.RedissonClient;
+import org.redisson.client.codec.StringCodec;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.stream.Stream;
 
 /**
  * 在线会话存储。
  *
+ * <p>登录会话统一使用 Redisson 保存：</p>
+ * <ul>
+ *   <li>{@code session:<sid>} 保存会话 JSON；</li>
+ *   <li>{@code user:<userId>:sessions} 保存账号的全部会话，便于修改密码后强制下线；</li>
+ *   <li>{@code tenant:<tenantId>:online} 用于统计工作区在线人数。</li>
+ * </ul>
+ *
  * <p>Redis 是可选项：配置项 redis.enabled=false 时使用进程内 Map；
- * 打开后会话与在线人数写入 Redis。如果 Redis 临时不可用，会自动退回内存存储，
+ * 打开后会话与在线人数写入 Redisson。如果 Redis 临时不可用，会自动退回内存存储，
  * 保证登录功能不被基础设施拖垮。</p>
  */
 @Slf4j
@@ -33,21 +45,30 @@ import java.util.concurrent.atomic.AtomicLong;
 public class SessionService {
 
     private final RedisSettings redisSettings;
-    private final StringRedisTemplate redisTemplate;
+    private final ObjectProvider<RedissonClient> redissonProvider;
 
     private static final long REDIS_RETRY_BASE_MS = 5_000;
     private static final long REDIS_RETRY_MAX_MS = 60_000;
 
     private final Map<String, MemorySession> memory = new ConcurrentHashMap<>();
     private final AtomicLong redisFailures = new AtomicLong();
-    /** Redis 是否在配置中启用；运行期不再永久关闭，只做冷却重试。 */
+    /** Redisson 是否可用；运行期不再永久关闭，只做冷却重试。 */
+    private volatile RedissonClient redisson;
     private volatile boolean redisEnabled;
     private volatile long redisRetryAt;
 
     @PostConstruct
     void init() {
-        redisEnabled = redisSettings.isEnabled() && redisTemplate != null;
-        log.info("在线状态存储: {}", redisEnabled ? "Redis" : "进程内");
+        if (redisSettings.isEnabled()) {
+            try {
+                redisson = redissonProvider.getIfAvailable();
+            } catch (Exception exception) {
+                log.warn("Redisson 初始化失败，登录会话使用进程内存储: {}", exception.getMessage());
+                redisson = null;
+            }
+        }
+        redisEnabled = redisson != null;
+        log.info("在线状态存储: {}", redisEnabled ? "Redisson" : "进程内");
     }
 
     public String create(SessionInfo info, Duration ttl) {
@@ -136,15 +157,15 @@ public class SessionService {
         if (useRedis()) {
             try {
                 SessionInfo info = readRedis(sid);
-                redisTemplate.delete(sessionKey(sid));
+                redisson.getBucket(sessionKey(sid), StringCodec.INSTANCE).delete();
                 if (info != null) {
                     String userKey = userKey(info.getUserId());
-                    redisTemplate.opsForSet().remove(userKey, sid);
-                    Long size = redisTemplate.opsForSet().size(userKey);
-                    if (size == null || size == 0) {
-                        redisTemplate.delete(userKey);
-                        redisTemplate.opsForZSet().remove(tenantKey(info.getTenantId()),
-                                String.valueOf(info.getUserId()));
+                    RSet<String> sessions = redisson.getSet(userKey, StringCodec.INSTANCE);
+                    sessions.remove(sid);
+                    if (sessions.size() == 0) {
+                        sessions.delete();
+                        redisson.getScoredSortedSet(tenantKey(info.getTenantId()), StringCodec.INSTANCE)
+                                .remove(String.valueOf(info.getUserId()));
                     }
                 }
                 recordRedisSuccess();
@@ -163,16 +184,15 @@ public class SessionService {
         }
         if (useRedis()) {
             try {
-                String userKey = userKey(userId);
-                Set<String> sessions = redisTemplate.opsForSet().members(userKey);
-                if (sessions != null) {
-                    for (String sid : sessions) {
-                        redisTemplate.delete(sessionKey(sid));
-                    }
+                RSet<String> sessions = redisson.getSet(userKey(userId), StringCodec.INSTANCE);
+                Set<String> sids = sessions.readAll();
+                for (String sid : sids) {
+                    redisson.getBucket(sessionKey(sid), StringCodec.INSTANCE).delete();
                 }
-                redisTemplate.delete(userKey);
+                sessions.delete();
                 if (tenantId != null) {
-                    redisTemplate.opsForZSet().remove(tenantKey(tenantId), String.valueOf(userId));
+                    redisson.getScoredSortedSet(tenantKey(tenantId), StringCodec.INSTANCE)
+                            .remove(String.valueOf(userId));
                 }
                 recordRedisSuccess();
             } catch (Exception exception) {
@@ -187,28 +207,26 @@ public class SessionService {
      * 该方法不按租户过滤，管理员可以看到全部工作区的会话。
      */
     public List<OnlineSession> listSessions() {
-        Map<String, OnlineSession> merged = new java.util.LinkedHashMap<>();
+        Map<String, OnlineSession> merged = new LinkedHashMap<>();
         boolean redisRead = false;
         if (useRedis()) {
             String prefix = redisSettings.getKeyPrefix() + "session:";
-            try (Cursor<String> cursor = redisTemplate.scan(ScanOptions.scanOptions()
-                    .match(prefix + "*").count(500).build())) {
-                while (cursor.hasNext()) {
-                    String key = cursor.next();
-                    String value = redisTemplate.opsForValue().get(key);
+            try (Stream<String> keys = redisson.getKeys()
+                    .getKeysStreamByPattern(prefix + "*", 500)) {
+                keys.forEach(key -> {
+                    String value = redisson.<String>getBucket(key, StringCodec.INSTANCE).get();
                     if (value == null || value.isBlank()) {
-                        continue;
+                        return;
                     }
                     try {
                         SessionInfo info = JsonUtils.fromJson(value, SessionInfo.class);
-                        Long ttl = redisTemplate.getExpire(key);
+                        long ttl = redisson.getBucket(key, StringCodec.INSTANCE).remainTimeToLive();
                         String sid = key.substring(prefix.length());
-                        merged.put(sid, new OnlineSession(sid, info,
-                                ttl == null ? 0 : Math.max(0, ttl)));
+                        merged.put(sid, new OnlineSession(sid, info, Math.max(0, ttl / 1000)));
                     } catch (IllegalArgumentException exception) {
-                        redisTemplate.delete(key);
+                        redisson.getBucket(key, StringCodec.INSTANCE).delete();
                     }
-                }
+                });
                 recordRedisSuccess();
                 redisRead = true;
             } catch (Exception exception) {
@@ -237,11 +255,11 @@ public class SessionService {
         }
         if (useRedis()) {
             try {
-                String key = tenantKey(tenantId);
-                redisTemplate.opsForZSet().removeRangeByScore(key, 0, System.currentTimeMillis());
-                Long count = redisTemplate.opsForZSet().zCard(key);
+                RScoredSortedSet<String> online =
+                        redisson.getScoredSortedSet(tenantKey(tenantId), StringCodec.INSTANCE);
+                online.removeRangeByScore(0, true, System.currentTimeMillis(), true);
                 recordRedisSuccess();
-                return count == null ? 0 : count;
+                return online.size();
             } catch (Exception exception) {
                 recordRedisFailure(exception);
             }
@@ -267,11 +285,11 @@ public class SessionService {
      * 调用方应返回 503 而不是把用户误判为“未登录”。
      */
     public boolean degraded() {
-        return redisEnabled && redisTemplate != null && !useRedis();
+        return redisEnabled && !useRedis();
     }
 
     private boolean useRedis() {
-        return redisEnabled && redisTemplate != null
+        return redisEnabled && redisson != null
                 && System.currentTimeMillis() >= redisRetryAt;
     }
 
@@ -284,50 +302,52 @@ public class SessionService {
         long delay = Math.min(REDIS_RETRY_MAX_MS,
                 REDIS_RETRY_BASE_MS << Math.min(failures - 1, 4));
         redisRetryAt = System.currentTimeMillis() + delay;
-        log.warn("Redis 访问失败，{} ms 后重试；本次使用进程内存储: {}",
+        log.warn("Redisson 访问失败，{} ms 后重试；本次使用进程内存储: {}",
                 delay, exception.getMessage());
     }
 
     private void recordRedisSuccess() {
         redisRetryAt = 0;
         if (redisFailures.getAndSet(0) > 0) {
-            log.info("Redis 已恢复，在线状态重新写入 Redis");
+            log.info("Redisson 已恢复，在线状态重新写入 Redis");
         }
     }
 
     private void writeRedis(String sid, SessionInfo info, Duration ttl) {
-        String value = JsonUtils.toJson(info);
-        redisTemplate.opsForValue().set(sessionKey(sid), value, ttl);
+        redisson.getBucket(sessionKey(sid), StringCodec.INSTANCE)
+                .set(JsonUtils.toJson(info), ttl);
 
-        String userKey = userKey(info.getUserId());
-        redisTemplate.opsForSet().add(userKey, sid);
-        redisTemplate.expire(userKey, ttl);
+        RSet<String> sessions = redisson.getSet(userKey(info.getUserId()), StringCodec.INSTANCE);
+        sessions.add(sid);
+        sessions.expire(ttl);
 
-        String tenantKey = tenantKey(info.getTenantId());
-        redisTemplate.opsForZSet().add(tenantKey, String.valueOf(info.getUserId()),
-                System.currentTimeMillis() + ttl.toMillis());
-        redisTemplate.expire(tenantKey, ttl.multipliedBy(2));
+        RScoredSortedSet<String> online =
+                redisson.getScoredSortedSet(tenantKey(info.getTenantId()), StringCodec.INSTANCE);
+        online.add(System.currentTimeMillis() + ttl.toMillis(), String.valueOf(info.getUserId()));
+        online.expire(ttl.multipliedBy(2));
     }
 
     private void touchRedis(String sid, SessionInfo info, Duration ttl) {
-        redisTemplate.expire(sessionKey(sid), ttl);
-        String userKey = userKey(info.getUserId());
-        redisTemplate.expire(userKey, ttl);
-        String tenantKey = tenantKey(info.getTenantId());
-        redisTemplate.opsForZSet().add(tenantKey, String.valueOf(info.getUserId()),
-                System.currentTimeMillis() + ttl.toMillis());
-        redisTemplate.expire(tenantKey, ttl.multipliedBy(2));
+        redisson.getBucket(sessionKey(sid), StringCodec.INSTANCE).expire(ttl);
+
+        RSet<String> sessions = redisson.getSet(userKey(info.getUserId()), StringCodec.INSTANCE);
+        sessions.expire(ttl);
+
+        RScoredSortedSet<String> online =
+                redisson.getScoredSortedSet(tenantKey(info.getTenantId()), StringCodec.INSTANCE);
+        online.add(System.currentTimeMillis() + ttl.toMillis(), String.valueOf(info.getUserId()));
+        online.expire(ttl.multipliedBy(2));
     }
 
     private SessionInfo readRedis(String sid) {
-        String value = redisTemplate.opsForValue().get(sessionKey(sid));
+        String value = redisson.<String>getBucket(sessionKey(sid), StringCodec.INSTANCE).get();
         if (value == null || value.isBlank()) {
             return null;
         }
         try {
             return JsonUtils.fromJson(value, SessionInfo.class);
         } catch (IllegalArgumentException exception) {
-            redisTemplate.delete(sessionKey(sid));
+            redisson.getBucket(sessionKey(sid), StringCodec.INSTANCE).delete();
             return null;
         }
     }

@@ -37,6 +37,12 @@ app:
   # 业务查询缓存统一写入 Redis；写操作会立即清理，TTL 仅作为兜底。
   cache:
     ttl: ${CACHE_TTL:24h}
+  # 登录 / 注册 / 修改密码表单的 RSA 传输加密。
+  # 私钥留空时首次启动自动生成到 {data-dir}/keys/form-rsa-private.pem。
+  form-crypto:
+    key-size: ${RSA_KEY_SIZE:2048}
+    private-key: ${RSA_PRIVATE_KEY:}
+    key-file: ${RSA_KEY_FILE:}
   rabbitmq:
     enabled: ${RABBITMQ_ENABLED:true}
   storage:
