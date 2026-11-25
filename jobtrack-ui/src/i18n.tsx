@@ -21,6 +21,9 @@ import dayjsJa from "dayjs/locale/ja";
 import dayjsKo from "dayjs/locale/ko";
 import dayjsRu from "dayjs/locale/ru";
 import { adminEn, adminZh, adminZhTW } from "./i18n/admin";
+import { adminJa } from "./i18n/adminJa";
+import { adminKo } from "./i18n/adminKo";
+import { adminRu } from "./i18n/adminRu";
 import { ja, ko, ru } from "./i18n/extra";
 import { zhTW } from "./i18n/zhTW";
 
@@ -1063,10 +1066,9 @@ const dictionaries: Record<Lang, Record<string, string>> = {
   "zh-CN": { ...zh, ...adminZh },
   "zh-TW": { ...zhTW, ...adminZhTW },
   en: { ...en, ...adminEn },
-  // 管理员词条暂以英文兜底，避免整块回退为简体中文。
-  ja: { ...ja, ...adminEn },
-  ko: { ...ko, ...adminEn },
-  ru: { ...ru, ...adminEn },
+  ja: { ...ja, ...adminJa },
+  ko: { ...ko, ...adminKo },
+  ru: { ...ru, ...adminRu },
 };
 
 /** Vite 8 对部分 CommonJS 语言包会多包一层 default，这里统一解包。 */
