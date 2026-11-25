@@ -32,8 +32,8 @@ import java.util.List;
  * <p>支持两种凭证：</p>
  * <ul>
  *   <li>登录后的 JWT（网页端），授予全部 SCOPE 权限；</li>
- *   <li>授权码 rt_xxx（浏览器扩展），只授予该授权码的 SCOPE 权限，
- *       具体读/写限制由 SecurityConfig 的 authorizeHttpRequests 执行。</li>
+ *   <li>授权码 rt_xxx（浏览器扩展），只授予该授权码的 SCOPE 与数据范围（RES_*）权限，
+ *       具体读/写与可访问数据由 SecurityConfig 的 authorizeHttpRequests 执行。</li>
  * </ul>
  *
  * <p>封禁集合中的用户在 JWT 与授权码两种凭证下都会立即被拒绝，
@@ -88,10 +88,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 List<String> permissions = session.getPermissions() == null
                         ? List.of() : session.getPermissions();
                 List<GrantedAuthority> authorities = new ArrayList<>();
-                // 网页端登录用户拥有全部读写权限。
+                // 网页端登录用户拥有全部读写权限与全部数据范围。
                 authorities.add(new SimpleGrantedAuthority("SCOPE_read"));
                 authorities.add(new SimpleGrantedAuthority("SCOPE_write"));
                 authorities.add(new SimpleGrantedAuthority("SCOPE_readwrite"));
+                for (String resource : AccessTokenService.ALL_RESOURCES) {
+                    authorities.add(new SimpleGrantedAuthority("RES_" + resource));
+                }
                 // Redis 权限映射为 ROLE_* 权限。
                 for (String permission : permissions) {
                     if (permission != null && !permission.isBlank()) {
@@ -142,9 +145,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 auth.user().getId(), auth.user().getTenantId(), auth.user().getUsername(),
                 auth.user().getDisplayName(), auth.user().getRole(),
                 "token:" + auth.token().getId());
-        // 授权码只授予 SCOPE_*，不授予 ROLE_*：避免扩展授权码访问管理员接口。
-        bind(principal, token, List.of(
-                new SimpleGrantedAuthority("SCOPE_" + auth.token().getScope())), false);
+        // 授权码只授予 SCOPE_* 与用户勾选的数据范围 RES_*，不授予 ROLE_*：
+        // 避免扩展授权码访问管理员接口。
+        List<GrantedAuthority> authorities = new ArrayList<>();
+        authorities.add(new SimpleGrantedAuthority("SCOPE_" + auth.token().getScope()));
+        for (String resource : accessTokenService.resources(auth.token())) {
+            authorities.add(new SimpleGrantedAuthority("RES_" + resource));
+        }
+        bind(principal, token, authorities, false);
         return true;
     }
 

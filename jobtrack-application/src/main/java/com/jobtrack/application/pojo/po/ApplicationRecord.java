@@ -1,6 +1,7 @@
 package com.jobtrack.application.pojo.po;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
+import com.baomidou.mybatisplus.annotation.FieldStrategy;
 import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
@@ -16,6 +17,10 @@ import java.time.LocalDateTime;
  *
  * <p>必填字段只有公司名称与投递链接，其余信息按需填写；
  * 因此表中大部分列都允许为空，界面也不会把它们标成必填项。</p>
+ *
+ * <p>选填字段声明 updateStrategy = ALWAYS：编辑投递时用户清空某个字段
+ * （请求中为 null / 空字符串）必须真正写回 NULL。MyBatis-Plus 默认的
+ * NOT_NULL 策略会跳过 null 字段，导致清空操作被静默丢弃。</p>
  */
 @Data
 @TableName("applications")
@@ -33,7 +38,7 @@ public class ApplicationRecord {
 
     private String link;
 
-    @TableField("job_title")
+    @TableField(value = "job_title", updateStrategy = FieldStrategy.ALWAYS)
     private String position;
 
     private String status;
@@ -43,25 +48,34 @@ public class ApplicationRecord {
     @JsonProperty("year")
     private Integer applyYear;
 
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String channel;
 
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String city;
 
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String salary;
 
-    @TableField("contact_name")
+    @TableField(value = "contact_name", updateStrategy = FieldStrategy.ALWAYS)
     private String contact;
 
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String contactInfo;
 
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String workMode;
 
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String priority;
 
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private Integer interviewRound;
 
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private LocalDateTime nextActionAt;
 
+    @TableField(updateStrategy = FieldStrategy.ALWAYS)
     private String notes;
 
     private Boolean pinned;

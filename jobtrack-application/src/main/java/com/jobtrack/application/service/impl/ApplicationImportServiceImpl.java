@@ -4,6 +4,7 @@ import com.jobtrack.application.service.ApplicationImportService;
 import com.jobtrack.application.service.ApplicationService;
 
 import com.jobtrack.application.pojo.dto.ApplicationImportDTO;
+import com.jobtrack.application.pojo.dto.ApplicationImportRow;
 import com.jobtrack.application.pojo.po.ApplicationRecord;
 import com.jobtrack.application.pojo.dto.ApplicationDTO;
 import com.jobtrack.application.pojo.vo.ImportResultVO;
@@ -27,6 +28,7 @@ import org.apache.poi.xssf.usermodel.XSSFDataValidation;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.time.LocalDate;
@@ -121,11 +123,19 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         if (file.getSize() > MAX_BYTES) {
             throw BusinessException.badRequest("file_too_large", "文件不能超过 10 MB");
         }
-        List<ApplicationImportDTO> rows = new ArrayList<>();
-        try (InputStream input = file.getInputStream()) {
-            FesodSheet.read(input, ApplicationImportDTO.class, new ReadListener<ApplicationImportDTO>() {
+        byte[] content;
+        try {
+            content = file.getBytes();
+        } catch (Exception exception) {
+            throw BusinessException.badRequest("file_unreadable", "无法读取上传的文件");
+        }
+        requireExcel(file.getOriginalFilename(), content);
+
+        List<ApplicationImportRow> rows = new ArrayList<>();
+        try (InputStream input = new ByteArrayInputStream(content)) {
+            FesodSheet.read(input, ApplicationImportRow.class, new ReadListener<ApplicationImportRow>() {
                 @Override
-                public void invoke(ApplicationImportDTO row, AnalysisContext context) {
+                public void invoke(ApplicationImportRow row, AnalysisContext context) {
                     if (row != null) {
                         rows.add(row);
                     }
@@ -145,7 +155,7 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         int skipped = 0;
         List<String> errors = new ArrayList<>();
         for (int index = 0; index < rows.size(); index++) {
-            ApplicationImportDTO row = rows.get(index);
+            ApplicationImportRow row = rows.get(index);
             try {
                 applicationService.create(toRequest(row));
                 imported++;
@@ -160,7 +170,41 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         return new ImportResultVO(imported, skipped, rows.size(), errors);
     }
 
-    private ApplicationDTO toRequest(ApplicationImportDTO row) {
+    /**
+     * 只接受真正的 Excel 文件：先看扩展名，再看文件头（xlsx 为 ZIP 的 PK，
+     * 旧版 xls 为 OLE2 的 D0 CF 11 E0），避免把 .txt 之类的文件当成“0 行”导入。
+     */
+    private void requireExcel(String filename, byte[] content) {
+        String name = filename == null ? "" : filename.trim().toLowerCase(Locale.ROOT);
+        int dot = name.lastIndexOf('.');
+        String extension = dot < 0 ? "" : name.substring(dot + 1);
+        if (!"xlsx".equals(extension) && !"xls".equals(extension)) {
+            throw BusinessException.badRequest("invalid_file_type",
+                    "仅支持 .xlsx / .xls 格式的 Excel 文件，请使用提供的模板");
+        }
+        if (!looksLikeExcel(content)) {
+            throw BusinessException.badRequest("invalid_file_type",
+                    "文件内容不是有效的 Excel，请使用提供的模板");
+        }
+    }
+
+    private boolean looksLikeExcel(byte[] content) {
+        if (content == null || content.length < 4) {
+            return false;
+        }
+        // xlsx：ZIP 容器（PK\x03\x04 / PK\x05\x06 / PK\x07\x08）。
+        if (content[0] == 'P' && content[1] == 'K') {
+            return true;
+        }
+        // xls：OLE2 复合文档。
+        return content.length >= 8
+                && (content[0] & 0xFF) == 0xD0 && (content[1] & 0xFF) == 0xCF
+                && (content[2] & 0xFF) == 0x11 && (content[3] & 0xFF) == 0xE0
+                && (content[4] & 0xFF) == 0xA1 && (content[5] & 0xFF) == 0xB1
+                && (content[6] & 0xFF) == 0x1A && (content[7] & 0xFF) == 0xE1;
+    }
+
+    private ApplicationDTO toRequest(ApplicationImportRow row) {
         String company = trim(row.getCompany());
         if (company.isEmpty()) {
             throw BusinessException.badRequest("company_required", "公司名称不能为空");
@@ -176,13 +220,31 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         request.setLink(link);
         request.setCategory(mapCategory(row.getCategory()));
         request.setStatus(DomainConstants.STATUS_SCREENING);
-        Integer year = row.getYear();
-        if (year == null || year <= 0) {
-            year = appliedAt == null ? LocalDate.now().getYear() : appliedAt.getYear();
-        }
-        request.setYear(year);
+        request.setYear(parseYear(row.getYear(), appliedAt));
         request.setAppliedAt(appliedAt);
         return request;
+    }
+
+    /**
+     * 「年度」以字符串读入后逐行转换，类型错误只影响当前行。
+     * 留空时按投递时间（或当前年份）补全，保持原有行为。
+     */
+    private Integer parseYear(String raw, LocalDateTime appliedAt) {
+        String value = trim(raw);
+        if (value.isEmpty()) {
+            return appliedAt == null ? LocalDate.now().getYear() : appliedAt.getYear();
+        }
+        String normalized = value.endsWith(".0")
+                ? value.substring(0, value.length() - 2) : value;
+        try {
+            int year = Integer.parseInt(normalized);
+            if (year <= 0) {
+                throw new NumberFormatException("year must be positive");
+            }
+            return year;
+        } catch (NumberFormatException exception) {
+            throw BusinessException.badRequest("invalid_year", "年度必须为数字，例如 2026");
+        }
     }
 
     private String mapCategory(String raw) {

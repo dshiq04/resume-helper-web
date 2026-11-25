@@ -49,10 +49,8 @@ import java.util.UUID;
 public class AccessTokenServiceImpl implements AccessTokenService {
 
     private static final Set<String> SCOPES = Set.of("read", "write", "readwrite");
-    private static final Set<String> RESOURCES =
-            Set.of("applications", "resumes", "statistics", "profile");
-    private static final List<String> DEFAULT_RESOURCES =
-            List.of("applications", "resumes", "statistics", "profile");
+    private static final Set<String> RESOURCES = Set.copyOf(AccessTokenService.ALL_RESOURCES);
+    private static final List<String> DEFAULT_RESOURCES = AccessTokenService.ALL_RESOURCES;
 
     private static final String CACHE_PREFIX = "access-code:";
 
@@ -221,6 +219,10 @@ public class AccessTokenServiceImpl implements AccessTokenService {
         touch.setLastUsedAt(LocalDateTime.now());
         tokenMapper.updateById(touch);
         return new AccessTokenService.TokenAuth(token, user);
+    }
+
+    public List<String> resources(AccessToken token) {
+        return splitResources(token == null ? null : token.getResources());
     }
 
     public AccessTokenLogPageVO logs(Long userId, int page, int pageSize, String name, String result) {

@@ -12,7 +12,7 @@
 
 ### 投递管理
 
-- **多年度投递**：每条记录带年度字段，列表与统计都支持按年度筛选，春招/秋招/实习/社招可以跨年归档。
+- **多年度投递**：每条记录带年度字段，统计页支持按年度筛选（接口也支持），春招/秋招/实习/社招可以跨年归档。
 - **只必填两项**：公司名称与投递链接必填，其余字段全部选填。
 - **更完整的字段**：岗位、年度、状态、渠道、城市、薪资、联系人、联系方式、工作方式、优先级、面试轮次、下次跟进、备注。
 - **置顶与内联编辑**：置顶记录优先展示；宽屏表格中公司名称、投递链接、状态可直接修改，窄屏（≤1180px）卡片视图仅状态可内联修改，公司名称与投递链接需进入编辑抽屉。
@@ -240,7 +240,7 @@ app:
 说明：
 
 - 简历文件会先用 `app.storage.secret` 派生的 AES-256-GCM 密钥加密，再上传到 `resumes/<租户>/...`。
-- 简历库支持 PDF、DOCX、PPTX、XLSX、Markdown、HTML 与常见图片格式；预览使用 `anyview` 在浏览器内原生渲染，可直接选中并复制文本。
+- 简历库支持 PDF、DOCX、PPTX、Markdown、HTML 与常见图片格式；预览使用 `anyview` 在浏览器内原生渲染，可直接选中并复制文本。
 - 头像上传到 `avatars/<租户>/...`，数据库只保存对象 key，接口返回时用 `public-base-url + key` 拼成完整地址。
 - 配置了 `access-key` / `secret-key` 时使用 S3；未配置或连接失败会自动回退本地磁盘，不影响启动。
 - 启动时会自动创建 bucket，并在 `public-read: true` 时设置匿名只读策略，保证头像可以直接访问。
@@ -456,7 +456,7 @@ Content-Type: application/json
 | `POST` | `/api/applications/import` | 导入 Excel |
 | `POST` | `/api/applications` | 新增投递 |
 | `GET` | `/api/application/{id}` | 投递详情 |
-| `PUT` | `/api/application/{id}` | 更新投递（必填字段必须提供，选填字段为 `null` 时保持不变） |
+| `PUT` | `/api/application/{id}` | 更新投递（整体更新，必填字段必须提供，选填字段为 `null` 或空字符串时清空） |
 | `DELETE` | `/api/application/{id}` | 删除（进入回收站） |
 | `GET/POST` | `/api/application/{id}/history` | 状态时间线 / 补全阶段 |
 | `GET` | `/api/applications/companies` | 公司名补全 |

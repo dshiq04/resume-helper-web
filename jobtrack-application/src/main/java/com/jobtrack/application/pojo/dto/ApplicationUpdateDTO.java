@@ -11,7 +11,7 @@ import lombok.Data;
 import java.time.LocalDateTime;
 
 /**
- * 局部更新：null 表示不修改该字段。
+ * 投递整体更新：必填字段必须提供；选填字段为 null 或空字符串表示清空该字段。
  */
 @Data
 public class ApplicationUpdateDTO {

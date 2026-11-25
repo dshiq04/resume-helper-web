@@ -1,6 +1,7 @@
 package com.jobtrack.system.config;
 
 import com.jobtrack.system.security.JwtAuthenticationFilter;
+import com.jobtrack.system.security.ResourceScopeAuthorizationManager;
 import com.jobtrack.system.security.RestAccessDeniedHandler;
 import com.jobtrack.system.security.RestAuthenticationEntryPoint;
 import lombok.RequiredArgsConstructor;
@@ -94,7 +95,20 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**")
                         .hasAnyRole("ADMIN", "ADMIN_CONSOLE", "ADMIN_USERS",
                                 "ADMIN_ONLINE", "ADMIN_OPERATIONS", "ADMIN_PERMISSIONS")
-                        // 授权码权限由 SCOPE_* 权限控制：读接口需要 read/readwrite，
+                        // 授权码的数据范围（resources）在这里生效：
+                        // 同时校验 SCOPE_*（读/写）与 RES_*（可访问的数据范围）。
+                        // 网页端 JWT 登录用户拥有全部 SCOPE_* 与 RES_*，不受影响。
+                        .requestMatchers("/api/applications", "/api/applications/**",
+                                "/api/application/**", "/api/trash", "/api/trash/**")
+                        .access(ResourceScopeAuthorizationManager.of("applications"))
+                        .requestMatchers("/api/resumes", "/api/resumes/**", "/api/resume/**")
+                        .access(ResourceScopeAuthorizationManager.of("resumes"))
+                        .requestMatchers("/api/stats", "/api/stats/**")
+                        .access(ResourceScopeAuthorizationManager.of("statistics"))
+                        .requestMatchers("/api/account/profile", "/api/account/contact",
+                                "/api/account/avatar")
+                        .access(ResourceScopeAuthorizationManager.of("profile"))
+                        // 其余授权码权限由 SCOPE_* 权限控制：读接口需要 read/readwrite，
                         // 写接口需要 write/readwrite；JWT 登录用户拥有全部 SCOPE。
                         .requestMatchers(HttpMethod.GET, "/api/**")
                         .hasAnyAuthority("SCOPE_read", "SCOPE_readwrite")

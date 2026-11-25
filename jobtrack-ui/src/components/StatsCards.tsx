@@ -21,9 +21,9 @@ export function StatsCards({ stats, category, showStuck = true }: { stats: Stats
 
   const cards = [
     { label: t("dash.total"), value: total, note: t("stats.allTime"), tone: "ink" },
-    { label: t("dash.active"), value: active, note: t("status.interview"), tone: "sage" },
-    { label: t("dash.interview"), value: interview, note: t("stats.conversion"), tone: "clay" },
-    { label: t("dash.offer"), value: offer, note: t("status.offer"), tone: "gold" },
+    { label: t("dash.active"), value: active, note: t("stats.activeNote"), tone: "sage" },
+    { label: t("dash.interview"), value: interview, note: t("stats.interviewNote"), tone: "clay" },
+    { label: t("dash.offer"), value: offer, note: t("stats.offerNote"), tone: "gold" },
   ];
 
   return (

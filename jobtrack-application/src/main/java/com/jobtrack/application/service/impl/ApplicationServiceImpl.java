@@ -184,61 +184,36 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Transactional
     public ApplicationRecord update(Long id, ApplicationUpdateDTO request) {
-        // 修改前先确认记录存在，不存在按 500 返回明确提示。
+        // 修改前先确认记录存在，不存在时返回 404，避免把业务校验错误当成服务异常。
         ApplicationRecord record = applicationMapper.selectById(id);
         if (record == null) {
-            throw BusinessException.internal("record_not_found", "记录不存在");
+            throw BusinessException.notFound("not_found", "投递记录不存在");
         }
         String previousStatus = record.getStatus();
 
+        // PUT 为整体更新：选填字段为空表示清空，因此无条件覆盖，
+        // 配合实体的 updateStrategy = ALWAYS 才能把 NULL 真正写回数据库。
         String category = normalizeFilter(request.getCategory());
         requireCategory(category);
         record.setCategory(category);
-        if (request.getCompanyName() != null) {
-            record.setCompanyName(requireCompany(request.getCompanyName()));
-        }
-        if (request.getLink() != null) {
-            record.setLink(requireLink(request.getLink()));
-        }
-        if (request.getPosition() != null) {
-            record.setPosition(trimToNull(request.getPosition()));
-        }
+        record.setCompanyName(requireCompany(request.getCompanyName()));
+        record.setLink(requireLink(request.getLink()));
+        record.setPosition(trimToNull(request.getPosition()));
         String status = normalizeFilter(request.getStatus());
         requireStatus(status);
         record.setStatus(status);
-        if (request.getChannel() != null) {
-            record.setChannel(trimToNull(request.getChannel()));
-        }
-        if (request.getCity() != null) {
-            record.setCity(trimToNull(request.getCity()));
-        }
-        if (request.getSalary() != null) {
-            record.setSalary(trimToNull(request.getSalary()));
-        }
-        if (request.getContact() != null) {
-            record.setContact(trimToNull(request.getContact()));
-        }
-        if (request.getContactInfo() != null) {
-            record.setContactInfo(trimToNull(request.getContactInfo()));
-        }
-        if (request.getWorkMode() != null) {
-            record.setWorkMode(trimToNull(request.getWorkMode()));
-        }
-        if (request.getPriority() != null) {
-            record.setPriority(trimToNull(request.getPriority()));
-        }
-        if (request.getInterviewRound() != null) {
-            record.setInterviewRound(request.getInterviewRound());
-        }
-        if (request.getNextActionAt() != null) {
-            record.setNextActionAt(request.getNextActionAt());
-        }
-        if (request.getNotes() != null) {
-            record.setNotes(trimToNull(request.getNotes()));
-        }
-        if (request.getPinned() != null) {
-            record.setPinned(request.getPinned());
-        }
+        record.setChannel(trimToNull(request.getChannel()));
+        record.setCity(trimToNull(request.getCity()));
+        record.setSalary(trimToNull(request.getSalary()));
+        record.setContact(trimToNull(request.getContact()));
+        record.setContactInfo(trimToNull(request.getContactInfo()));
+        record.setWorkMode(trimToNull(request.getWorkMode()));
+        record.setPriority(trimToNull(request.getPriority()));
+        record.setInterviewRound(request.getInterviewRound());
+        record.setNextActionAt(request.getNextActionAt());
+        record.setNotes(trimToNull(request.getNotes()));
+        // pinned 列不允许为空，未传时按未置顶处理。
+        record.setPinned(Boolean.TRUE.equals(request.getPinned()));
         Integer requestedYear = normalizeYear(request.getYear());
         if (requestedYear == null) {
             throw BusinessException.badRequest("year_required", "请选择年度");
@@ -252,7 +227,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         }
         ApplicationRecord reloaded = applicationMapper.selectById(id);
         if (reloaded == null) {
-            throw BusinessException.internal("record_not_found", "记录不存在");
+            throw BusinessException.notFound("not_found", "投递记录不存在");
         }
         historyService.attachStatusDays(List.of(reloaded));
         applicationCache.invalidate();
@@ -261,10 +236,10 @@ public class ApplicationServiceImpl implements ApplicationService {
 
     @Transactional
     public void delete(Long id) {
-        // 删除前确认记录存在，不存在时返回 500 并回滚。
+        // 删除前确认记录存在，不存在（或属于其他租户）时返回 404。
         ApplicationRecord record = applicationMapper.selectById(id);
         if (record == null) {
-            throw BusinessException.internal("record_not_found", "记录不存在");
+            throw BusinessException.notFound("not_found", "投递记录不存在");
         }
         trashService.moveToTrash(record);
         applicationCache.invalidate();

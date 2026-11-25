@@ -1,5 +1,6 @@
 package com.jobtrack.system.aspect;
 
+import com.jobtrack.common.api.Result;
 import com.jobtrack.system.messaging.UserOperationMessage;
 import com.jobtrack.system.pojo.vo.AuthVO;
 import com.jobtrack.system.security.AuthPrincipal;
@@ -79,7 +80,10 @@ public class UserOperationAspect {
     }
 
     private Actor actor(Object result) {
-        if (result instanceof AuthVO auth && auth.getUser() != null) {
+        // 控制器统一返回 Result<T>，登录 / 注册需要先取出 data 再判断；
+        // 登录阶段 SecurityContext 仍为空，只能依赖返回值识别操作人。
+        Object payload = result instanceof Result<?> wrapper ? wrapper.getData() : result;
+        if (payload instanceof AuthVO auth && auth.getUser() != null) {
             return new Actor(auth.getUser().getTenantId(), auth.getUser().getId(),
                     auth.getUser().getUsername(), auth.getUser().getDisplayName());
         }
