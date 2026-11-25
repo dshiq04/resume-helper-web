@@ -171,6 +171,7 @@ export const zhTW: Record<string, string> = {
   "resume.emptyHint": "支援 PDF、HTML、PPTX、DOCX、PNG、JPG、JPEG 與 MD。",
   "resume.preview": "預覽",
   "resume.download": "下載",
+  "resume.downloadFailed": "下載失敗，請稍後再試",
   "resume.edit": "編輯資訊",
   "resume.uploadTitle": "上傳履歷",
   "resume.editTitle": "編輯履歷資訊",

@@ -20,6 +20,7 @@ import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { adminApi } from "../../api/admin";
 import type { AdminUserDetail, UserProfile } from "../../api/types";
 import { PageHeader } from "../../components/PageHeader";
+import { useAuth } from "../../context/AuthContext";
 import { useI18n } from "../../i18n";
 import { COUNTRY_CODES, joinPhone, splitPhone } from "../../utils/countryCodes";
 import { errorMessage } from "../../utils/errors";
@@ -61,6 +62,8 @@ function statusColor(status: string) {
 export function AdminUserDetailPage() {
   const { t } = useI18n();
   const { message } = AntdApp.useApp();
+  // 页签权限按“当前登录管理员”判断，而不是被查看用户。
+  const { user: currentUser } = useAuth();
   const params = useParams();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -125,10 +128,10 @@ export function AdminUserDetailPage() {
 
   // 没有操作记录权限时，即使通过 URL 指定 tab 也不渲染该面板。
   useEffect(() => {
-    if (detail && tab === "operations" && !canViewOperations(detail.user)) {
+    if (detail && tab === "operations" && !canViewOperations(currentUser)) {
       setTab("profile");
     }
-  }, [detail, tab]);
+  }, [detail, tab, currentUser]);
 
   const saveAccount = async (values: AccountValues) => {
     if (!userId) return;
@@ -573,7 +576,7 @@ export function AdminUserDetailPage() {
               label: t("admin.tabAgreement"),
               children: <AdminUserAgreementPanel userId={user.id} />,
             },
-            ...(canViewOperations(user)
+            ...(canViewOperations(currentUser)
               ? [{
                   key: "operations",
                   label: t("admin.tabOperations"),

@@ -1,8 +1,10 @@
 package com.jobtrack.system.messaging;
 
+import org.springframework.amqp.core.AcknowledgeMode;
 import org.springframework.amqp.core.Queue;
 import org.springframework.amqp.rabbit.annotation.EnableRabbit;
 import org.springframework.amqp.rabbit.config.SimpleRabbitListenerContainerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.amqp.rabbit.connection.CachingConnectionFactory;
 import org.springframework.amqp.rabbit.connection.ConnectionFactory;
 import lombok.extern.slf4j.Slf4j;
@@ -95,6 +97,22 @@ public class RabbitConfig {
         SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
         factory.setConnectionFactory(connectionFactory);
         factory.setMissingQueuesFatal(false);
+        // 消费异常时拒绝并重新入队，确保消息不会被静默丢弃。
+        factory.setDefaultRequeueRejected(true);
+        return factory;
+    }
+
+    /**
+     * 令牌注销使用手动确认：消费者只有在 Redis 删除成功后才 ack，
+     * 失败时 nack 重新入队，避免“消息已确认但令牌仍然有效”的窗口。
+     */
+    @Bean("manualAckListenerContainerFactory")
+    public SimpleRabbitListenerContainerFactory manualAckListenerContainerFactory(
+            @Qualifier("connectionFactory") ConnectionFactory connectionFactory) {
+        SimpleRabbitListenerContainerFactory factory = new SimpleRabbitListenerContainerFactory();
+        factory.setConnectionFactory(connectionFactory);
+        factory.setMissingQueuesFatal(false);
+        factory.setAcknowledgeMode(AcknowledgeMode.MANUAL);
         return factory;
     }
 }

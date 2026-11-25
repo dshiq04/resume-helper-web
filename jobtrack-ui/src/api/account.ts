@@ -1,4 +1,5 @@
 import { request } from "./client";
+import { encryptedRequest } from "../utils/secureForm";
 import type {
   AccessToken,
   AccessTokenInput,
@@ -54,9 +55,7 @@ export const accountApi = {
   },
   /** 验证保留的手机号或邮箱与密码。 */
   cancelVerify(input: { contactType?: string; contact: string; password: string }) {
-    return request<{ verified: boolean }>("/account/cancel/verify", {
-      method: "POST",
-      data: input,
+    return encryptedRequest<{ verified: boolean }>("/account/cancel/verify", input, {
       handleUnauthorized: false,
     });
   },
@@ -68,9 +67,7 @@ export const accountApi = {
     contact: string;
     password: string;
   }) {
-    return request<{ cancelled: boolean }>("/account/cancel/confirm", {
-      method: "POST",
-      data: input,
+    return encryptedRequest<{ cancelled: boolean }>("/account/cancel/confirm", input, {
       handleUnauthorized: false,
     });
   },

@@ -151,7 +151,6 @@ public class ApplicationHistoryServiceImpl implements ApplicationHistoryService 
             for (ApplicationChange change : changes) {
                 if (DomainConstants.STATUS_SCREENING.equals(change.getStatus())) {
                     since = change.getChangedAt();
-                    break;
                 }
             }
             screeningDays = daysBetween(since, now);
@@ -173,10 +172,10 @@ public class ApplicationHistoryServiceImpl implements ApplicationHistoryService 
         for (ApplicationRecord record : records) {
             List<ApplicationChange> changes = grouped.getOrDefault(record.getId(), List.of());
             LocalDateTime since = record.getAppliedAt();
+            // 状态可能回退后再次进入（如面试→初筛），应取最后一次进入当前状态的时间。
             for (ApplicationChange change : changes) {
                 if (change.getStatus().equals(record.getStatus())) {
                     since = change.getChangedAt();
-                    break;
                 }
             }
             int days = daysBetween(since, now);

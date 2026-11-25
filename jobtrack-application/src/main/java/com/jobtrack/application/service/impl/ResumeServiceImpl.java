@@ -16,7 +16,7 @@ import com.jobtrack.common.context.TenantContext;
 import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.common.util.JsonUtils;
 import com.jobtrack.system.config.AppProperties;
-import com.jobtrack.system.messaging.AsyncTaskPublisher;
+import com.jobtrack.system.storage.FileCleanupScheduler;
 import com.jobtrack.system.storage.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.cache.annotation.CacheEvict;
@@ -53,7 +53,7 @@ public class ResumeServiceImpl implements ResumeService {
     private final FileCrypto fileCrypto;
     private final AppProperties appProperties;
     private final ObjectStorageService objectStorage;
-    private final AsyncTaskPublisher publisher;
+    private final FileCleanupScheduler fileCleanupScheduler;
 
     @Cacheable(cacheNames = CacheNames.RESUMES)
     public ResumeListVO list(String search) {
@@ -123,6 +123,8 @@ public class ResumeServiceImpl implements ResumeService {
         long tenantId = TenantContext.get() == null ? 0L : TenantContext.require();
         String storedName = "resumes/" + tenantId + "/" + generateStoredName();
         objectStorage.put(storedName, fileCrypto.encrypt(content), "application/octet-stream");
+        // 数据库写入或事务提交失败时删除刚上传的孤儿文件。
+        fileCleanupScheduler.deleteOnRollback(storedName);
 
         Resume resume = new Resume();
         resume.setName(resumeName);
@@ -133,12 +135,7 @@ public class ResumeServiceImpl implements ResumeService {
         resume.setFileSize((long) content.length);
         resume.setEncrypted(true);
         resume.setPinned(false);
-        try {
-            resumeMapper.insert(resume);
-        } catch (RuntimeException exception) {
-            objectStorage.delete(storedName);
-            throw exception;
-        }
+        resumeMapper.insert(resume);
         return view(resume);
     }
 
@@ -171,9 +168,8 @@ public class ResumeServiceImpl implements ResumeService {
     public void delete(Long id) {
         Resume resume = entity(id);
         resumeMapper.deleteById(id);
-        if (!publisher.publishFileCleanup(resume.getStoredName())) {
-            objectStorage.delete(resume.getStoredName());
-        }
+        // 事务提交成功后才删除对象存储中的文件，回滚时保留文件。
+        fileCleanupScheduler.deleteAfterCommit(resume.getStoredName());
     }
 
     public Resume entity(Long id) {

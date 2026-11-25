@@ -68,7 +68,7 @@ public class AccessTokenServiceImpl implements AccessTokenService {
                         .eq(AccessToken::getUserId, userId)
                         .orderByDesc(AccessToken::getCreatedAt))
                 .stream()
-                .map(this::view)
+                .map(token -> view(token, false))
                 .toList();
     }
 
@@ -108,7 +108,8 @@ public class AccessTokenServiceImpl implements AccessTokenService {
         token.setCode("rt_" + UUID.randomUUID().toString().replace("-", ""));
         tokenMapper.insert(token);
         cacheToken(token);
-        return view(token);
+        // 完整授权码只在创建成功时返回一次，后续列表与详情只返回脱敏值。
+        return view(token, true);
     }
 
     @Transactional
@@ -134,7 +135,7 @@ public class AccessTokenServiceImpl implements AccessTokenService {
         tokenMapper.updateById(update);
         token.setEnabled(enabled);
         cacheToken(token);
-        return view(token);
+        return view(token, false);
     }
 
     /**
@@ -390,10 +391,27 @@ public class AccessTokenServiceImpl implements AccessTokenService {
     }
 
     private AccessTokenVO view(AccessToken token) {
+        return view(token, false);
+    }
+
+    private AccessTokenVO view(AccessToken token, boolean revealCode) {
         AccessTokenVO view = new AccessTokenVO();
-        BeanUtils.copyProperties(token, view, "resources");
+        BeanUtils.copyProperties(token, view, "resources", "code");
         view.setResources(splitResources(token.getResources()));
+        String code = token.getCode() == null ? "" : token.getCode();
+        view.setCodeMasked(maskCode(code));
+        view.setCode(revealCode ? token.getCode() : null);
         return view;
+    }
+
+    private String maskCode(String code) {
+        if (code == null || code.isBlank()) {
+            return "—";
+        }
+        if (code.length() <= 11) {
+            return code;
+        }
+        return code.substring(0, 7) + "••••" + code.substring(code.length() - 4);
     }
 
     private String joinResources(List<String> resources) {

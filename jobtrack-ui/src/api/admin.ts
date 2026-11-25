@@ -1,4 +1,5 @@
 import { request } from "./client";
+import { encryptedRequest } from "../utils/secureForm";
 import type {
   AccessToken,
   AccessTokenInput,
@@ -76,10 +77,7 @@ export const adminApi = {
     return request<UserProfile>(`/admin/users/${id}/avatar`, { method: "POST", data });
   },
   resetPassword(id: number, newPassword: string) {
-    return request<AdminUser>(`/admin/users/${id}/password`, {
-      method: "POST",
-      data: { newPassword },
-    });
+    return encryptedRequest<AdminUser>(`/admin/users/${id}/password`, { newPassword });
   },
   updateStatus(
     id: number,

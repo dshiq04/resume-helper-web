@@ -1,5 +1,5 @@
 import { JSEncrypt } from "jsencrypt";
-import { request } from "../api/client";
+import { ApiError, request, type RequestOptions } from "../api/client";
 
 /** 后端 /api/auth/public-key 的返回结构。 */
 interface FormKey {
@@ -63,4 +63,35 @@ export async function encryptForm(values: Record<string, unknown>): Promise<stri
     chunks.push(encrypted);
   }
   return chunks;
+}
+
+/**
+ * 加密提交表单。服务端轮换 RSA 密钥后会返回 invalid_encrypted_form，
+ * 此时清空公钥缓存并用新公钥重试一次，避免用户必须刷新页面。
+ */
+export async function encryptedRequest<T>(
+  path: string,
+  values: Record<string, unknown>,
+  options: RequestOptions = {},
+): Promise<T> {
+  const send = async () => {
+    const chunks = await encryptForm(values);
+    return request<T>(path, {
+      method: "POST",
+      ...options,
+      data: { chunks },
+    });
+  };
+  try {
+    return await send();
+  } catch (error) {
+    const retryable = error instanceof ApiError
+      && error.status === 400
+      && (error.message.includes("解密失败") || error.message.includes("表单"));
+    if (!retryable) {
+      throw error;
+    }
+    cachedKey = null;
+    return send();
+  }
 }

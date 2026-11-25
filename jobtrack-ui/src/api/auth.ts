@@ -1,5 +1,5 @@
 import { request } from "./client";
-import { encryptForm } from "../utils/secureForm";
+import { encryptedRequest } from "../utils/secureForm";
 import type {
   AuthResponse,
   CaptchaResponse,
@@ -26,10 +26,7 @@ export const authApi = {
     );
   },
   async login(input: { username: string; password: string; captchaId?: string; captchaCode?: string }) {
-    const chunks = await encryptForm(input);
-    return request<AuthResponse>("/auth/login", {
-      method: "POST",
-      data: { chunks },
+    return encryptedRequest<AuthResponse>("/auth/login", input, {
       handleUnauthorized: false,
     });
   },
@@ -49,10 +46,7 @@ export const authApi = {
     captchaId?: string;
     captchaCode?: string;
   }) {
-    const chunks = await encryptForm(input);
-    return request<AuthResponse>("/auth/register", {
-      method: "POST",
-      data: { chunks },
+    return encryptedRequest<AuthResponse>("/auth/register", input, {
       handleUnauthorized: false,
     });
   },
@@ -85,10 +79,13 @@ export const authApi = {
     contact: string,
     contactType?: "phone" | "email",
   ) {
-    const chunks = await encryptForm({ currentPassword, newPassword, confirmPassword, contact, contactType });
-    return request<{ changed: boolean }>("/auth/change-password", {
-      method: "POST",
-      data: { chunks },
+    return encryptedRequest<{ changed: boolean }>("/auth/change-password", {
+      currentPassword,
+      newPassword,
+      confirmPassword,
+      contact,
+      contactType,
+    }, {
       // 密码校验失败不能触发全局 401 退出登录。
       handleUnauthorized: false,
     });
@@ -101,10 +98,7 @@ export const authApi = {
   },
   /** 忘记密码第一步：验证用户名与手机号/邮箱。 */
   async forgotPasswordVerify(input: { username: string; contactType?: string; contact: string }) {
-    const chunks = await encryptForm(input);
-    return request<{ verified: boolean }>("/auth/forgot-password/verify", {
-      method: "POST",
-      data: { chunks },
+    return encryptedRequest<{ verified: boolean }>("/auth/forgot-password/verify", input, {
       handleUnauthorized: false,
     });
   },
@@ -116,10 +110,7 @@ export const authApi = {
     newPassword: string;
     confirmPassword: string;
   }) {
-    const chunks = await encryptForm(input);
-    return request<{ reset: boolean }>("/auth/forgot-password/reset", {
-      method: "POST",
-      data: { chunks },
+    return encryptedRequest<{ reset: boolean }>("/auth/forgot-password/reset", input, {
       handleUnauthorized: false,
     });
   },

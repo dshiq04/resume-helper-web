@@ -67,12 +67,20 @@ public class ResumeController {
                          HttpServletResponse response) throws IOException {
         Resume resume = resumeService.entity(id);
         byte[] content = resumeService.readFile(resume);
-        String mode = "1".equals(download) ? "attachment" : "inline";
+        String storedType = resumeService.contentType(resume);
+        // HTML 等可执行内容强制下载，避免同源直接打开时执行脚本；
+        // 其余格式保持 inline，前端仍通过 blob 独立预览。
+        boolean executable = storedType.toLowerCase().startsWith("text/html");
+        String mode = ("1".equals(download) || executable) ? "attachment" : "inline";
 
-        response.setContentType(resumeService.contentType(resume));
+        response.setContentType(storedType);
         response.setHeader(HttpHeaders.CONTENT_DISPOSITION,
                 contentDisposition(mode, resume.getFileName()));
         response.setHeader(HttpHeaders.CACHE_CONTROL, "no-store");
+        // 禁止浏览器猜测内容类型，并对直接打开的文件响应启用沙箱。
+        response.setHeader("X-Content-Type-Options", "nosniff");
+        response.setHeader("Content-Security-Policy", "default-src 'none'; sandbox");
+        response.setHeader("X-Frame-Options", "DENY");
         response.setContentLength(content.length);
         response.getOutputStream().write(content);
     }

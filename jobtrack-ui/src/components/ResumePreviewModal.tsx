@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Button, Modal, Spin } from "antd";
+import { App as AntdApp, Button, Modal, Spin } from "antd";
 import { DocViewer } from "anyview";
 import "anyview/styles";
 import { adminApi } from "../api/admin";
@@ -21,6 +21,7 @@ export function ResumePreviewModal({
   userId?: number;
 }) {
   const { t } = useI18n();
+  const { message } = AntdApp.useApp();
   const themeMode = useAppSelector((state) => state.ui.themeMode);
   const [loading, setLoading] = useState(false);
   const [file, setFile] = useState<File | null>(null);
@@ -62,10 +63,14 @@ export function ResumePreviewModal({
 
   const download = async () => {
     if (!resume) return;
-    const blob = userId
-      ? await adminApi.resumeFile(userId, resume.id)
-      : await resumeApi.fetchFile(resume.id);
-    downloadBlob(blob, resume.fileName);
+    try {
+      const blob = userId
+        ? await adminApi.resumeFile(userId, resume.id)
+        : await resumeApi.fetchFile(resume.id);
+      downloadBlob(blob, resume.fileName);
+    } catch (exception) {
+      message.error(t("resume.downloadFailed"));
+    }
   };
 
   return (

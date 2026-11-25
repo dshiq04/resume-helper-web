@@ -6,6 +6,7 @@ import com.jobtrack.system.service.BanService;
 import com.jobtrack.system.service.CaptchaService;
 import com.jobtrack.system.service.AvatarService;
 import com.jobtrack.system.service.UserAgreementService;
+import com.jobtrack.system.config.AppProperties;
 
 import com.baomidou.mybatisplus.core.toolkit.Wrappers;
 import com.jobtrack.common.exception.BusinessException;
@@ -67,6 +68,7 @@ public class AuthServiceImpl implements AuthService {
     private final PermissionService permissionService;
     private final BanService banService;
     private final AsyncTaskPublisher publisher;
+    private final AppProperties appProperties;
 
     public AuthVO login(LoginDTO request) {
         captchaService.verify(request.getCaptchaId(), request.getCaptchaCode());
@@ -131,6 +133,12 @@ public class AuthServiceImpl implements AuthService {
         if (!USERNAME_PATTERN.matcher(username).matches()) {
             throw BusinessException.badRequest("invalid_username",
                     "用户名只能包含字母、数字、下划线、点和短横线，长度 3-32 位");
+        }
+        // 管理员用户名保留给初始化器创建的账号，禁止普通用户注册。
+        String reservedAdmin = normalizeUsername(appProperties.getAdmin().getUsername());
+        if (!reservedAdmin.isEmpty() && reservedAdmin.equalsIgnoreCase(username)) {
+            throw BusinessException.conflict("username_reserved",
+                    "该用户名为系统保留的管理员用户名，请更换其他用户名");
         }
         // 用户名唯一性逻辑判断：已注销账号的用户名允许被重新注册。
         Long existing = userMapper.selectCount(Wrappers.<SysUser>lambdaQuery()
@@ -303,11 +311,10 @@ public class AuthServiceImpl implements AuthService {
         }
         user.setPasswordHash(passwordEncoder.encode(request.getNewPassword()));
         userMapper.updateById(user);
-        // 重置成功后：通过 RabbitMQ 删除 Redis 中的令牌与权限信息并注销全部旧令牌；
-        // Broker 不可用时降级为同步删除。
-        if (!publisher.publishTokenInvalidate(user.getId(), null)) {
-            sessionService.deleteByUser(user.getId(), user.getTenantId());
-        }
+        // 先同步删除本机会话，立即生效；再发送异步消息清理其他实例的会话缓存。
+        // 不再依赖消息是否成功投递，避免重置密码后旧令牌仍可短暂使用。
+        sessionService.deleteByUser(user.getId(), user.getTenantId());
+        publisher.publishTokenInvalidate(user.getId(), user.getTenantId(), null);
     }
 
     private SysUser findUserForForgotPassword(String rawUsername) {
@@ -367,11 +374,11 @@ public class AuthServiceImpl implements AuthService {
         }
     }
 
-    public void logout(AuthPrincipal principal) {        // 退出登录：通过 RabbitMQ 删除 Redis 中的令牌与权限信息；
-        // Broker 不可用时降级为同步删除，保证令牌一定被注销。
-        if (!publisher.publishTokenInvalidate(null, principal.sessionId())) {
-            sessionService.delete(principal.sessionId());
-        }
+    public void logout(AuthPrincipal principal) {
+        // 退出登录必须同步删除 Redis 会话：先本地失效，再广播异步清理消息。
+        // 这样即使消息延迟或丢失，旧令牌也不会再被接受。
+        sessionService.delete(principal.sessionId());
+        publisher.publishTokenInvalidate(null, principal.tenantId(), principal.sessionId());
     }
 
     public OnlineStatusVO online(AuthPrincipal principal) {

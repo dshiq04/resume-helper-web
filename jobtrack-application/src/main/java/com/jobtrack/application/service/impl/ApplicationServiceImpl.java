@@ -22,6 +22,9 @@ import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.common.exception.BusinessException;
 import com.jobtrack.common.util.FlexibleTimes;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
+import org.springframework.cache.Cache;
+import org.springframework.cache.CacheManager;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
@@ -41,20 +44,81 @@ public class ApplicationServiceImpl implements ApplicationService {
     private final ApplicationChangeMapper changeMapper;
     private final ApplicationHistoryService historyService;
     private final TrashService trashService;
+    private final CacheManager cacheManager;
 
     /**
-     * 投递列表走 Spring Cache：缓存未命中时查询数据库并回填，
-     * 增删改后由 {@link CacheEvict} 清理，下一次查询重新读库。
+     * 投递列表走缓存，但只缓存数据库字段；statusDays 等时间相对值在读取时另行计算。
+     *
+     * <p>如果把停留天数一起写入缓存，没有写操作时天数会一直停在缓存时的值，
+     * 默认 24 小时 TTL 会造成最长一天的数据滞后。因此这里手动管理缓存，
+     * 每次读取都从缓存取出原始记录并复制一份后再补算天数。</p>
      */
-    @Cacheable(cacheNames = CacheNames.APPLICATIONS)
     public PageResult<ApplicationRecord> list(String search, String category, String status,
                                               String channel, String priority, Integer year,
                                               String from, String to, int page, int pageSize) {
         int currentPage = Math.max(page, 1);
         int currentSize = Math.min(Math.max(pageSize, 1), 100);
         Integer normalizedYear = normalizeYear(year);
-        return queryPage(search, category, status, channel, priority, normalizedYear,
+        String key = cacheKey(search, category, status, channel, priority, normalizedYear,
                 from, to, currentPage, currentSize);
+        Cache cache = cacheManager.getCache(CacheNames.APPLICATIONS);
+        PageResult<ApplicationRecord> cached = null;
+        if (cache != null) {
+            try {
+                @SuppressWarnings("unchecked")
+                PageResult<ApplicationRecord> value = cache.get(key, PageResult.class);
+                cached = value;
+            } catch (RuntimeException ignored) {
+                // 缓存损坏时回退数据库，避免影响列表查询。
+            }
+        }
+        if (cached == null) {
+            cached = queryPage(search, category, status, channel, priority, normalizedYear,
+                    from, to, currentPage, currentSize);
+            if (cache != null) {
+                try {
+                    cache.put(key, cached);
+                } catch (RuntimeException ignored) {
+                    // 缓存写入失败不影响本次查询。
+                }
+            }
+        }
+        // 复制后再补算派生字段，保证缓存中的原始记录不被修改。
+        List<ApplicationRecord> items = cached.getItems() == null
+                ? List.of() : cached.getItems().stream().map(this::copyRecord).toList();
+        historyService.attachStatusDays(items);
+        return PageResult.of(items, cached.getTotal(), cached.getPage(), cached.getPageSize());
+    }
+
+    private ApplicationRecord copyRecord(ApplicationRecord source) {
+        ApplicationRecord copy = new ApplicationRecord();
+        BeanUtils.copyProperties(source, copy);
+        return copy;
+    }
+
+    /** 手动清理列表缓存，避免自定义缓存与 @CacheEvict 在代理差异下失效。 */
+    private void evictListCache() {
+        Cache cache = cacheManager.getCache(CacheNames.APPLICATIONS);
+        if (cache != null) {
+            cache.clear();
+        }
+    }
+
+    private String cacheKey(String search, String category, String status, String channel,
+                            String priority, Integer year, String from, String to,
+                            int page, int pageSize) {
+        return String.join("\u0001",
+                "v2",
+                search == null ? "" : search,
+                category == null ? "" : category,
+                status == null ? "" : status,
+                channel == null ? "" : channel,
+                priority == null ? "" : priority,
+                year == null ? "" : String.valueOf(year),
+                from == null ? "" : from,
+                to == null ? "" : to,
+                String.valueOf(page),
+                String.valueOf(pageSize));
     }
 
     /**
@@ -121,7 +185,6 @@ public class ApplicationServiceImpl implements ApplicationService {
         query.orderByDesc("pinned").orderByDesc("applied_at").orderByDesc("id");
 
         Page<ApplicationRecord> result = applicationMapper.selectPage(new Page<>(page, pageSize), query);
-        historyService.attachStatusDays(result.getRecords());
         return PageResult.of(result.getRecords(), result.getTotal(), page, pageSize);
     }
 
@@ -147,11 +210,13 @@ public class ApplicationServiceImpl implements ApplicationService {
         record.setWorkMode(trimToNull(request.getWorkMode()));
         record.setPriority(trimToNull(request.getPriority()));
         record.setInterviewRound(request.getInterviewRound());
-        record.setNextActionAt(request.getNextActionAt());
+        record.setNextActionAt(parseOptionalDateTime(request.getNextActionAt(), "invalid_next_action"));
         record.setNotes(trimToNull(request.getNotes()));
         record.setPinned(Boolean.TRUE.equals(request.getPinned()));
-        LocalDateTime appliedAt = request.getAppliedAt() == null
-                ? LocalDateTime.now() : request.getAppliedAt();
+        LocalDateTime appliedAt = parseOptionalDateTime(request.getAppliedAt(), "invalid_applied_at");
+        if (appliedAt == null) {
+            appliedAt = LocalDateTime.now();
+        }
         record.setAppliedAt(appliedAt);
         Integer requestedYear = normalizeYear(request.getYear());
         if (requestedYear == null) {
@@ -164,6 +229,7 @@ public class ApplicationServiceImpl implements ApplicationService {
         historyService.recordStatusChange(record.getId(), DomainConstants.STATUS_PENDING, record.getAppliedAt());
         historyService.recordStatusChange(record.getId(), record.getStatus(), record.getAppliedAt());
         historyService.attachStatusDays(List.of(record));
+        evictListCache();
         return record;
     }
 
@@ -206,10 +272,12 @@ public class ApplicationServiceImpl implements ApplicationService {
         record.setWorkMode(trimToNull(request.getWorkMode()));
         record.setPriority(trimToNull(request.getPriority()));
         record.setInterviewRound(request.getInterviewRound());
-        record.setNextActionAt(request.getNextActionAt());
+        record.setNextActionAt(parseOptionalDateTime(request.getNextActionAt(), "invalid_next_action"));
         record.setNotes(trimToNull(request.getNotes()));
-        // pinned 列不允许为空，未传时按未置顶处理。
-        record.setPinned(Boolean.TRUE.equals(request.getPinned()));
+        // pinned 为可选字段：未提供时保持原值，避免旧客户端编辑时静默取消置顶。
+        if (request.getPinned() != null) {
+            record.setPinned(request.getPinned());
+        }
         Integer requestedYear = normalizeYear(request.getYear());
         if (requestedYear == null) {
             throw BusinessException.badRequest("year_required", "请选择年度");
@@ -226,6 +294,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             throw BusinessException.notFound("not_found", "投递记录不存在");
         }
         historyService.attachStatusDays(List.of(reloaded));
+        evictListCache();
         return reloaded;
     }
 
@@ -240,6 +309,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             throw BusinessException.notFound("not_found", "投递记录不存在");
         }
         trashService.moveToTrash(record);
+        evictListCache();
     }
 
     @Transactional
@@ -260,6 +330,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             trashService.moveToTrash(record);
             deleted++;
         }
+        evictListCache();
         return deleted;
     }
 
@@ -284,6 +355,7 @@ public class ApplicationServiceImpl implements ApplicationService {
             historyService.updateStatusChange(record.getId(), previous, normalized, LocalDateTime.now());
             updated++;
         }
+        evictListCache();
         return updated;
     }
 
@@ -300,6 +372,7 @@ public class ApplicationServiceImpl implements ApplicationService {
                 .in(ApplicationRecord::getId, unique)
                 .set(ApplicationRecord::getCategory, normalized)
                 .set(ApplicationRecord::getUpdatedAt, LocalDateTime.now()));
+        evictListCache();
         return updated;
     }
 
@@ -373,6 +446,19 @@ public class ApplicationServiceImpl implements ApplicationService {
             return FlexibleTimes.parse(value);
         } catch (IllegalArgumentException exception) {
             throw BusinessException.badRequest("invalid_range", "日期格式不正确");
+        }
+    }
+
+    /** 解析可选的日期时间；支持 ISO-8601（含 Z / 偏移量）、yyyy-MM-dd HH:mm:ss 与纯日期。 */
+    private LocalDateTime parseOptionalDateTime(String value, String code) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        try {
+            return FlexibleTimes.parse(value);
+        } catch (IllegalArgumentException exception) {
+            throw BusinessException.badRequest(code,
+                    "日期格式不正确，支持 ISO-8601、yyyy-MM-dd HH:mm:ss 或 yyyy-MM-dd");
         }
     }
 

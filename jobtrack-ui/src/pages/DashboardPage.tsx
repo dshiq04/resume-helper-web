@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { App as AntdApp, Button, DatePicker, Empty, Input, Popconfirm, Select } from "antd";
+import { App as AntdApp, Button, DatePicker, Empty, Input, Pagination, Popconfirm, Select } from "antd";
 import dayjs from "dayjs";
 import { useNavigate } from "react-router-dom";
 import {
@@ -105,6 +105,11 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
       ),
     [t],
   );
+
+  // 切换投递分类后，上一分类的选中项已不可见，必须清空，避免批量操作误伤。
+  useEffect(() => {
+    dispatch(clearSelection());
+  }, [category, dispatch]);
 
   useEffect(() => {
     dispatch(
@@ -375,27 +380,48 @@ export function DashboardPage({ category }: { category: Category | "all" }) {
         )}
 
         {isCompact ? (
-          <ApplicationCards
-            items={items}
-            loading={loading}
-            selectedKeys={selectedKeys}
-            onToggleSelect={(id) =>
-              dispatch(
-                setSelectedKeys(
-                  selectedKeys.includes(id)
-                    ? selectedKeys.filter((key) => key !== id)
-                    : [...selectedKeys, id],
-                ),
-              )
-            }
-            onView={(record) => navigate(`/applications/${record.id}`)}
-            onEdit={openEdit}
-            onDelete={(record) => void handleDelete(record)}
-            onPin={(record) => void handlePin(record)}
-            onStatusChange={(record, status) => void handleStatus(record, status)}
-            statusOptions={statusOptions}
-            emptyText={emptyNode}
-          />
+          <>
+            <ApplicationCards
+              items={items}
+              loading={loading}
+              selectedKeys={selectedKeys}
+              onToggleSelect={(id) =>
+                dispatch(
+                  setSelectedKeys(
+                    selectedKeys.includes(id)
+                      ? selectedKeys.filter((key) => key !== id)
+                      : [...selectedKeys, id],
+                  ),
+                )
+              }
+              onView={(record) => navigate(`/applications/${record.id}`)}
+              onEdit={openEdit}
+              onDelete={(record) => void handleDelete(record)}
+              onPin={(record) => void handlePin(record)}
+              onStatusChange={(record, status) => void handleStatus(record, status)}
+              statusOptions={statusOptions}
+              emptyText={emptyNode}
+            />
+            {total > 0 && (
+              <div style={{ marginTop: 16, display: "flex", justifyContent: "center" }}>
+                <Pagination
+                  current={filters.page}
+                  pageSize={filters.pageSize}
+                  total={total}
+                  size="small"
+                  showSizeChanger
+                  pageSizeOptions={[10, 20, 50, 100]}
+                  onChange={(nextPage, nextSize) => {
+                    if (nextSize !== filters.pageSize) {
+                      dispatch(setPageSize(nextSize));
+                    } else {
+                      dispatch(setPage(nextPage));
+                    }
+                  }}
+                />
+              </div>
+            )}
+          </>
         ) : (
           <ApplicationTable
             items={items}

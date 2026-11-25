@@ -48,10 +48,14 @@ public class ObjectStorageService {
             return;
         }
         try {
-            client = MinioClient.builder()
+            MinioClient.Builder builder = MinioClient.builder()
                     .endpoint(storage.getEndpoint())
-                    .credentials(storage.getAccessKey(), storage.getSecretKey())
-                    .build();
+                    .credentials(storage.getAccessKey(), storage.getSecretKey());
+            // S3 兼容存储需要显式传入区域；MinIO 也接受该配置。
+            if (!isBlank(storage.getRegion())) {
+                builder.region(storage.getRegion());
+            }
+            client = builder.build();
             ensureBucket(storage);
             applyPublicReadPolicy(storage);
             log.info("文件存储: S3 {} / {}", storage.getEndpoint(), storage.getBucket());
@@ -171,6 +175,10 @@ public class ObjectStorageService {
             return null;
         }
         AppProperties.Storage storage = appProperties.getStorage();
+        // 未开启公共读时不能返回公开 URL，否则头像等私有对象会 403 或泄露地址。
+        if (!storage.isPublicRead()) {
+            return null;
+        }
         String base = storage.getPublicBaseUrl();
         if (base == null || base.isBlank()) {
             return null;

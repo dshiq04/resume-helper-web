@@ -7,6 +7,7 @@ import com.jobtrack.system.pojo.dto.AdminPasswordDTO;
 import com.jobtrack.system.pojo.dto.AdminStatusDTO;
 import com.jobtrack.system.pojo.dto.AdminUserUpdateDTO;
 import com.jobtrack.system.pojo.dto.ContactUpdateDTO;
+import com.jobtrack.system.pojo.dto.EncryptedFormDTO;
 import com.jobtrack.system.pojo.dto.TokenStatusDTO;
 import com.jobtrack.system.pojo.dto.UserProfileDTO;
 import com.jobtrack.system.pojo.vo.AccessTokenLogPageVO;
@@ -16,6 +17,7 @@ import com.jobtrack.system.pojo.vo.AdminUserPageVO;
 import com.jobtrack.system.pojo.vo.AdminUserVO;
 import com.jobtrack.system.pojo.vo.UserAgreementVO;
 import com.jobtrack.system.pojo.vo.UserProfileVO;
+import com.jobtrack.system.security.FormCryptoService;
 import com.jobtrack.system.security.SecurityUtils;
 import com.jobtrack.system.service.AdminService;
 import jakarta.validation.Valid;
@@ -43,6 +45,7 @@ import java.util.Map;
 public class AdminUserController {
 
     private final AdminService adminService;
+    private final FormCryptoService formCryptoService;
 
     @GetMapping
     public Result<AdminUserPageVO> list(
@@ -90,7 +93,9 @@ public class AdminUserController {
 
     @PostMapping("/{id}/password")
     public Result<AdminUserVO> resetPassword(@PathVariable Long id,
-                                     @Valid @RequestBody AdminPasswordDTO request) {
+                                     @Valid @RequestBody EncryptedFormDTO form) {
+        // 管理员重置密码与登录/改密一致，密码通过 RSA 加密传输，不出现明文请求体。
+        AdminPasswordDTO request = formCryptoService.decrypt(form, AdminPasswordDTO.class);
         return Result.success(adminService.resetPassword(id, request));
     }
 

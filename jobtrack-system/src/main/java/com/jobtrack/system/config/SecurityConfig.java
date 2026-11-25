@@ -61,7 +61,10 @@ public class SecurityConfig {
                 .httpBasic(AbstractHttpConfigurer::disable)
                 .logout(AbstractHttpConfigurer::disable)
                 .requestCache(AbstractHttpConfigurer::disable)
-                .headers(headers -> headers.frameOptions(frame -> frame.sameOrigin()))
+                .headers(headers -> headers
+                        .frameOptions(frame -> frame.sameOrigin())
+                        // 统一禁止 MIME 嗅探，降低上传文件被当作 HTML/JS 执行的风险。
+                        .contentTypeOptions(Customizer.withDefaults()))
                 .exceptionHandling(handling -> handling
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
@@ -96,6 +99,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/**")
                         .hasAnyRole("ADMIN", "ADMIN_CONSOLE", "ADMIN_USERS",
                                 "ADMIN_ONLINE", "ADMIN_OPERATIONS", "ADMIN_PERMISSIONS")
+                        // 授权码管理属于账号级高敏感操作：只允许网页登录态（SESSION_WEB）访问。
+                        // 扩展授权码没有 SESSION_WEB，即使勾选了全部数据范围也不能自行扩权，
+                        // 更不能读取或删除用户的其他授权码。
+                        .requestMatchers("/api/account/tokens", "/api/account/tokens/**")
+                        .hasAuthority("SESSION_WEB")
                         // 授权码的数据范围（resources）在这里生效：
                         // 同时校验 SCOPE_*（读/写）与 RES_*（可访问的数据范围）。
                         // 网页端 JWT 登录用户拥有全部 SCOPE_* 与 RES_*，不受影响。

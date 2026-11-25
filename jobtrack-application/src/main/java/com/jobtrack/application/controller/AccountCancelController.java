@@ -6,7 +6,9 @@ import com.jobtrack.application.pojo.dto.CancelConfirmDTO;
 import com.jobtrack.application.pojo.vo.CancelStatusVO;
 import com.jobtrack.application.pojo.dto.CancelVerifyDTO;
 import com.jobtrack.application.service.AccountCancelService;
+import com.jobtrack.system.pojo.dto.EncryptedFormDTO;
 import com.jobtrack.system.security.AuthPrincipal;
+import com.jobtrack.system.security.FormCryptoService;
 import com.jobtrack.system.security.SecurityUtils;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -27,6 +29,7 @@ import java.util.Map;
 public class AccountCancelController {
 
     private final AccountCancelService cancelService;
+    private final FormCryptoService formCryptoService;
 
     /** 注销条件检查：投递已清除、简历库已删除、没有普通用户以外的权限。 */
     @GetMapping("/status")
@@ -36,7 +39,8 @@ public class AccountCancelController {
 
     /** 验证保留的手机号或邮箱与密码。 */
     @PostMapping("/verify")
-    public Result<Map<String, Object>> verify(@Valid @RequestBody CancelVerifyDTO request) {
+    public Result<Map<String, Object>> verify(@Valid @RequestBody EncryptedFormDTO form) {
+        CancelVerifyDTO request = formCryptoService.decrypt(form, CancelVerifyDTO.class);
         AuthPrincipal principal = SecurityUtils.current();
         cancelService.verify(principal, request);
         return Result.success(Map.of("verified", true));
@@ -44,7 +48,8 @@ public class AccountCancelController {
 
     /** 最终确认注销：验证码 + 身份验证，通过后把状态改成注销。 */
     @PostMapping("/confirm")
-    public Result<Map<String, Object>> confirm(@Valid @RequestBody CancelConfirmDTO request) {
+    public Result<Map<String, Object>> confirm(@Valid @RequestBody EncryptedFormDTO form) {
+        CancelConfirmDTO request = formCryptoService.decrypt(form, CancelConfirmDTO.class);
         AuthPrincipal principal = SecurityUtils.current();
         cancelService.confirm(principal, request);
         return Result.success(Map.of("cancelled", true));

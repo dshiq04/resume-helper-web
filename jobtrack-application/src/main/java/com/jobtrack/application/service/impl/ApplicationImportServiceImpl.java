@@ -37,6 +37,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 /**
  * 投递台账 Excel 导入：模板列为 年度 / 投递类型 / 公司 / 投递地址 / 时间。
@@ -47,6 +49,10 @@ import java.util.Locale;
 public class ApplicationImportServiceImpl implements ApplicationImportService {
 
     private static final long MAX_BYTES = 10L * 1024 * 1024;
+    /** 解压后总大小上限，防止压缩炸弹。 */
+    private static final long MAX_UNCOMPRESSED_BYTES = 100L * 1024 * 1024;
+    private static final int MAX_ZIP_ENTRIES = 2000;
+    private static final int MAX_ROWS = 5000;
     private static final String[] TEMPLATE_CATEGORIES = {"春招", "秋招", "实习", "社招"};
     /** 下拉与默认行高覆盖到第 1000 行，足够日常导入使用。 */
     private static final int TEMPLATE_VALIDATION_LAST_ROW = 999;
@@ -150,6 +156,10 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
             throw BusinessException.badRequest("invalid_excel",
                     "无法解析 Excel，请使用提供的模板");
         }
+        if (rows.size() > MAX_ROWS) {
+            throw BusinessException.badRequest("too_many_rows",
+                    "单次最多导入 " + MAX_ROWS + " 行，请拆分后重试");
+        }
 
         int imported = 0;
         int skipped = 0;
@@ -194,7 +204,7 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         }
         // xlsx：ZIP 容器（PK\x03\x04 / PK\x05\x06 / PK\x07\x08）。
         if (content[0] == 'P' && content[1] == 'K') {
-            return true;
+            return isValidXlsx(content);
         }
         // xls：OLE2 复合文档。
         return content.length >= 8
@@ -202,6 +212,45 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
                 && (content[2] & 0xFF) == 0x11 && (content[3] & 0xFF) == 0xE0
                 && (content[4] & 0xFF) == 0xA1 && (content[5] & 0xFF) == 0xB1
                 && (content[6] & 0xFF) == 0x1A && (content[7] & 0xFF) == 0xE1;
+    }
+
+    /**
+     * 校验 xlsx 的 OOXML 结构并限制解压规模，避免仅凭 PK 头就放行任意 ZIP
+     * （压缩炸弹 / 非 Excel 内容）。
+     */
+    private boolean isValidXlsx(byte[] content) {
+        boolean hasContentTypes = false;
+        boolean hasWorkbook = false;
+        int entries = 0;
+        long totalUncompressed = 0;
+        try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(content))) {
+            ZipEntry entry;
+            byte[] buffer = new byte[8192];
+            while ((entry = zip.getNextEntry()) != null) {
+                entries++;
+                if (entries > MAX_ZIP_ENTRIES) {
+                    return false;
+                }
+                String name = entry.getName();
+                if ("[Content_Types].xml".equals(name)) {
+                    hasContentTypes = true;
+                }
+                if ("xl/workbook.xml".equals(name)) {
+                    hasWorkbook = true;
+                }
+                int read;
+                while ((read = zip.read(buffer)) != -1) {
+                    totalUncompressed += read;
+                    if (totalUncompressed > MAX_UNCOMPRESSED_BYTES) {
+                        return false;
+                    }
+                }
+                zip.closeEntry();
+            }
+        } catch (Exception exception) {
+            return false;
+        }
+        return hasContentTypes && hasWorkbook;
     }
 
     private ApplicationDTO toRequest(ApplicationImportRow row) {
@@ -221,7 +270,7 @@ public class ApplicationImportServiceImpl implements ApplicationImportService {
         request.setCategory(mapCategory(row.getCategory()));
         request.setStatus(DomainConstants.STATUS_SCREENING);
         request.setYear(parseYear(row.getYear(), appliedAt));
-        request.setAppliedAt(appliedAt);
+        request.setAppliedAt(appliedAt == null ? null : appliedAt.toString());
         return request;
     }
 

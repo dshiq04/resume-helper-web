@@ -51,6 +51,11 @@ public class SessionService {
     private static final long REDIS_RETRY_MAX_MS = 60_000;
 
     private final Map<String, MemorySession> memory = new ConcurrentHashMap<>();
+    /** 本机撤销墓碑：Redis 不可用时注销的会话不能因为 Redis 恢复而复活。 */
+    private final Map<String, Instant> revokedSessions = new ConcurrentHashMap<>();
+    /** 账号级撤销墓碑：改密/注销期间 Redis 不可用时，恢复后拒绝该账号的旧会话。 */
+    private final Map<Long, Instant> revokedUsers = new ConcurrentHashMap<>();
+    private static final Duration REVOKE_TTL = Duration.ofDays(7);
     private final AtomicLong redisFailures = new AtomicLong();
     /** Redisson 是否可用；运行期不再永久关闭，只做冷却重试。 */
     private volatile RedissonClient redisson;
@@ -99,10 +104,23 @@ public class SessionService {
         if (sid == null || sid.isBlank()) {
             return null;
         }
+        pruneRevoked();
+        if (isRevoked(sid)) {
+            // Redis 冷却期间已注销的会话：恢复后必须先把 Redis 中的旧会话删掉，
+            // 否则会话会“复活”。
+            deleteRedisSessionQuietly(sid);
+            memory.remove(sid);
+            return null;
+        }
         if (useRedis()) {
             try {
                 SessionInfo info = readRedis(sid);
                 recordRedisSuccess();
+                if (info != null && userRevoked(info)) {
+                    deleteRedisSessionQuietly(sid);
+                    memory.remove(sid);
+                    return null;
+                }
                 if (info != null) {
                     touchRedis(sid, info, ttl);
                     memory.put(sid, new MemorySession(info, Instant.now().plus(ttl), true));
@@ -140,7 +158,8 @@ public class SessionService {
         if (session == null) {
             return null;
         }
-        if (session.expiresAt.isBefore(Instant.now())) {
+        if (session.expiresAt.isBefore(Instant.now()) || isRevoked(sid)
+                || userRevoked(session.info)) {
             memory.remove(sid);
             return null;
         }
@@ -152,8 +171,9 @@ public class SessionService {
         if (sid == null || sid.isBlank()) {
             return;
         }
-        // 内存副本必须先清理，避免 Redis 异常时旧会话在内存中复活。
+        // 内存副本必须先清理，并记录撤销墓碑：Redis 异常期间也不能让会话复活。
         memory.remove(sid);
+        revokedSessions.put(sid, Instant.now().plus(REVOKE_TTL));
         if (useRedis()) {
             try {
                 SessionInfo info = readRedis(sid);
@@ -182,11 +202,21 @@ public class SessionService {
         if (userId == null) {
             return;
         }
+        // 账号级撤销墓碑。Redis 冷却期间恢复后，旧会话即使仍在 Redis 中也会被拒绝，
+        // 而在墓碑之后创建的新会话（createdAt 更晚）仍可正常使用。
+        revokedUsers.put(userId, Instant.now());
+        // 同时记录本机已知的会话 ID，覆盖单会话撤销路径。
+        memory.forEach((sid, session) -> {
+            if (userId.equals(session.info.getUserId())) {
+                revokedSessions.put(sid, Instant.now().plus(REVOKE_TTL));
+            }
+        });
         if (useRedis()) {
             try {
                 RSet<String> sessions = redisson.getSet(userKey(userId), StringCodec.INSTANCE);
                 Set<String> sids = sessions.readAll();
                 for (String sid : sids) {
+                    revokedSessions.put(sid, Instant.now().plus(REVOKE_TTL));
                     redisson.getBucket(sessionKey(sid), StringCodec.INSTANCE).delete();
                 }
                 sessions.delete();
@@ -200,6 +230,50 @@ public class SessionService {
             }
         }
         memory.entrySet().removeIf(entry -> userId.equals(entry.getValue().info.getUserId()));
+    }
+
+    private boolean isRevoked(String sid) {
+        Instant until = revokedSessions.get(sid);
+        if (until == null) {
+            return false;
+        }
+        if (until.isBefore(Instant.now())) {
+            revokedSessions.remove(sid);
+            return false;
+        }
+        return true;
+    }
+
+    private boolean userRevoked(SessionInfo info) {
+        if (info == null || info.getUserId() == null) {
+            return false;
+        }
+        Instant revokedAt = revokedUsers.get(info.getUserId());
+        if (revokedAt == null) {
+            return false;
+        }
+        // 撤销墓碑之后创建的新会话（重新登录）允许通过；旧会话一律拒绝。
+        if (info.getCreatedAt() != null && info.getCreatedAt().isAfter(revokedAt)) {
+            return false;
+        }
+        return true;
+    }
+
+    private void pruneRevoked() {
+        Instant now = Instant.now();
+        revokedSessions.entrySet().removeIf(entry -> entry.getValue().isBefore(now));
+        revokedUsers.entrySet().removeIf(entry -> entry.getValue().plus(REVOKE_TTL).isBefore(now));
+    }
+
+    private void deleteRedisSessionQuietly(String sid) {
+        if (!useRedis()) {
+            return;
+        }
+        try {
+            redisson.getBucket(sessionKey(sid), StringCodec.INSTANCE).delete();
+        } catch (Exception exception) {
+            recordRedisFailure(exception);
+        }
     }
 
     /**

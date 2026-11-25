@@ -25,7 +25,7 @@ import com.jobtrack.application.service.impl.TrashServiceImpl;
 import com.jobtrack.common.constant.DomainConstants;
 import com.jobtrack.common.context.TenantContext;
 import com.jobtrack.system.config.AppProperties;
-import com.jobtrack.system.messaging.AsyncTaskPublisher;
+import com.jobtrack.system.storage.FileCleanupScheduler;
 import com.jobtrack.system.storage.ObjectStorageService;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -176,15 +176,11 @@ class ApplicationCacheTest {
     }
 
     @Test
-    void statsAreCachedAndEvictedAfterApplicationWrite() {
+    void statsAreRecomputedToAvoidStaleDerivedDays() {
         when(applicationRecordMapper.selectList(any())).thenReturn(List.of());
 
+        // 概览包含“停留天数”等基于当前时间计算的派生值，因此不缓存，每次重新计算。
         statsService.stats(null, null, null);
-        statsService.stats(null, null, null);
-        verify(applicationRecordMapper, times(1)).selectList(any());
-
-        applicationService.create(application());
-
         statsService.stats(null, null, null);
         verify(applicationRecordMapper, times(2)).selectList(any());
     }
@@ -314,9 +310,10 @@ class ApplicationCacheTest {
         ApplicationService applicationService(ApplicationRecordMapper applicationRecordMapper,
                                               ApplicationChangeMapper applicationChangeMapper,
                                               ApplicationHistoryService historyService,
-                                              TrashService trashService) {
+                                              TrashService trashService,
+                                              CacheManager cacheManager) {
             return new ApplicationServiceImpl(applicationRecordMapper, applicationChangeMapper,
-                    historyService, trashService);
+                    historyService, trashService, cacheManager);
         }
 
         @Bean
@@ -329,8 +326,9 @@ class ApplicationCacheTest {
         @Bean
         ResumeService resumeService(ResumeMapper resumeMapper, FileCrypto fileCrypto,
                                     AppProperties appProperties, ObjectStorageService objectStorage,
-                                    AsyncTaskPublisher publisher) {
-            return new ResumeServiceImpl(resumeMapper, fileCrypto, appProperties, objectStorage, publisher);
+                                    FileCleanupScheduler fileCleanupScheduler) {
+            return new ResumeServiceImpl(resumeMapper, fileCrypto, appProperties, objectStorage,
+                    fileCleanupScheduler);
         }
 
         @Bean
@@ -349,8 +347,8 @@ class ApplicationCacheTest {
         }
 
         @Bean
-        AsyncTaskPublisher asyncTaskPublisher() {
-            return mock(AsyncTaskPublisher.class);
+        FileCleanupScheduler fileCleanupScheduler() {
+            return mock(FileCleanupScheduler.class);
         }
     }
 }

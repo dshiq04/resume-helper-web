@@ -62,7 +62,8 @@ public class ApplicationUpdateDTO {
 
     private Integer interviewRound;
 
-    private LocalDateTime nextActionAt;
+    /** 字符串形式接收，由服务端统一换算到服务器时区。 */
+    private String nextActionAt;
 
     @Size(max = 2000, message = "备注不能超过 2000 个字符")
     private String notes;

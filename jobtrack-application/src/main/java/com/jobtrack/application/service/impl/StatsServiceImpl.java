@@ -37,7 +37,10 @@ public class StatsServiceImpl implements StatsService {
     private final ResumeMapper resumeMapper;
     private final ApplicationHistoryService historyService;
 
-    @Cacheable(cacheNames = CacheNames.STATS)
+    /**
+     * 概览包含“初筛停留天数”等基于当前时间计算的派生值，不放入长 TTL 缓存，
+     * 每次请求重新计算，避免天数滞后。
+     */
     public StatsVO stats(String from, String to, Integer year) {
         return computeStats(range(from, to, normalizeYear(year)));
     }
@@ -96,7 +99,6 @@ public class StatsServiceImpl implements StatsService {
                 for (ApplicationChange change : changes.getOrDefault(application.getId(), List.of())) {
                     if (DomainConstants.STATUS_SCREENING.equals(change.getStatus())) {
                         since = change.getChangedAt();
-                        break;
                     }
                 }
                 int days = daysBetween(since, now);

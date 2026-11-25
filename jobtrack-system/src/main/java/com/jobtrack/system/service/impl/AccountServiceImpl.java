@@ -16,8 +16,8 @@ import com.jobtrack.system.mapper.SysTenantMapper;
 import com.jobtrack.system.mapper.SysUserMapper;
 import com.jobtrack.system.mapper.UserProfileMapper;
 import com.jobtrack.system.security.AuthPrincipal;
-import com.jobtrack.system.messaging.AsyncTaskPublisher;
 import com.jobtrack.system.service.ContactService;
+import com.jobtrack.system.storage.FileCleanupScheduler;
 import com.jobtrack.system.storage.ObjectStorageService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
@@ -47,7 +47,7 @@ public class AccountServiceImpl implements AccountService {
     private final ObjectStorageService objectStorage;
     private final AvatarService avatarService;
     private final ContactService contactService;
-    private final AsyncTaskPublisher publisher;
+    private final FileCleanupScheduler fileCleanupScheduler;
 
     private static final Set<String> AVATAR_TYPES = Set.of("png", "jpg", "jpeg", "webp", "gif");
     private static final long AVATAR_MAX_BYTES = 5L * 1024 * 1024;
@@ -156,6 +156,8 @@ public class AccountServiceImpl implements AccountService {
         String key = "avatars/" + principal.tenantId() + "/" + principal.id()
                 + "-" + System.currentTimeMillis() + "." + extension;
         objectStorage.put(key, content, contentType(extension));
+        // 资料写入或事务提交失败时，删除刚上传的头像文件。
+        fileCleanupScheduler.deleteOnRollback(key);
 
         UserProfile profile = profileMapper.selectOne(Wrappers.<UserProfile>lambdaQuery()
                 .eq(UserProfile::getUserId, principal.id()));
@@ -171,9 +173,8 @@ public class AccountServiceImpl implements AccountService {
             profileMapper.updateById(profile);
         }
         if (previous != null && !previous.isBlank() && !previous.equals(key)) {
-            if (!publisher.publishFileCleanup(previous)) {
-                objectStorage.delete(previous);
-            }
+            // 提交后才删除旧头像，避免事务回滚后数据库仍引用已被删除的文件。
+            fileCleanupScheduler.deleteAfterCommit(previous);
         }
         return view(profile);
     }

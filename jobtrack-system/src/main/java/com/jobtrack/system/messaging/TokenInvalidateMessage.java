@@ -16,6 +16,9 @@ public class TokenInvalidateMessage {
     /** 用户 ID；非空时注销该用户的所有会话。 */
     private Long userId;
 
+    /** 租户 ID；用于同步清理在线人数 ZSet，缺失时消费端会从会话中回查。 */
+    private Long tenantId;
+
     /** 会话 ID；非空时只注销这一个会话。 */
     private String sessionId;
 }

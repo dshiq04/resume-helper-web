@@ -52,13 +52,13 @@ public class AsyncTaskPublisher {
     /**
      * 发布令牌注销消息。返回 false 表示发送失败，调用方应同步删除。
      */
-    public boolean publishTokenInvalidate(Long userId, String sessionId) {
+    public boolean publishTokenInvalidate(Long userId, Long tenantId, String sessionId) {
         if (!enabled() || !available) {
             return false;
         }
         try {
             rabbitTemplate.convertAndSend("", MessagingQueues.TOKEN_INVALIDATE,
-                    JsonUtils.toJson(new TokenInvalidateMessage(userId, sessionId)));
+                    JsonUtils.toJson(new TokenInvalidateMessage(userId, tenantId, sessionId)));
             return true;
         } catch (Exception exception) {
             degrade(exception);

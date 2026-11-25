@@ -92,6 +92,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 authorities.add(new SimpleGrantedAuthority("SCOPE_read"));
                 authorities.add(new SimpleGrantedAuthority("SCOPE_write"));
                 authorities.add(new SimpleGrantedAuthority("SCOPE_readwrite"));
+                // 网页登录态专属标记：账号级高敏感接口（授权码管理等）只允许网页登录，
+                // 扩展授权码即便拥有全部数据范围也不能自行创建/读取/删除授权码。
+                authorities.add(new SimpleGrantedAuthority("SESSION_WEB"));
                 for (String resource : AccessTokenService.ALL_RESOURCES) {
                     authorities.add(new SimpleGrantedAuthority("RES_" + resource));
                 }

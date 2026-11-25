@@ -25,7 +25,7 @@
 
 ### 简历库
 
-- 支持 PDF、DOCX、PPTX、PNG、JPG、WEBP、Markdown，单文件最大 50 MB。
+- 支持 PDF、DOCX、PPTX、HTML、PNG、JPG、JPEG、Markdown，单文件最大 50 MB。
 - 简历名称、标签、置顶；文件使用 AES-256-GCM 加密后上传到 S3 兼容对象存储（MinIO / 阿里云 OSS / AWS S3），未配置密钥时回退到本地 `data/`。
 - 在线预览：PDF / 图片直接预览，DOCX 使用 mammoth 转换，Markdown 渲染，PPTX 提供下载。
 
