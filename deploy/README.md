@@ -55,8 +55,8 @@ docker run -d --name jobtrack-nginx -p 81:81 -d nginx:stable-alpine
 ## 流水线各阶段做了什么
 
 1. **cleanup-old**：删除旧后端容器/镜像；删除宿主机 `/opt/resume-helper/frontend/resume-helper` 旧前端文件
-2. **build-backend / build-frontend**（并行）：Maven 打包 `jobtrack.jar`；Vite 构建 `dist`
-3. **deploy-backend**：`docker build` 最小 JRE 21 镜像 → 启动容器（挂载 `/opt/resume-helper/backend/{data,log}`）→ 健康检查
+2. **build-backend / build-frontend**（并行）：`docker build` 多阶段构建后端镜像（镜像内 Maven 打包 `jobtrack.jar`，jar 不再上传 artifact）；Vite 构建 `dist`
+3. **deploy-backend**：直接启动 build-backend 产出的镜像（挂载 `/opt/resume-helper/backend/{data,log}`）→ 健康检查
 4. **deploy-frontend**：`dist` 复制到宿主机并重命名为 `resume-helper` → `docker cp` 进 nginx 容器 → 写入 nginx 配置 → `nginx -t` 校验 → `docker restart`
 5. **cleanup-node_modules**：清理 `jobtrack-ui/node_modules`
 

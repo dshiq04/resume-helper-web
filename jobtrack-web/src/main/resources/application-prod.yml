@@ -64,9 +64,7 @@ app:
   log-dir: ./log
   seed-demo: false
   cors:
-    allowed-origins:
-      - http://127.0.0.1:5173
-      - http://localhost:5173
+    allowed-origins: "*"
   jwt:
     secret: jobtrack-local-dev-secret-change-me-0123456789abcdef
     ttl-hours: 72
@@ -74,14 +72,14 @@ app:
     secret: jobtrack-file-encryption-secret-change-me-0123456789
     max-file-size-mb: 50
     type: s3
-    endpoint: http://192.168.31.100:9000
+    endpoint: http://192.168.150.10:9000
     region: us-east-1
     bucket: resume-helper
     access-key: FJcxHESr9gAjJxGw3s1Y
     secret-key: H3pVVhaqQLuLRcDAcpDWz1tbX2qskujJRAWtbr8k
     path-style: true
     public-read: true
-    public-base-url: http://192.168.31.100:9000/resume-helper
+    public-base-url: http://192.168.150.10:9000/resume-helper
   admin:
     username: admin
     password: 123456
