@@ -6,9 +6,9 @@
 #
 # 执行顺序：
 #   1. cleanup-old      先删除旧的容器/镜像，并删除宿主机上的旧前端文件
-#   2. build-backend    构建后端 jar（JDK 21）
+#   2. build-backend    多阶段构建后端镜像（镜像内 Maven 打包 + JRE 21 Alpine 运行时）
 #   2. build-frontend   构建前端 dist（与后端并行）
-#   3. deploy-backend   构建 Docker 镜像并运行后端容器（JRE 21 Alpine，最小体积）
+#   3. deploy-backend   直接运行 build-backend 产出的镜像（不再重复 docker build）
 #   3. deploy-frontend  dist 发布到宿主机 nginx 静态目录 → 更新配置 → reload nginx
 #
 # Runner 前置要求（openEuler 宿主机）：
@@ -66,24 +66,24 @@ cleanup-old:
     - echo "== 清理完成 =="
 
 # =====================================================================
-# 2. 构建后端（多模块 Maven，JDK 21）
+# 2. 构建后端（多阶段镜像：Maven 打包 + JRE 运行时）
+#
+# 注意：jar 约 110MB，超过 GitLab 默认 100MB 的 artifact 上限，上传
+#       coordinator 时会报 413 Request Entity Too Large。因此这里把
+#       Maven 打包放进 Dockerfile 的构建阶段，镜像直接由宿主 docker
+#       daemon 生成，jar 不再作为 artifact 上传。
 # =====================================================================
 build-backend:
   stage: build
-  image: maven:3.9-eclipse-temurin-21
+  image: docker:27-cli
   tags: [docker]
-  cache:
-    key: maven-repo
-    paths:
-      - .m2/repository
+  variables:
+    # 启用 BuildKit，Dockerfile 里用 cache mount 复用 Maven 依赖
+    DOCKER_BUILDKIT: "1"
   script:
-    - mvn -B -ntp -DskipTests -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository package
-    - ls -lh jobtrack-web/target/jobtrack.jar
-  artifacts:
-    expire_in: 1h
-    paths:
-      - jobtrack-web/target/jobtrack.jar
-      - deploy/Dockerfile
+    - echo "== 构建后端镜像（镜像内完成 mvn package）=="
+    - docker build -f deploy/Dockerfile -t "$BACKEND_IMAGE:latest" .
+    - docker image ls "$BACKEND_IMAGE:latest"
 
 # =====================================================================
 # 2. 构建前端（Vite，Node 22），构建完成后清理 node_modules
@@ -112,20 +112,19 @@ build-frontend:
       - deploy/nginx/resume-helper.conf
 
 # =====================================================================
-# 3. 部署后端：构建镜像并启动容器（--network host 以访问本机 PG/Redis）
+# 3. 部署后端：运行 build-backend 产出的镜像（--network dshiq04 以访问本机 PG/Redis）
 # =====================================================================
 deploy-backend:
   stage: deploy
   image: docker:27-cli
   tags: [docker]
-  dependencies: [build-backend]
+  # 镜像已在 build-backend 阶段构建到宿主 docker daemon 上，无需 artifact
   script:
     # 兜底清理（若 cleanup 与本次之间有其他流水线操作）
     - docker rm -f "$BACKEND_CONTAINER" 2>/dev/null || true
-    - docker rmi "$BACKEND_IMAGE:latest" 2>/dev/null || true
 
-    - echo "== 构建后端镜像 =="
-    - docker build -f deploy/Dockerfile -t "$BACKEND_IMAGE:latest" .
+    - echo "== 校验后端镜像存在（由 build-backend 构建）=="
+    - docker image inspect "$BACKEND_IMAGE:latest" >/dev/null
 
     - echo "== 在宿主机上准备数据/日志目录 =="
     - |

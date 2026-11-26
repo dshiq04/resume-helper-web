@@ -12,4 +12,3 @@ jobtrack-ui/
 deploy/README.md
 **/node_modules/
 **/target/*
-!jobtrack-web/target/jobtrack.jar
